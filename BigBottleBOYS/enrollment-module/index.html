@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="el">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BigBottleBoys — Enrollment Module</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        line-height: 1.4;
+      }
+      header {
+        padding: 20px;
+        border-bottom: 1px solid #ccc;
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .card {
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 16px;
+        margin: 12px 0;
+      }
+      label { display: block; margin: 10px 0 6px; }
+      input, select, button {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #bbb;
+        border-radius: 8px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+      button {
+        cursor: pointer;
+        margin-top: 12px;
+        font-weight: 600;
+      }
+      .muted { opacity: 0.75; font-size: 14px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 700px) { .row { grid-template-columns: 1fr; } }
+      code { padding: 2px 6px; border-radius: 6px; background: rgba(128,128,128,0.2); }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <h1 style="margin:0;">BigBottleBoys</h1>
+      <p class="muted" style="margin:6px 0 0;">
+        Demo σελίδα για <code>Enrollment Module</code>
+      </p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2 style="margin-top:0;">Enroll (δοκιμή)</h2>
+
+        <form id="enrollForm">
+          <div class="row">
+            <div>
+              <label for="name">Ονοματεπώνυμο</label>
+              <input id="name" name="name" placeholder="π.χ. Γιώργος Παπαδόπουλος" required />
+            </div>
+
+            <div>
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" placeholder="name@example.com" required />
+            </div>
+          </div>
+
+          <label for="role">Ρόλος</label>
+          <select id="role" name="role" required>
+            <option value="" selected disabled>Διάλεξε…</option>
+            <option value="student">Φοιτητής</option>
+            <option value="admin">Admin</option>
+            <option value="recruiter">Recruiter</option>
+          </select>
+
+          <button type="submit">Submit</button>
+          <p id="msg" class="muted" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2 style="margin-top:0;">Θελω να ξυπνησουμε παρακαλω</h2>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById("enrollForm");
+      const msg = document.getElementById("msg");
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        const name = data.get("name");
+        const role = data.get("role");
+        msg.textContent = `OK, ${name}. Καταχωρήθηκε ως: ${role}. (demo μόνο)`;
+        form.reset();
+      });
+    </script>
+  </body>
+</html>
