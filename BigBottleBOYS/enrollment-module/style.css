@@ -1,0 +1,119 @@
+.page-header{
+  width: 100%;
+  text-align: center;
+  padding: 28px 16px 14px;
+  margin: 10px 0 24px;
+}
+
+.logia{
+    margin: 0 auto;
+    max-width: 740px;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #444;
+    text-align: center;
+}
+.page-title{
+  margin: 0;
+  font-size: clamp(28px, 3.2vw, 44px);
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  line-height: 1.1;
+  color: #111;
+  position: relative;
+  display: inline-block; /*gia na kentraristei to underline */
+  padding-bottom: 12px;
+}
+
+.page-title::after{
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 88px;
+  height: 4px;
+  border-radius: 999px;
+  background: #572424;
+  opacity: 0.9;
+}
+
+.page-subtitle{
+  margin: 12px auto 0;
+  max-width: 740px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #444;
+}
+
+
+
+
+/* Navigation bar styles */
+
+.top-nav{
+  width: 100%;
+  display: flex;
+  justify-content: center;   /* kentrarei  */
+  align-items: center;
+  gap: 50px;                 /* keno metaxi tous */
+  padding: 14px 14px;
+  margin: 10px 0 14px;
+
+  background: #572424;
+  border-radius: 10px;
+}
+
+.top-nav a{
+  color: #e6d8d8;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  transition: transform 0.08s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.top-nav a:hover{
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.top-nav a:active{
+  transform: scale(0.98);
+}
+
+
+.container{
+  width: min(980px, 92%);
+  margin: 0 auto;
+  text-align: center;
+}
+
+
+/* otan mikrainw tin othoni*/
+@media (max-width: 540px){
+  .top-nav{
+    flex-wrap: wrap;
+  }
+}
+
+html, body{
+  height: 100%;
+  margin: 0;
+}
+
+body{
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content{
+    flex:1;           /*mou rixnei to footer pros ta kato */
+}
+
+.site-footer{
+    margin-top:auto;
+    text-align:center;
+    padding: 14px 16px; background: #572424; color: #e6d8d8;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
