@@ -116,6 +116,13 @@
   border: 3px solid #ffffff;
   box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.2);
   background: #e9f4ff;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transform-origin: center;
+}
+
+.profile-avatar:hover {
+  transform: scale(1.7);
+  box-shadow: 0 0.75rem 1.6rem rgba(0, 0, 0, 0.28);
 }
 
 @media (max-width: 576px) {
