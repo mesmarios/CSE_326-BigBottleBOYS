@@ -99,3 +99,56 @@
   border: 1px solid #cce7ff;
   color: #0b4c78;
 }
+
+/* Shared profile avatar */
+.profile-avatar-wrap {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1030;
+}
+
+.profile-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.2);
+  background: #e9f4ff;
+}
+
+@media (max-width: 576px) {
+  .profile-avatar-wrap {
+    top: 10px;
+    left: 10px;
+  }
+
+  .profile-avatar {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+.profile-avatar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-name {
+  background: rgba(255, 255, 255, 0.95);
+  color: #0b4c78;
+  border: 1px solid #cce7ff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  box-shadow: 0 0.25rem 0.8rem rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 576px) {
+  .profile-name {
+    font-size: 0.72rem;
+    padding: 0.28rem 0.6rem;
+  }
+}
