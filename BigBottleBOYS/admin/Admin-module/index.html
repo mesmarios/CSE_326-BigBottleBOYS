@@ -1,33 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Page Title</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEI 326 Page</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<nav>
-  <a href="html/">HTML</a> |
-  <a href="/css/">CSS</a> |
-  <a href="/js/">JavaScript</a> |
-  <a href="/python/">Python</a>
-</nav>
-
-<h1>This is a Headierng</h1>
-<p>This is a paragraph.</p>
-
-<article>
-  <header>
-    <h1>A heading here</h1>
-    <p>Posted by John Doe</p>
-    <p>Some additional information here</p>
+  <header class="main-header">
+    <h1>My Website</h1>
+    <nav>
+      <ul>
+        <li><a href="#">HTML</a></li>
+        <li><a href="#">CSS</a></li>
+        <li><a href="#">JavaScript</a></li>
+        <li><a href="#">Python</a></li>
+      </ul>
+    </nav>
   </header>
-  <p>Lorem Ipsum dolor sit amet....</p>
-</article>
 
-<footer>
-  <p>2026 My Website </p>
-  <p>Contact: ttsadiotis@gmail.com</p>
-</footer>
+  <main class="container">
+    <section class="intro">
+      <h2>Welcome</h2>
+      <p>This is a simple but clean structured webpage example.</p>
+    </section>
+
+    <article class="card">
+      <header>
+        <h2>Article Title</h2>
+        <p class="meta">Posted by John Doe | 2026</p>
+      </header>
+      <p>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+        Nulla facilisi. Donec vel sapien at lacus facilisis tincidunt.
+      </p>
+    </article>
+  </main>
+
+  <footer class="main-footer">
+    <p>© 2026 My Website</p>
+    <p>Contact: ttsadiotis@gmail.com</p>
+  </footer>
 
 </body>
 </html>
