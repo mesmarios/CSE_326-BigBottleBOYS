@@ -392,7 +392,6 @@
 
     const sequence = [
       { a: 'Admin', b: 'Dashboard' },
-      { a: 'Welcome', b: 'Dashboard' },
       { a: 'Welcome', b: 'Admin' },
     ];
 
@@ -437,7 +436,7 @@
         if (current.b !== next.b) {
           swapWord(wordB, next.b);
         }
-      }, 280);
+      }, 60);
     }, 1900);
   }
 
