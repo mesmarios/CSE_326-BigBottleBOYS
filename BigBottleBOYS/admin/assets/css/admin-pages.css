@@ -1,0 +1,387 @@
+/* ============================================
+   Admin Pages - Shared Styles
+   ============================================ */
+
+/* --- Admin Nav Cards (Dashboard) --- */
+.admin-nav-card {
+  display: block;
+  text-decoration: none !important;
+  color: inherit;
+  height: 100%;
+}
+
+.admin-nav-card .card {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  cursor: pointer;
+  min-height: 220px;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-nav-card .card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.13) !important;
+}
+
+.admin-nav-card .card:active {
+  transform: translateY(-3px);
+  transition-duration: 0.1s;
+}
+
+.admin-nav-icon-wrap {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.25rem;
+  margin: 0 auto 1.1rem;
+  transition: transform 0.3s ease;
+}
+
+.admin-nav-card .card:hover .admin-nav-icon-wrap {
+  transform: scale(1.12) rotate(-5deg);
+}
+
+.admin-nav-card .nav-card-arrow {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  opacity: 0;
+  transform: translate(-5px, 5px);
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.admin-nav-card .card:hover .nav-card-arrow {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+/* Card color themes */
+.admin-nav-card-users .admin-nav-icon-wrap {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1d4ed8;
+}
+.admin-nav-card-users .card:hover { border-color: #93c5fd !important; }
+
+.admin-nav-card-recruitment .admin-nav-icon-wrap {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #15803d;
+}
+.admin-nav-card-recruitment .card:hover { border-color: #86efac !important; }
+
+.admin-nav-card-config .admin-nav-icon-wrap {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #b45309;
+}
+.admin-nav-card-config .card:hover { border-color: #fcd34d !important; }
+
+.admin-nav-card-report .admin-nav-icon-wrap {
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: #6d28d9;
+}
+.admin-nav-card-report .card:hover { border-color: #c4b5fd !important; }
+
+/* --- Stat Summary Cards --- */
+.stat-card {
+  border-radius: 1rem;
+  border: none;
+  padding: 1.25rem 1.5rem;
+  transition: transform 0.2s ease;
+}
+.stat-card:hover { transform: translateY(-3px); }
+
+.stat-icon-wrap {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0.4rem 0 0.2rem;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+/* --- Page header --- */
+.admin-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.admin-page-title-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+/* --- Tables --- */
+.admin-table-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  overflow: hidden;
+}
+
+.admin-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.admin-table-search {
+  position: relative;
+  min-width: 230px;
+}
+
+.admin-table-search i {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  font-size: 0.85rem;
+}
+
+.admin-table-search input {
+  padding-left: 2.3rem;
+}
+
+.table-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.table-avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* --- Tab navigation (Recruitment) --- */
+.admin-tabs {
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  gap: 0.2rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.admin-tabs .nav-link {
+  border-radius: 0.5rem 0.5rem 0 0;
+  color: #6c757d;
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.admin-tabs .nav-link:hover {
+  color: #0d6efd;
+  background: rgba(13, 110, 253, 0.05);
+}
+
+.admin-tabs .nav-link.active {
+  color: #0d6efd;
+  background: none;
+  border-bottom-color: #0d6efd;
+}
+
+.admin-tabs .nav-link i { margin-right: 0.4rem; }
+
+/* --- Config form sections --- */
+.config-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.config-card-header {
+  padding: 0.9rem 1.25rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+}
+
+.config-card-body { padding: 1.25rem; }
+
+/* --- Chart cards (Reports) --- */
+.chart-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  overflow: hidden;
+  height: 100%;
+}
+
+.chart-card-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chart-card-body { padding: 1rem; }
+
+/* --- Role badges --- */
+.badge-role-admin      { background-color: #fee2e2; color: #b91c1c; }
+.badge-role-evaluator  { background-color: #dbeafe; color: #1d4ed8; }
+.badge-role-applicant  { background-color: #dcfce7; color: #15803d; }
+.badge-role-teacher    { background-color: #fef3c7; color: #b45309; }
+
+/* --- Period settings --- */
+.period-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 50px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.period-status-open   { background: #dcfce7; color: #15803d; }
+.period-status-closed { background: #fee2e2; color: #b91c1c; }
+
+/* --- Profile avatar upload --- */
+.profile-avatar-upload {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  margin: 0 auto 1rem;
+}
+
+.profile-avatar-upload img {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #e2e8f0;
+}
+
+.profile-avatar-upload .avatar-edit-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0d6efd;
+  color: white;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.profile-avatar-upload .avatar-edit-btn:hover { background: #0b5ed7; }
+
+/* --- Dark mode overrides --- */
+[data-bs-theme="dark"] .admin-nav-card .card {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+[data-bs-theme="dark"] .admin-nav-card .card:hover {
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-bs-theme="dark"] .admin-nav-card-users .admin-nav-icon-wrap {
+  background: rgba(37, 99, 235, 0.18); color: #93c5fd;
+}
+
+[data-bs-theme="dark"] .admin-nav-card-recruitment .admin-nav-icon-wrap {
+  background: rgba(21, 128, 61, 0.18); color: #86efac;
+}
+
+[data-bs-theme="dark"] .admin-nav-card-config .admin-nav-icon-wrap {
+  background: rgba(180, 83, 9, 0.18); color: #fcd34d;
+}
+
+[data-bs-theme="dark"] .admin-nav-card-report .admin-nav-icon-wrap {
+  background: rgba(109, 40, 217, 0.18); color: #c4b5fd;
+}
+
+[data-bs-theme="dark"] .admin-table-card,
+[data-bs-theme="dark"] .config-card,
+[data-bs-theme="dark"] .chart-card {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+[data-bs-theme="dark"] .admin-table-toolbar,
+[data-bs-theme="dark"] .config-card-header {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-bs-theme="dark"] .admin-tabs {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-bs-theme="dark"] .admin-nav-card .nav-card-arrow {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .badge-role-admin      { background: rgba(185,28,28,0.25);  color: #fca5a5; }
+[data-bs-theme="dark"] .badge-role-evaluator  { background: rgba(29,78,216,0.25);  color: #93c5fd; }
+[data-bs-theme="dark"] .badge-role-applicant  { background: rgba(21,128,61,0.25);  color: #86efac; }
+[data-bs-theme="dark"] .badge-role-teacher    { background: rgba(180,83,9,0.25);   color: #fcd34d; }
+
+[data-bs-theme="dark"] .period-status-open   { background: rgba(21,128,61,0.2);  color: #86efac; }
+[data-bs-theme="dark"] .period-status-closed { background: rgba(185,28,28,0.2);  color: #fca5a5; }
+
+/* --- Responsive --- */
+@media (max-width: 576px) {
+  .admin-nav-icon-wrap { width: 68px; height: 68px; font-size: 1.9rem; }
+  .admin-nav-card .card { min-height: 170px; }
+  .admin-table-search { min-width: 100%; }
+  .admin-page-header { flex-direction: column; align-items: flex-start; }
+}
