@@ -387,7 +387,7 @@
                 <div class="card quick-action-card h-100">
                   <div class="card-header bg-white border-bottom d-flex align-items-center gap-2"
                        style="border-radius:.85rem .85rem 0 0 !important; padding:.85rem 1.25rem;">
-                    <i class="bi bi-lightning-charge-fill text-warning"></i>
+                    
                     <span class="section-heading" style="border:none; padding:0;">Quick Actions</span>
                   </div>
                   <div class="card-body d-flex flex-column gap-2 p-3">
@@ -412,8 +412,8 @@
                       <i class="bi bi-chevron-right ms-auto text-muted" style="font-size:.75rem;"></i>
                     </a>
                     <a href="./applicationstatus.php" class="quick-action-btn">
-                      <div class="qa-icon bg-warning bg-opacity-10 text-warning">
-                        <i class="bi bi-bar-chart-steps"></i>
+                      <div class="qa-icon bg-secondary bg-opacity-10 text-warning">
+                          <i class="bi bi-bar-chart-steps text-warning"></i>
                       </div>
                       <div>
                         <div class="qa-title">View Application Status</div>
@@ -422,7 +422,7 @@
                       <i class="bi bi-chevron-right ms-auto text-muted" style="font-size:.75rem;"></i>
                     </a>
                     <a href="./myprofile.php" class="quick-action-btn">
-                      <div class="qa-icon bg-success bg-opacity-10 text-success">
+                      <div class="qa-icon bg-secondary bg-opacity-10 text-success">
                         <i class="bi bi-person-fill-gear"></i>
                       </div>
                       <div>
@@ -461,7 +461,7 @@
               <div class="col-lg-5">
                 <div class="card info-card h-100">
                   <div class="card-header d-flex align-items-center justify-content-between">
-                    <h6><i class="bi bi-bell-fill me-2 text-warning"></i>Notifications</h6>
+                    <h6><i class="bi bi-bell-fill me-2 text-primary"></i>Notifications</h6>
                     <a href="#" id="viewAllNotifBtn" class="text-primary" style="font-size:.78rem; font-weight:600; text-decoration:none;" data-bs-toggle="modal" data-bs-target="#allNotifsModal">
                       View all <i class="bi bi-arrow-right"></i>
                     </a>
@@ -647,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function () {
         icon: 'bi-pencil-fill',
         color: 'secondary',
         text: `Draft saved – <strong>${callId}</strong>`,
-        date: draft.lastModified || null,
+        date: draft.savedAt || draft.lastModified || null,
       });
     });
     // Add submission activities

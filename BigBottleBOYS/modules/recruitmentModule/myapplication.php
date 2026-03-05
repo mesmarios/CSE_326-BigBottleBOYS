@@ -332,7 +332,6 @@
                 Phone Number <span class="text-danger">*</span>
               </label>
               <input type="tel" class="form-control" id="s1Phone" placeholder="+1 555 123 4567" />
-              <div class="invalid-feedback">Please enter a valid phone number.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Applied Position</label>
@@ -370,7 +369,6 @@
                 <option value="Professional Degree (MD / JD / etc.)">Professional Degree (MD / JD / etc.)</option>
                 <option value="Other">Other</option>
               </select>
-              <div class="invalid-feedback">Please select your highest degree.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold" for="s2Institution">
@@ -378,7 +376,6 @@
               </label>
               <input type="text" class="form-control" id="s2Institution"
                      placeholder="e.g. University of Athens" />
-              <div class="invalid-feedback">Please enter your institution.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold" for="s2Specialization">
@@ -386,7 +383,6 @@
               </label>
               <input type="text" class="form-control" id="s2Specialization"
                      placeholder="e.g. Computer Science" />
-              <div class="invalid-feedback">Please enter your field of specialization.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold" for="s2Experience">
@@ -394,7 +390,6 @@
               </label>
               <input type="number" class="form-control" id="s2Experience"
                      min="0" max="60" placeholder="0" />
-              <div class="invalid-feedback">Please enter a valid number (0–60).</div>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold" for="s2Summary">
@@ -404,8 +399,7 @@
                 placeholder="Briefly describe your professional background, key achievements, and motivation for applying…"></textarea>
               <div class="form-text text-end">
                 <span id="summaryCount">0</span> / 1500 characters
-              </div>
-              <div class="invalid-feedback">Please provide a professional summary.</div>
+</div>
             </div>
           </div>
         </div>
@@ -612,7 +606,7 @@ function formatDate(iso) {
   return `${mn[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`;
 }
 
-function today() { return new Date().toISOString().slice(0,10); }
+function today() { return new Date().toISOString(); }
 
 function isCallOpen(call) {
   const t = today();
