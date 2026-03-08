@@ -1,0 +1,204 @@
+/* ── My Applications page ───────────────────────────────────────── */
+
+/* ---- Call cards ------------------------------------------------- */
+.call-card {
+  border: none;
+  border-radius: .75rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.call-card:hover {
+  box-shadow: 0 6px 24px rgba(0,0,0,.12);
+  transform: translateY(-2px);
+}
+.call-card .card-header {
+  border-radius: .75rem .75rem 0 0 !important;
+  border-bottom: 1px solid #e9ecef;
+  background: #fff;
+  padding: .85rem 1.25rem;
+}
+.call-card .card-header h6 {
+  font-size: .95rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+.call-meta {
+  font-size: .82rem;
+  color: #6c757d;
+}
+.call-meta i { width: 16px; text-align: center; }
+.call-courses { font-size: .80rem; }
+
+/* ---- Section headings ------------------------------------------ */
+.section-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  letter-spacing: .01em;
+  border-left: 4px solid #0d6efd;
+  padding-left: .6rem;
+  margin-bottom: 0;
+}
+
+/* ---- My Applications table ------------------------------------- */
+.table-app td, .table-app th { vertical-align: middle; font-size: .87rem; }
+.table-app thead th {
+  background: #f8f9fa;
+  font-weight: 700;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6c757d;
+  border-top: none;
+}
+
+/* ---- Status badges --------------------------------------------- */
+.badge-draft     { background:#e9ecef; color:#495057; }
+.badge-submitted { background:#cfe2ff; color:#084298; }
+.badge-reviewing { background:#fff3cd; color:#664d03; }
+.badge-approved  { background:#d1e7dd; color:#0a3622; }
+.badge-rejected  { background:#f8d7da; color:#58151c; }
+
+/* ---- Stepper --------------------------------------------------- */
+.wizard-stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 1rem 1rem;
+}
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+.wizard-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: calc(50% + 18px);
+  right: calc(-50% + 18px);
+  height: 2px;
+  background: #dee2e6;
+  z-index: 0;
+  transition: background .3s;
+}
+.wizard-step.done:not(:last-child)::after { background: #0d6efd; }
+.step-circle {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .85rem;
+  background: #dee2e6; color: #6c757d;
+  border: 2px solid #dee2e6;
+  z-index: 1;
+  transition: background .3s, color .3s, border-color .3s;
+  position: relative;
+}
+.wizard-step.active .step-circle {
+  background: #0d6efd; color: #fff; border-color: #0d6efd;
+  box-shadow: 0 0 0 4px rgba(13,110,253,.15);
+}
+.wizard-step.done .step-circle { background: #198754; color: #fff; border-color: #198754; }
+.step-label {
+  font-size: .72rem; margin-top: .4rem; color: #6c757d;
+  font-weight: 500; text-align: center; line-height: 1.3;
+}
+.wizard-step.active .step-label { color: #0d6efd; font-weight: 700; }
+.wizard-step.done  .step-label { color: #198754; }
+
+/* ---- Step pane ------------------------------------------------- */
+.step-pane { display: none; }
+.step-pane.active { display: block; animation: fadeIn .2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---- Readonly field -------------------------------------------- */
+.form-control-readonly {
+  background: #f8f9fa; border: 1px solid #dee2e6; border-radius: .375rem;
+  padding: .375rem .75rem; font-size: .9rem; color: #495057;
+  min-height: 38px; display: flex; align-items: center;
+}
+
+/* ---- File upload zone ------------------------------------------ */
+.upload-zone {
+  border: 2px dashed #ced4da; border-radius: .5rem;
+  padding: 1.25rem; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative; background: #fafafa;
+}
+.upload-zone:hover, .upload-zone.dragover { border-color: #0d6efd; background: #f0f4ff; }
+.upload-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.upload-zone .upload-icon { font-size: 1.8rem; color: #adb5bd; }
+.upload-zone p { margin: .3rem 0 0; font-size: .83rem; color: #6c757d; }
+.upload-zone .file-chosen {
+  font-size: .83rem; color: #0d6efd; margin-top: .4rem;
+  display: none; font-weight: 600;
+}
+.file-preview-list { list-style: none; padding: 0; margin-top: .75rem; }
+.file-preview-list li {
+  display: flex; align-items: center; gap: .5rem;
+  background: #f0f4ff; border-radius: .375rem;
+  padding: .35rem .65rem; margin-bottom: .4rem; font-size: .83rem;
+}
+.file-preview-list li .bi { color: #0d6efd; }
+.file-preview-list li .remove-file {
+  margin-left: auto; cursor: pointer; color: #dc3545;
+  background: none; border: none; padding: 0 .2rem; font-size: .85rem;
+}
+.file-preview-list li .preview-file {
+  cursor: pointer; color: #0d6efd;
+  background: none; border: none; padding: 0 .2rem; font-size: .85rem;
+  text-decoration: none; white-space: nowrap;
+}
+.file-preview-list li .preview-file:hover { text-decoration: underline; }
+.file-preview-list li .preview-file:disabled,
+.file-preview-list li .preview-file[disabled] {
+  cursor: default; color: #adb5bd; text-decoration: none;
+}
+
+/* ---- Declaration card ------------------------------------------ */
+.declaration-box {
+  background: #f8f9fa; border-radius: .5rem;
+  border: 1px solid #dee2e6; padding: 1rem 1.25rem;
+  font-size: .87rem; color: #495057; line-height: 1.6;
+}
+
+/* ---- Submitted overlay ----------------------------------------- */
+.submitted-overlay {
+  background: linear-gradient(135deg,#d1e7dd,#a3cfbb);
+  border-radius: .5rem; padding: 1.5rem; text-align: center;
+}
+.submitted-overlay i { font-size: 2.5rem; color: #0a3622; }
+
+/* ---- Required asterisks: hidden by default, shown only on error */
+#applicationModal .form-label .text-danger,
+#applicationModal .form-check-label .text-danger { display: none; }
+#applicationModal .field-invalid .form-label .text-danger,
+#applicationModal .field-invalid .form-check-label .text-danger { display: inline !important; }
+
+/* ---- Readonly mode: hide all red required markers & error text  */
+.wizard-readonly .form-label .text-danger,
+.wizard-readonly .form-check-label .text-danger,
+.wizard-readonly .invalid-feedback,
+.wizard-readonly #cvError,
+.wizard-readonly #declarationError { display: none !important; }
+
+/* ---- Responsive ----------------------------------------------- */
+@media (max-width: 576px) {
+  .wizard-stepper { padding: 1rem .25rem .75rem; }
+  .step-label { font-size: .65rem; }
+  .step-circle { width: 30px; height: 30px; font-size: .75rem; }
+  .wizard-step:not(:last-child)::after { top: 14px; }
+}
+
+/* Blurry backdrop for all modals */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  background-color: rgba(15, 23, 42, 0.35) !important;
+  opacity: 1 !important;
+}

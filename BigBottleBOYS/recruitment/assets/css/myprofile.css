@@ -1,0 +1,100 @@
+  /* ── Profile page custom styles ─────────────────────────────── */
+
+  /* Banner card */
+  .profile-banner {
+    background: linear-gradient(135deg, #1a6fc4 0%, #0d47a1 100%);
+    border-radius: .75rem;
+    padding: 2rem 2rem 1.5rem;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .profile-banner::after {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    background: rgba(255,255,255,.06);
+    border-radius: 50%;
+  }
+
+  /* Avatar */
+  .profile-avatar-wrap {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .profile-avatar-wrap img {
+    width: 110px;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.85);
+    box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    display: block;
+  }
+
+  /* Info card shared styles */
+  .profile-card {
+    border: none;
+    border-radius: .75rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  }
+  .profile-card .card-header {
+    background: #fff;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: .75rem .75rem 0 0 !important;
+    padding: .9rem 1.25rem;
+  }
+  .profile-card .card-header h5 {
+    font-size: .95rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    letter-spacing: .01em;
+  }
+  .profile-card .card-body {
+    padding: 1.1rem 1.25rem;
+  }
+
+  /* Two-column info rows */
+  .info-row {
+    display: flex;
+    align-items: flex-start;
+    padding: .5rem 0;
+    border-bottom: 1px solid #f1f3f5;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label {
+    flex: 0 0 40%;
+    max-width: 40%;
+    font-size: .78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6c757d;
+    padding-top: .1rem;
+  }
+  .info-value {
+    flex: 1;
+    font-size: .9rem;
+    color: #212529;
+    font-weight: 500;
+    word-break: break-word;
+  }
+  .info-value:empty::before,
+  .info-value[data-empty]::before { content: '—'; color: #adb5bd; }
+
+  /* Edit button */
+  .btn-edit {
+    font-size: .78rem;
+    padding: .3rem .8rem;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  /* Responsive */
+  @media (max-width: 576px) {
+    .profile-banner { padding: 1.25rem; }
+    .profile-avatar-wrap img { width: 80px; height: 80px; }
+    .info-label { flex: 0 0 45%; max-width: 45%; }
+  }
