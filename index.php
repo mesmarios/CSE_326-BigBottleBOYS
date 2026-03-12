@@ -6,7 +6,7 @@ declare(strict_types=1);
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BigBottleBOYS | Landing</title>
+  <title>BigBottleBOYS | Role Landing</title>
   <style>
     body {
       margin: 0;
@@ -47,10 +47,10 @@ declare(strict_types=1);
 <body>
   <main class="wrap">
     <h1>Welcome to BigBottleBOYS</h1>
-    <p>This is the landing page visitors see first.</p>
+    <p>Select the UI you want to open based on your role.</p>
     <div class="actions">
-      <a class="primary" href="modules/admin/index.php">Go to Admin</a>
-      <a href="modules/recruitmentModule/index.php">Login</a>
+      <a class="primary" href="modules/admin/index.php">Open Admin UI</a>
+      <a href="modules/recruitmentModule/index.php">Open User UI</a>
       <a href="register.php">Register</a>
     </div>
   </main>

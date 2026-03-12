@@ -6,8 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
-    <link rel="stylesheet" href="../../admin/assets/css/adminlte.css" />
-    <link rel="stylesheet" href="../../admin/assets/css/admin-pages.css" />
+    <link rel="stylesheet" href="../../assets/css/adminlte.css" />
+    <link rel="stylesheet" href="../../assets/css/admin-pages.css" />
+    <link rel="stylesheet" href="../../assets/css/admin-ui.css" />
   </head>
   <body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
     <div class="app-wrapper">
@@ -35,12 +36,12 @@
             </li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../admin/assets/images/avatar.png" class="user-image rounded-circle shadow" alt="Admin" />
+                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="Admin" />
                 <span class="d-none d-md-inline">Administrator</span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
-                  <img src="../../admin/assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="Admin" />
+                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="Admin" />
                   <p>Administrator<small>Διαχειριστής Συστήματος</small></p>
                 </li>
                 <li class="user-footer">
@@ -57,7 +58,7 @@
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
           <a href="index.php" class="brand-link">
-            <img src="../../admin/assets/images/AdminLTELogo.png" alt="Logo" class="brand-image opacity-75 shadow" />
+            <img src="../../assets/images/AdminLTELogo.png" alt="Logo" class="brand-image opacity-75 shadow" />
             <span class="brand-text fw-light">Admin Panel</span>
           </a>
         </div>
@@ -179,7 +180,7 @@
                           <label class="form-label fw-semibold">Λογότυπο</label>
                           <div class="d-flex align-items-center gap-3 flex-wrap">
                             <div class="border rounded p-2" style="background:#f8fafc;">
-                              <img src="../../admin/assets/images/AdminLTELogo.png" alt="Current Logo" style="height:48px;object-fit:contain;" id="logoPreview" />
+                              <img src="../../assets/images/AdminLTELogo.png" alt="Current Logo" style="height:48px;object-fit:contain;" id="logoPreview" />
                             </div>
                             <div>
                               <label class="btn btn-outline-secondary btn-sm mb-1">
@@ -460,8 +461,8 @@
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
-    <script src="../../admin/assets/js/adminlte.js" defer></script>
-    <script src="../../admin/assets/js/changes.js" defer></script>
+    <script src="../../assets/js/adminlte.js" defer></script>
+    <script src="../../assets/js/changes.js" defer></script>
     <script>
       document.addEventListener('DOMContentLoaded', function () {
         const sw = document.querySelector('.sidebar-wrapper');

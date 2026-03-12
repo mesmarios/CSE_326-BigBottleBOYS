@@ -1,0 +1,32 @@
+/* Admin-specific UI styling */
+:root {
+  --admin-primary: #0f4c81;
+  --admin-accent: #ff9f1a;
+  --admin-bg: #f6f8fc;
+}
+
+body {
+  background: radial-gradient(circle at 85% 10%, rgba(15, 76, 129, 0.12), transparent 38%),
+              radial-gradient(circle at 10% 90%, rgba(255, 159, 26, 0.12), transparent 32%),
+              var(--admin-bg);
+}
+
+.dashboard-hero-pill {
+  background: linear-gradient(135deg, var(--admin-primary), #1d7abf);
+  color: #fff;
+  border-radius: 14px;
+  padding: 10px 18px;
+  box-shadow: 0 12px 24px rgba(15, 76, 129, 0.18);
+}
+
+.admin-nav-card .card {
+  border-width: 2px;
+}
+
+.admin-nav-card .card-title {
+  color: #0d2438;
+}
+
+.app-sidebar .brand-text {
+  letter-spacing: 0.02em;
+}

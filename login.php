@@ -1,16 +1,16 @@
 <?php
 // Simple login redirect page
-// - Click "Go to Admin" to open the admin dashboard
-// - Click "Login" to go to the recruitment user page
+// - Click "Admin Login" to open the admin dashboard
+// - Click "User Login" to go to the user dashboard
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['go_admin'])) {
-        header('Location: modules/recruitmentModule/myapplication.php');
+      header('Location: modules/admin/index.php');
         exit;
     }
     if (isset($_POST['login'])) {
         // Normally you'd validate credentials here.
-        header('Location: modules/recruitmentModule/applicationstatus.php');
+        header('Location: modules/recruitmentModule/index.php');
         exit;
     }
 }
@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Login</title>
+  <title>Login | Role Selection</title>
   <style>
     body{font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#f3f4f6}
     .card{background:#fff;padding:24px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.08);width:320px}
@@ -42,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <input id="password" name="password" type="password" placeholder="password" style="width:100%;padding:8px;margin:6px 0 12px;border:1px solid #ddd;border-radius:4px">
 
       <div class="actions">
-        <button type="submit" name="go_admin" class="btn-secondary">Go to Admin</button>
-        <button type="submit" name="login" class="btn-primary">Login</button>
+        <button type="submit" name="go_admin" class="btn-secondary">Admin Login</button>
+        <button type="submit" name="login" class="btn-primary">User Login</button>
       </div>
     </form>
   </div>

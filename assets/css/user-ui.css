@@ -1,0 +1,30 @@
+/* User-specific UI styling */
+:root {
+  --user-primary: #1e824c;
+  --user-highlight: #0aa1dd;
+  --user-bg: #f5fbf7;
+}
+
+body {
+  background: radial-gradient(circle at 80% 0%, rgba(10, 161, 221, 0.12), transparent 36%),
+              radial-gradient(circle at 5% 100%, rgba(30, 130, 76, 0.12), transparent 34%),
+              var(--user-bg);
+}
+
+.dash-welcome {
+  background: linear-gradient(135deg, var(--user-primary) 0%, #17643b 100%);
+}
+
+.info-card .card-header h6,
+.section-heading {
+  color: #123b24;
+}
+
+.quick-action-btn:hover {
+  border-color: var(--user-highlight);
+  box-shadow: 0 6px 20px rgba(10, 161, 221, 0.14);
+}
+
+.stat-card .stat-value {
+  color: #10331f;
+}

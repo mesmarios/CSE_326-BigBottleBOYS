@@ -1,5 +1,6 @@
 ﻿<?php include('../../includes/layout.php'); include('../../includes/header.php'); include('../../includes/nav.php'); ?>
 <link rel="stylesheet" href="../../recruitment/assets/css/applicationstatus.css">
+<link rel="stylesheet" href="../../assets/css/user-ui.css">
 
 <!--begin::App Main-->
 <main class="app-main">
