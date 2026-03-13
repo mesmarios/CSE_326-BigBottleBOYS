@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form method="POST" class="auth-form">
             <!-- Όνομα + Επώνυμο -->
-            <div class="row g-3 mb-3">
+            <div class="row g-2 mb-2">
                 <div class="col-6">
                     <label class="form-label">Όνομα <span class="required">*</span></label>
                     <input type="text" name="first_name" class="form-control"
@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <!-- Email -->
-            <div class="mb-3">
+            <div class="mb-2">
                 <label class="form-label">Email <span class="required">*</span></label>
                 <input type="email" name="email" class="form-control"
                        placeholder="email@παράδειγμα.com"
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <!-- Τηλέφωνο -->
-            <div class="mb-3">
+            <div class="mb-2">
                 <label class="form-label">Τηλέφωνο</label>
                 <input type="text" name="phone" class="form-control"
                        placeholder="+357 99 123456"
@@ -129,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <!-- Διεύθυνση -->
-            <div class="mb-3">
+            <div class="mb-2">
                 <label class="form-label">Διεύθυνση</label>
                 <input type="text" name="address" class="form-control"
                        placeholder="π.χ. Λευκωσία, Κύπρος"
@@ -137,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <!-- Κωδικός -->
-            <div class="mb-3">
+            <div class="mb-2">
                 <label class="form-label">Κωδικός <span class="required">*</span></label>
                 <input type="password" name="password" class="form-control"
                        placeholder="Δημιουργήστε κωδικό">
@@ -145,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <!-- Επιβεβαίωση -->
-            <div class="mb-3">
+            <div class="mb-2">
                 <label class="form-label">Επιβεβαίωση Κωδικού <span class="required">*</span></label>
                 <input type="password" name="confirm" class="form-control"
                        placeholder="Επαναλάβετε τον κωδικό">
