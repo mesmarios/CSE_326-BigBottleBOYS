@@ -16,6 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($first_name === '') $errors[] = 'Το όνομα είναι υποχρεωτικό.';
     if ($last_name  === '') $errors[] = 'Το επώνυμο είναι υποχρεωτικό.';
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Μη έγκυρο email.';
+    if ($phone !== '') {
+        $phoneClean = preg_replace('/[\s\-]/', '', $phone);
+        if (!preg_match('/^\+357\d{8}$/', $phoneClean)) {
+            $errors[] = 'Το τηλέφωνο πρέπει να αρχίζει με +357 και να ακολουθούν 8 ψηφία (π.χ. +35799123456).';
+        }
+    }
     if (strlen($password) < 8) $errors[] = 'Κωδικός τουλάχιστον 8 χαρακτήρες.';
     if ($password !== $confirm) $errors[] = 'Οι κωδικοί δεν ταιριάζουν.';
 
@@ -123,9 +129,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- Τηλέφωνο -->
             <div class="mb-2">
                 <label class="form-label">Τηλέφωνο</label>
-                <input type="text" name="phone" class="form-control"
-                       placeholder="+357 99 123456"
+                <input type="tel" name="phone" class="form-control"
+                       placeholder="+35799123456"
+                       pattern="\+357[0-9]{8}"
+                       title="Αρχίστε με +357 και συμπληρώστε 8 ψηφία (π.χ. +35799123456)"
                        value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>">
+                <div class="form-hint">Προαιρετικό · Μορφή: +357 + 8 ψηφία (π.χ. +35799123456)</div>
             </div>
 
             <!-- Διεύθυνση -->

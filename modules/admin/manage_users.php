@@ -1,3 +1,88 @@
+<?php
+require_once __DIR__ . '/../../includes/config.php';
+$pdo = getDBConnection();
+
+// ── CRUD action handlers ──────────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'delete') {
+        $id = (int)($_POST['user_id'] ?? 0);
+        if ($id <= 0) {
+            header('Location: manage_users.php?msg=' . urlencode('Μη έγκυρο αναγνωριστικό χρήστη.') . '&mtype=danger');
+            exit;
+        }
+
+        try {
+            $stmt = $pdo->prepare('DELETE FROM users WHERE id = ?');
+            $stmt->execute([$id]);
+
+            if ($stmt->rowCount() < 1) {
+                header('Location: manage_users.php?msg=' . urlencode('Ο χρήστης δεν βρέθηκε.') . '&mtype=danger');
+                exit;
+            }
+
+            header('Location: manage_users.php?msg=' . urlencode('Ο χρήστης διαγράφηκε επιτυχώς.') . '&mtype=success');
+            exit;
+        } catch (Throwable $e) {
+            header('Location: manage_users.php?msg=' . urlencode('Αποτυχία διαγραφής χρήστη: ' . $e->getMessage()) . '&mtype=danger');
+            exit;
+        }
+
+    } elseif ($action === 'add') {
+        $fn    = trim($_POST['first_name'] ?? '');
+        $ln    = trim($_POST['last_name']  ?? '');
+        $email = trim($_POST['email']      ?? '');
+        $phone = trim($_POST['phone']      ?? '') ?: null;
+        $role  = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
+        $pass  = $_POST['password'] ?? '';
+        if ($fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL) && strlen($pass) >= 8) {
+            $hash = password_hash($pass, PASSWORD_DEFAULT);
+            $pdo->prepare('INSERT INTO users (first_name,last_name,email,phone,role,password_hash) VALUES (?,?,?,?,?,?)')
+                ->execute([$fn, $ln, $email, $phone, $role, $hash]);
+            header('Location: manage_users.php?msg=' . urlencode('Ο χρήστης προστέθηκε επιτυχώς.') . '&mtype=success');
+            exit;
+        }
+        header('Location: manage_users.php?msg=' . urlencode('Σφάλμα: Ελέγξτε τα στοιχεία (email, κωδικός ≥8 χαρακτήρες).') . '&mtype=danger');
+        exit;
+
+    } elseif ($action === 'edit') {
+        $id    = (int)($_POST['user_id'] ?? 0);
+        $fn    = trim($_POST['first_name'] ?? '');
+        $ln    = trim($_POST['last_name']  ?? '');
+        $email = trim($_POST['email']      ?? '');
+        $phone = trim($_POST['phone']      ?? '') ?: null;
+        $role  = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
+        if ($id > 0 && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $pdo->prepare('UPDATE users SET first_name=?,last_name=?,email=?,phone=?,role=?,updated_at=NOW() WHERE id=?')
+                ->execute([$fn, $ln, $email, $phone, $role, $id]);
+            header('Location: manage_users.php?msg=' . urlencode('Τα στοιχεία αποθηκεύτηκαν επιτυχώς.') . '&mtype=success');
+            exit;
+        }
+        header('Location: manage_users.php?msg=' . urlencode('Σφάλμα: Ελέγξτε τα στοιχεία.') . '&mtype=danger');
+        exit;
+    }
+}
+
+$flashMsg  = isset($_GET['msg'])   ? htmlspecialchars($_GET['msg'])   : null;
+$flashType = isset($_GET['mtype']) ? htmlspecialchars($_GET['mtype']) : 'success';
+
+$stmt = $pdo->query(
+    "SELECT id, first_name, last_name, email, phone, role, created_at
+     FROM users ORDER BY created_at DESC"
+);
+$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$totalUsers   = count($users);
+$adminCount   = count(array_filter($users, fn($u) => $u['role'] === 'admin'));
+$userCount    = $totalUsers - $adminCount;
+$thisMonth    = date('Y-m');
+$newThisMonth = count(array_filter($users, fn($u) => str_starts_with($u['created_at'], $thisMonth)));
+
+function avatarInitials(string $f, string $l): string {
+    return mb_strtoupper(mb_substr($f,0,1,'UTF-8') . mb_substr($l,0,1,'UTF-8'), 'UTF-8');
+}
+?>
 <!doctype html>
 <html lang="el">
   <head>
@@ -127,13 +212,21 @@
         <div class="app-content">
           <div class="container-fluid">
 
+            <?php if ($flashMsg): ?>
+            <div class="alert alert-<?= $flashType ?> alert-dismissible fade show mb-3" role="alert">
+              <i class="bi bi-<?= $flashType === 'success' ? 'check-circle' : 'exclamation-triangle' ?> me-2"></i>
+              <?= $flashMsg ?>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
+
             <!-- Stats Row -->
             <div class="row g-3 mb-4">
               <div class="col-6 col-md-3">
                 <div class="stat-card bg-body shadow-sm">
                   <div class="d-flex align-items-center gap-3">
                     <div class="stat-icon-wrap" style="background:#dbeafe;color:#1d4ed8;"><i class="bi bi-people-fill"></i></div>
-                    <div><div class="stat-value">124</div><div class="stat-label">Σύνολο Χρηστών</div></div>
+                    <div><div class="stat-value"><?= $totalUsers ?></div><div class="stat-label">Σύνολο Χρηστών</div></div>
                   </div>
                 </div>
               </div>
@@ -141,15 +234,7 @@
                 <div class="stat-card bg-body shadow-sm">
                   <div class="d-flex align-items-center gap-3">
                     <div class="stat-icon-wrap" style="background:#fee2e2;color:#b91c1c;"><i class="bi bi-shield-fill"></i></div>
-                    <div><div class="stat-value">3</div><div class="stat-label">Διαχειριστές</div></div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-6 col-md-3">
-                <div class="stat-card bg-body shadow-sm">
-                  <div class="d-flex align-items-center gap-3">
-                    <div class="stat-icon-wrap" style="background:#fef3c7;color:#b45309;"><i class="bi bi-person-badge-fill"></i></div>
-                    <div><div class="stat-value">18</div><div class="stat-label">Αξιολογητές</div></div>
+                    <div><div class="stat-value"><?= $adminCount ?></div><div class="stat-label">Διαχειριστές</div></div>
                   </div>
                 </div>
               </div>
@@ -157,7 +242,15 @@
                 <div class="stat-card bg-body shadow-sm">
                   <div class="d-flex align-items-center gap-3">
                     <div class="stat-icon-wrap" style="background:#dcfce7;color:#15803d;"><i class="bi bi-person-fill"></i></div>
-                    <div><div class="stat-value">103</div><div class="stat-label">Αιτούντες</div></div>
+                    <div><div class="stat-value"><?= $userCount ?></div><div class="stat-label">Χρήστες</div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="stat-card bg-body shadow-sm">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon-wrap" style="background:#fef3c7;color:#b45309;"><i class="bi bi-person-plus-fill"></i></div>
+                    <div><div class="stat-value"><?= $newThisMonth ?></div><div class="stat-label">Νέοι τον Μήνα</div></div>
                   </div>
                 </div>
               </div>
@@ -174,8 +267,7 @@
                   <select class="form-select form-select-sm" style="width:auto;" id="roleFilter">
                     <option value="">Όλοι οι ρόλοι</option>
                     <option value="admin">Admin</option>
-                    <option value="evaluator">Αξιολογητής</option>
-                    <option value="applicant">Αιτών</option>
+                    <option value="user">Χρήστης</option>
                   </select>
                 </div>
                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openAddUserModal()">
@@ -197,82 +289,43 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#dbeafe;color:#1d4ed8;">ΑΓ</div></td>
-                      <td class="fw-semibold">Ανδρέας Γεωργίου</td>
-                      <td class="text-secondary">a.georgiou@uni.gr</td>
-                      <td><span class="badge badge-role-admin rounded-pill px-3 py-1">Admin</span></td>
+                    <?php if (empty($users)): ?>
+                    <tr><td colspan="7" class="text-center text-secondary py-4">Δεν βρέθηκαν χρήστες.</td></tr>
+                    <?php else: foreach ($users as $u):
+                        $initials  = avatarInitials($u['first_name'], $u['last_name']);
+                        $isAdmin   = $u['role'] === 'admin';
+                        $avBg      = $isAdmin ? '#dbeafe' : '#dcfce7';
+                        $avColor   = $isAdmin ? '#1d4ed8' : '#15803d';
+                        $badgeCls  = $isAdmin ? 'badge-role-admin' : 'badge-role-applicant';
+                        $roleLabel = $isAdmin ? 'Admin' : 'Χρήστης';
+                        $fullName  = escape($u['first_name']) . ' ' . escape($u['last_name']);
+                        $dateFmt   = date('d/m/Y', strtotime($u['created_at']));
+                    ?>
+                    <tr data-role="<?= escape($u['role']) ?>">
+                      <td><div class="table-avatar-placeholder" style="background:<?= $avBg ?>;color:<?= $avColor ?>;"><?= $initials ?></div></td>
+                      <td class="fw-semibold"><?= $fullName ?></td>
+                      <td class="text-secondary"><?= escape($u['email']) ?></td>
+                      <td><span class="badge <?= $badgeCls ?> rounded-pill px-3 py-1"><?= $roleLabel ?></span></td>
                       <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργός</span></td>
-                      <td class="text-secondary small">01/01/2026</td>
+                      <td class="text-secondary small"><?= $dateFmt ?></td>
                       <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(1)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(1,'Ανδρέας Γεωργίου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(<?= (int)$u['id'] ?>)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
+                        <form method="POST" class="d-inline" onsubmit="return confirm('Είστε βέβαιοι ότι θέλετε να διαγράψετε τον χρήστη <?= escape(trim($u['first_name'] . ' ' . $u['last_name'])) ?>;');">
+                          <input type="hidden" name="action" value="delete">
+                          <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Διαγραφή">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </form>
                       </td>
                     </tr>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#dcfce7;color:#15803d;">ΜΠ</div></td>
-                      <td class="fw-semibold">Μαρία Παπαδοπούλου</td>
-                      <td class="text-secondary">m.papadopoulou@uni.gr</td>
-                      <td><span class="badge badge-role-evaluator rounded-pill px-3 py-1">Αξιολογητής</span></td>
-                      <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργή</span></td>
-                      <td class="text-secondary small">15/02/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(2)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(2,'Μαρία Παπαδοπούλου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#fef3c7;color:#b45309;">ΝΚ</div></td>
-                      <td class="fw-semibold">Νίκος Κωνσταντίνου</td>
-                      <td class="text-secondary">n.konstantinou@email.gr</td>
-                      <td><span class="badge badge-role-applicant rounded-pill px-3 py-1">Αιτών</span></td>
-                      <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργός</span></td>
-                      <td class="text-secondary small">20/02/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(3)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(3,'Νίκος Κωνσταντίνου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#ede9fe;color:#6d28d9;">ΕΔ</div></td>
-                      <td class="fw-semibold">Ελένη Δημητρίου</td>
-                      <td class="text-secondary">e.dimitriou@email.gr</td>
-                      <td><span class="badge badge-role-applicant rounded-pill px-3 py-1">Αιτούσα</span></td>
-                      <td><span class="badge bg-secondary rounded-pill px-3 py-1">Ανενεργή</span></td>
-                      <td class="text-secondary small">05/01/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(4)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(4,'Ελένη Δημητρίου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#fee2e2;color:#b91c1c;">ΓΑ</div></td>
-                      <td class="fw-semibold">Γιώργος Αντωνίου</td>
-                      <td class="text-secondary">g.antoniou@uni.gr</td>
-                      <td><span class="badge badge-role-evaluator rounded-pill px-3 py-1">Αξιολογητής</span></td>
-                      <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργός</span></td>
-                      <td class="text-secondary small">10/01/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(5)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(5,'Γιώργος Αντωνίου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
+                    <?php endforeach; endif; ?>
                   </tbody>
                 </table>
               </div>
 
-              <!-- Pagination -->
               <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
-                <small class="text-secondary">Εμφάνιση 1–5 από 124 χρήστες</small>
-                <nav>
-                  <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item disabled"><a class="page-link" href="#">&laquo;</a></li>
-                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                    <li class="page-item"><a class="page-link" href="#">2</a></li>
-                    <li class="page-item"><a class="page-link" href="#">3</a></li>
-                    <li class="page-item"><a class="page-link" href="#">&raquo;</a></li>
-                  </ul>
-                </nav>
+                <small class="text-secondary">Σύνολο <strong><?= $totalUsers ?></strong> χρηστών</small>
               </div>
             </div>
             <!-- end table card -->
@@ -299,43 +352,37 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <form id="userForm">
+            <form id="userForm" method="POST">
+              <input type="hidden" id="userFormAction" name="action" value="add">
+              <input type="hidden" id="userFormId" name="user_id" value="">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Όνομα <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" id="userFirstName" placeholder="π.χ. Ανδρέας" required />
+                  <input type="text" class="form-control" id="userFirstName" name="first_name" placeholder="π.χ. Ανδρέας" required />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Επώνυμο <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" id="userLastName" placeholder="π.χ. Γεωργίου" required />
+                  <input type="text" class="form-control" id="userLastName" name="last_name" placeholder="π.χ. Γεωργίου" required />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
-                  <input type="email" class="form-control" id="userEmail" placeholder="email@example.gr" required />
+                  <input type="email" class="form-control" id="userEmail" name="email" placeholder="email@example.gr" required />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Τηλέφωνο</label>
-                  <input type="tel" class="form-control" id="userPhone" placeholder="π.χ. 2101234567" />
+                  <input type="tel" class="form-control" id="userPhone" name="phone" placeholder="+35799123456" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Ρόλος <span class="text-danger">*</span></label>
-                  <select class="form-select" id="userRole" required>
+                  <select class="form-select" id="userRole" name="role" required>
                     <option value="">Επιλέξτε ρόλο...</option>
                     <option value="admin">Admin</option>
-                    <option value="evaluator">Αξιολογητής</option>
-                    <option value="applicant">Αιτών</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Κατάσταση</label>
-                  <select class="form-select" id="userStatus">
-                    <option value="active">Ενεργός</option>
-                    <option value="inactive">Ανενεργός</option>
+                    <option value="user">Χρήστης</option>
                   </select>
                 </div>
                 <div class="col-md-6" id="passwordField">
                   <label class="form-label fw-semibold">Κωδικός <span class="text-danger">*</span></label>
-                  <input type="password" class="form-control" id="userPassword" placeholder="Τουλάχιστον 8 χαρακτήρες" />
+                  <input type="password" class="form-control" id="userPassword" name="password" placeholder="Τουλάχιστον 8 χαρακτήρες" />
                 </div>
                 <div class="col-md-6" id="confirmPasswordField">
                   <label class="form-label fw-semibold">Επιβεβαίωση Κωδικού</label>
@@ -346,7 +393,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
-            <button type="button" class="btn btn-primary" id="saveUserBtn">
+            <button type="submit" form="userForm" class="btn btn-primary" id="saveUserBtn">
               <i class="bi bi-check-lg me-1"></i>Αποθήκευση
             </button>
           </div>
@@ -354,35 +401,15 @@
       </div>
     </div>
 
-    <!-- ===== DELETE CONFIRM MODAL ===== -->
-    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-sm">
-        <div class="modal-content">
-          <div class="modal-header border-0">
-            <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Διαγραφή</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            Είστε βέβαιοι ότι θέλετε να διαγράψετε τον χρήστη <strong id="deleteUserName"></strong>;
-            <br><small class="text-secondary">Η ενέργεια αυτή δεν μπορεί να αναιρεθεί.</small>
-          </div>
-          <div class="modal-footer border-0 pt-0">
-            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Ακύρωση</button>
-            <button type="button" class="btn btn-danger btn-sm" id="confirmDeleteBtn">
-              <i class="bi bi-trash me-1"></i>Διαγραφή
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
     <script src="../../assets/js/adminlte.js" defer></script>
     <script src="../../assets/js/changes.js" defer></script>
     <script>
+      // Embed DB users for edit modal population
+      const USERS_DATA = <?= json_encode(array_column($users, null, 'id'), JSON_UNESCAPED_UNICODE) ?>;
+
       document.addEventListener('DOMContentLoaded', function () {
         // OverlayScrollbars
         const sw = document.querySelector('.sidebar-wrapper');
@@ -402,9 +429,9 @@
 
         // Role filter
         document.getElementById('roleFilter').addEventListener('change', function () {
-          const val = this.value.toLowerCase();
+          const val = this.value;
           document.querySelectorAll('#usersTable tbody tr').forEach(function (row) {
-            row.style.display = (!val || row.textContent.toLowerCase().includes(val)) ? '' : 'none';
+            row.style.display = (!val || row.dataset.role === val) ? '' : 'none';
           });
         });
       });
@@ -412,30 +439,31 @@
       function openAddUserModal() {
         document.getElementById('userModalLabel').textContent = 'Προσθήκη Χρήστη';
         document.getElementById('userForm').reset();
+        document.getElementById('userFormAction').value = 'add';
+        document.getElementById('userFormId').value = '';
         document.getElementById('passwordField').style.display = '';
         document.getElementById('confirmPasswordField').style.display = '';
+        document.getElementById('userPassword').setAttribute('required', 'required');
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
       }
 
       function openEditUserModal(id) {
-        document.getElementById('userModalLabel').textContent = 'Επεξεργασία Χρήστη #' + id;
+        const u = USERS_DATA[id];
+        if (!u) return;
+        document.getElementById('userModalLabel').textContent = 'Επεξεργασία Χρήστη';
+        document.getElementById('userFormAction').value = 'edit';
+        document.getElementById('userFormId').value = id;
+        document.getElementById('userFirstName').value = u.first_name || '';
+        document.getElementById('userLastName').value  = u.last_name  || '';
+        document.getElementById('userEmail').value     = u.email      || '';
+        document.getElementById('userPhone').value     = u.phone      || '';
+        document.getElementById('userRole').value      = u.role       || 'user';
         document.getElementById('passwordField').style.display = 'none';
         document.getElementById('confirmPasswordField').style.display = 'none';
-        var modal = new bootstrap.Modal(document.getElementById('userModal'));
-        modal.show();
+        document.getElementById('userPassword').removeAttribute('required');
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
       }
 
-      function confirmDeleteUser(id, name) {
-        document.getElementById('deleteUserName').textContent = name;
-        var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        modal.show();
-      }
-
-      document.getElementById('saveUserBtn')?.addEventListener('click', function () {
-        // Placeholder: show success toast / submit form
-        var modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
-        if (modal) modal.hide();
-        // TODO: connect to backend
-      });
     </script>
   </body>
 </html>

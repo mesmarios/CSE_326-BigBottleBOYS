@@ -12,6 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($email === '' || $password === '') {
         $errors[] = 'Συμπληρώστε email και κωδικό.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Μη έγκυρο email.';
     } else {
         $stmt = $pdo->prepare('SELECT * FROM users WHERE email = :e');
         $stmt->execute([':e' => $email]);
