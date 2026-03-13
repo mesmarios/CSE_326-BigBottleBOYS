@@ -3,46 +3,43 @@
 -- Sample data for testing and development
 -- ============================================================================
 
-USE specialist_management_system;
+USE bigbrothers;
 
 -- ============================================================================
 -- 1. INSERT ROLES
 -- ============================================================================
 INSERT INTO roles (name, description) VALUES
 ('Admin', 'System administrator with full access'),
-('HR Manager', 'Human Resources Manager - manages recruitment and enrollment'),
-('Evaluator', 'Evaluates specialist applications'),
-('Candidate', 'Job candidate/applicant'),
-('Specialist', 'Hired specialist/expert scientist');
+('User', 'Standard user with access to the user interface');
 
 -- ============================================================================
 -- 2. INSERT USERS
 -- ============================================================================
-INSERT INTO users (email, password_hash, first_name, last_name, phone, address, status) VALUES
+INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role) VALUES
 -- Admin users
-('admin@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Γιάννης', 'Παπαδόπουλος', '+357 22 894556', 'Λευκωσία, Κύπρος', 'active'),
-('admin2@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Μαρία', 'Χατζηιωάννου', '+357 22 894557', 'Λεμεσός, Κύπρος', 'active'),
+('admin@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Γιάννης', 'Παπαδόπουλος', '+357 22 894556', 'Λευκωσία, Κύπρος', 'admin'),
+('admin2@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Μαρία', 'Χατζηιωάννου', '+357 22 894557', 'Λεμεσός, Κύπρος', 'admin'),
 
--- HR Manager users
-('hr@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Δημήτρης', 'Οικονόμου', '+357 22 894558', 'Λάρνακα, Κύπρος', 'active'),
-('hr2@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Έλενα', 'Δημοσθένους', '+357 22 894559', 'Αμμόχωστος, Κύπρος', 'active'),
+-- Standard users
+('hr@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Δημήτρης', 'Οικονόμου', '+357 22 894558', 'Λάρνακα, Κύπρος', 'user'),
+('hr2@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Έλενα', 'Δημοσθένους', '+357 22 894559', 'Αμμόχωστος, Κύπρος', 'user'),
 
--- Evaluator users
-('evaluator1@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Αντώνης', 'Κωνσταντίνου', '+357 22 894560', 'Λευκωσία, Κύπρος', 'active'),
-('evaluator2@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Σοφία', 'Βασιλειάδη', '+357 22 894561', 'Λευκωσία, Κύπρος', 'active'),
-('evaluator3@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Νικόλαος', 'Ζάγουρας', '+357 22 894562', 'Λεμεσός, Κύπρος', 'active'),
+-- Additional users
+('evaluator1@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Αντώνης', 'Κωνσταντίνου', '+357 22 894560', 'Λευκωσία, Κύπρος', 'user'),
+('evaluator2@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Σοφία', 'Βασιλειάδη', '+357 22 894561', 'Λευκωσία, Κύπρος', 'user'),
+('evaluator3@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Νικόλαος', 'Ζάγουρας', '+357 22 894562', 'Λεμεσός, Κύπρος', 'user'),
 
--- Candidate users
-('candidate1@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Παναγιώτης', 'Κυριακίδης', '+357 96 123456', 'Λευκωσία, Κύπρος', 'active'),
-('candidate2@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Αλέξανδρος', 'Πιερίδης', '+357 96 234567', 'Λεμεσός, Κύπρος', 'active'),
-('candidate3@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Μαρία', 'Φιλίππου', '+357 96 345678', 'Λάρνακα, Κύπρος', 'active'),
-('candidate4@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Ιωάννης', 'Σταθόπουλος', '+357 96 456789', 'Πάφος, Κύπρος', 'active'),
-('candidate5@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Αναστασία', 'Μιχαλοπούλου', '+357 96 567890', 'Λευκωσία, Κύπρος', 'active'),
+-- Candidate-style sample users
+('candidate1@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Παναγιώτης', 'Κυριακίδης', '+357 96 123456', 'Λευκωσία, Κύπρος', 'user'),
+('candidate2@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Αλέξανδρος', 'Πιερίδης', '+357 96 234567', 'Λεμεσός, Κύπρος', 'user'),
+('candidate3@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Μαρία', 'Φιλίππου', '+357 96 345678', 'Λάρνακα, Κύπρος', 'user'),
+('candidate4@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Ιωάννης', 'Σταθόπουλος', '+357 96 456789', 'Πάφος, Κύπρος', 'user'),
+('candidate5@example.com', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Αναστασία', 'Μιχαλοπούλου', '+357 96 567890', 'Λευκωσία, Κύπρος', 'user'),
 
--- Specialist/Hired users
-('specialist1@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Ανδρέας', 'Λοΐζου', '+357 22 894563', 'Λευκωσία, Κύπρος', 'active'),
-('specialist2@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Νίκη', 'Αντωνιάδη', '+357 22 894564', 'Λεμεσός, Κύπρος', 'active'),
-('specialist3@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Χριστόφορος', 'Δημοσθένης', '+357 22 894565', 'Λάρνακα, Κύπρος', 'active');
+-- Specialist-style sample users
+('specialist1@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Ανδρέας', 'Λοΐζου', '+357 22 894563', 'Λευκωσία, Κύπρος', 'user'),
+('specialist2@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Νίκη', 'Αντωνιάδη', '+357 22 894564', 'Λεμεσός, Κύπρος', 'user'),
+('specialist3@tepak.cy', '$2y$10$vLgPLUGx3yLqZEDjNPLN..XQj3zY/NjM7R9bNnK6C5Zx1k6fWcVSm', 'Χριστόφορος', 'Δημοσθένης', '+357 22 894565', 'Λάρνακα, Κύπρος', 'user');
 
 -- ============================================================================
 -- 3. ASSIGN ROLES TO USERS
@@ -50,14 +47,8 @@ INSERT INTO users (email, password_hash, first_name, last_name, phone, address, 
 INSERT INTO user_roles (user_id, role_id) VALUES
 -- Admins
 (1, 1), (2, 1),
--- HR Managers
-(3, 2), (4, 2),
--- Evaluators
-(5, 3), (6, 3), (7, 3),
--- Candidates
-(8, 4), (9, 4), (10, 4), (11, 4), (12, 4),
--- Specialists
-(13, 5), (14, 5), (15, 5);
+-- Users
+(3, 2), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (10, 2), (11, 2), (12, 2), (13, 2), (14, 2), (15, 2);
 
 -- ============================================================================
 -- 4. INSERT SCHOOLS
@@ -297,8 +288,8 @@ INSERT INTO audit_logs (user_id, action, entity_type, entity_id, changes, ip_add
 -- ============================================================================
 
 -- Summary of inserted data:
--- ✓ 5 roles
--- ✓ 15 users (3 admins/hr, 3 evaluators, 5 candidates, 3 specialists, 1 spare)
+-- ✓ 2 roles
+-- ✓ 15 users (2 admins, 13 users)
 -- ✓ 3 schools
 -- ✓ 8 departments
 -- ✓ 20 courses
