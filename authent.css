@@ -10,7 +10,7 @@
 
 body.auth-page {
     min-height: 100vh;
-    background: #f0eef8;
+    background: #eef5ff;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -25,13 +25,13 @@ body.auth-page {
     max-height: calc(100vh - 48px);
     border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 20px 60px rgba(100, 80, 180, 0.18);
+    box-shadow: 0 20px 60px rgba(19, 72, 156, 0.2);
 }
 
 /* ── Left Panel ── */
 .auth-left {
     width: 42%;
-    background: linear-gradient(145deg, #7c5cbf 0%, #9b7de8 50%, #b89ef5 100%);
+    background: linear-gradient(145deg, #0b2a6b 0%, #1f5fbf 52%, #6bbcff 100%);
     position: relative;
     display: flex;
     flex-direction: column;
@@ -130,7 +130,7 @@ body.auth-page {
 .auth-logo {
     width: 44px;
     height: 44px;
-    background: linear-gradient(135deg, #9b7de8, #7c5cbf);
+    background: linear-gradient(135deg, #1f5fbf, #0b2a6b);
     border-radius: 10px;
     margin-bottom: 12px;
     display: flex;
@@ -168,7 +168,7 @@ body.auth-page {
 }
 
 .auth-form .form-label .required {
-    color: #9b7de8;
+    color: #1f5fbf;
     margin-left: 2px;
 }
 
@@ -183,8 +183,8 @@ body.auth-page {
 }
 
 .auth-form .form-control:focus {
-    border-color: #9b7de8;
-    box-shadow: 0 0 0 3px rgba(155, 125, 232, 0.12);
+    border-color: #1f5fbf;
+    box-shadow: 0 0 0 3px rgba(31, 95, 191, 0.14);
     background: #fff;
     outline: none;
 }
@@ -202,7 +202,7 @@ body.auth-page {
 
 /* ── Submit Button ── */
 .btn-auth {
-    background: linear-gradient(135deg, #9b7de8, #7c5cbf);
+    background: linear-gradient(135deg, #1f5fbf, #0b2a6b);
     border: none;
     border-radius: 10px;
     color: #fff;
@@ -233,7 +233,7 @@ body.auth-page {
 }
 
 .auth-login-link a {
-    color: #7c5cbf;
+    color: #0b2a6b;
     font-weight: 600;
     text-decoration: none;
 }
@@ -245,9 +245,9 @@ body.auth-page {
 /* ── Secondary Button (Admin) ── */
 .btn-auth-secondary {
     background: #fff;
-    border: 2px solid #9b7de8;
+    border: 2px solid #1f5fbf;
     border-radius: 10px;
-    color: #7c5cbf;
+    color: #0b2a6b;
     font-size: 14px;
     font-weight: 600;
     padding: 9px;
@@ -257,7 +257,7 @@ body.auth-page {
 }
 
 .btn-auth-secondary:hover {
-    background: #f3eeff;
+    background: #eaf3ff;
     transform: translateY(-1px);
 }
 

@@ -57,7 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Custom auth styles -->
-    <link href="authent.css" rel="stylesheet">
+    <?php $authCssVersion = @filemtime(__DIR__ . '/authent.css') ?: time(); ?>
+    <link href="authent.css?v=<?= $authCssVersion ?>" rel="stylesheet">
 </head>
 <body class="auth-page">
 
