@@ -1,18 +1,43 @@
 <?php
 session_start();
+require_once 'database/db.php';
+
+$errors     = [];
+$registered = isset($_GET['registered']) && $_GET['registered'] == 1;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['go_admin'])) {
-        header('Location: modules/admin/index.php');
-        exit;
-    }
-    if (isset($_POST['login'])) {
-        header('Location: modules/recruitmentModule/index.php');
-        exit;
+    $email    = trim($_POST['email']    ?? '');
+    $password = $_POST['password']      ?? '';
+    $isAdmin  = isset($_POST['go_admin']);
+
+    if ($email === '' || $password === '') {
+        $errors[] = 'Συμπληρώστε email και κωδικό.';
+    } else {
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE email = :e');
+        $stmt->execute([':e' => $email]);
+        $user = $stmt->fetch();
+
+        if ($user && password_verify($password, $user['password_hash'])) {
+            if ($isAdmin && $user['role'] !== 'admin') {
+                $errors[] = 'Δεν έχετε δικαιώματα διαχειριστή.';
+            } else {
+                session_regenerate_id(true);
+                $_SESSION['user_id']    = $user['id'];
+                $_SESSION['role']       = $user['role'];
+                $_SESSION['first_name'] = $user['first_name'];
+                $_SESSION['last_name']  = $user['last_name'];
+                $_SESSION['email']      = $user['email'];
+
+                header('Location: ' . ($user['role'] === 'admin'
+                    ? 'modules/admin/index.php'
+                    : 'modules/recruitmentModule/index.php'));
+                exit;
+            }
+        } else {
+            $errors[] = 'Λάθος email ή κωδικός.';
+        }
     }
 }
-
-$registered = isset($_GET['registered']) && $_GET['registered'] == 1;
 ?>
 <!DOCTYPE html>
 <html lang="el">
@@ -56,6 +81,14 @@ $registered = isset($_GET['registered']) && $_GET['registered'] == 1;
             <div class="auth-success">
                 <i class="bi bi-check-circle-fill me-2"></i>Ο λογαριασμός σας δημιουργήθηκε! Συνδεθείτε τώρα.
             </div>
+        <?php endif; ?>
+
+        <?php if (!empty($errors)): ?>
+            <ul class="auth-errors">
+                <?php foreach ($errors as $err): ?>
+                    <li><?= htmlspecialchars($err) ?></li>
+                <?php endforeach; ?>
+            </ul>
         <?php endif; ?>
 
         <form method="POST" class="auth-form">

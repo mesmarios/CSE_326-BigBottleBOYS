@@ -32,45 +32,30 @@
         </div>`;
       }
 
-      function getUserData() {
-        const stored = localStorage.getItem('userProfileData');
+      // Academic data only — user info comes from DB via PHP
+      function getAcademicData() {
+        const stored = localStorage.getItem('academicProfileData');
         if (stored) return JSON.parse(stored);
-        return { name:'Alexander', surname:'Pierce', email:'alexander@example.com', address:'123 Main Street', phone:'', dob:'', degree:'', institution:'', specialization:'', experience:'', summary:'' };
+        return { dob:'', degree:'', institution:'', specialization:'', experience:'', summary:'' };
       }
 
-      function saveUserData(data) {
-        localStorage.setItem('userProfileData', JSON.stringify(data));
+      function saveAcademicData(data) {
+        localStorage.setItem('academicProfileData', JSON.stringify(data));
       }
 
       (function initPage() {
-        const userData = getUserData();
-        document.getElementById('nameCell').textContent = userData.name;
-        document.getElementById('surnameCell').textContent = userData.surname;
-        document.getElementById('emailCell').textContent = userData.email;
-        document.getElementById('addressCell').textContent = userData.address;
-        document.getElementById('phoneCell').textContent = userData.phone || '';
-        document.getElementById('dobCell').textContent = formatDob(userData.dob);
-        // update banner
-        const banner = document.getElementById('bannerFullName');
-        if (banner) banner.textContent = `${userData.name} ${userData.surname}`;
-        const bannerEmail = document.getElementById('bannerEmail');
-        if (bannerEmail) bannerEmail.textContent = userData.email;
-        const acad = [
-          ['degreeCell', userData.degree],
-          ['institutionCell', userData.institution],
-          ['specializationCell', userData.specialization],
-          ['experienceCell', userData.experience !== '' ? userData.experience + (userData.experience === '1' ? ' year' : ' years') : ''],
-          ['summaryCell', userData.summary],
+        // User info (name, email, address, phone) is rendered by PHP — do NOT override.
+        // Only initialize academic fields and DOB from localStorage.
+        const acad = getAcademicData();
+        document.getElementById('dobCell').textContent = formatDob(acad.dob);
+        const acadFields = [
+          ['degreeCell', acad.degree],
+          ['institutionCell', acad.institution],
+          ['specializationCell', acad.specialization],
+          ['experienceCell', acad.experience !== '' ? acad.experience + (acad.experience === '1' ? ' year' : ' years') : ''],
+          ['summaryCell', acad.summary],
         ];
-        acad.forEach(([id, val]) => { document.getElementById(id).textContent = val || '\u2014'; });
-        const navbarUserName = document.getElementById('navbarUserName');
-        if (navbarUserName) navbarUserName.textContent = `${userData.name} ${userData.surname}`;
-        const userHeaderP = document.querySelector('.user-header p');
-        if (userHeaderP) {
-          const subtitle = userHeaderP.querySelector('small');
-          const subText = subtitle ? `<small>${subtitle.textContent}</small>` : '';
-          userHeaderP.innerHTML = `${userData.name} ${userData.surname} - Web Developer${subText}`;
-        }
+        acadFields.forEach(([id, val]) => { document.getElementById(id).textContent = val || '\u2014'; });
       })();
 
       (function () {
@@ -108,40 +93,27 @@
           const dobMonth = document.querySelector('#dobCell .dob-month');
           const dobDay   = document.querySelector('#dobCell .dob-day');
           const dobYear  = document.querySelector('#dobCell .dob-year');
-          let newName = nameInput ? nameInput.value : 'Alexander';
-          let newSurname = surnameInput ? surnameInput.value : 'Pierce';
-          let newAddress = addressInput ? addressInput.value : '123 Main Street';
-          let newPhone = phoneInput ? phoneInput.value : '';
           let newDob = '';
           if (dobMonth && dobDay && dobYear && dobMonth.value && dobDay.value && dobYear.value) {
             const m = String(parseInt(dobMonth.value,10)).padStart(2,'0');
             const d = String(parseInt(dobDay.value,10)).padStart(2,'0');
             newDob = `${dobYear.value}-${m}-${d}`;
           } else {
-            newDob = getUserData().dob || '';
+            newDob = getAcademicData().dob || '';
           }
           userFields.forEach(field => {
             const fieldName = field.getAttribute('data-field');
             if (fieldName === 'dob') { field.textContent = formatDob(newDob); }
             else { const input = field.querySelector('input'); if (input) field.textContent = input.value; }
           });
-          const userData = getUserData();
-          userData.name = newName; userData.surname = newSurname; userData.address = newAddress;
-          userData.phone = newPhone; userData.dob = newDob;
-          saveUserData(userData);
-          const newFullName = `${newName} ${newSurname}`;
-          const navbarUserName = document.getElementById('navbarUserName');
-          if (navbarUserName) navbarUserName.textContent = newFullName;
+          // Save dob to academic localStorage; name/address/phone saved server-side via DB
+          const acadData = getAcademicData();
+          acadData.dob = newDob;
+          saveAcademicData(acadData);
+          // Update banner name from DOM (already rendered by PHP)
+          const newFullName = (document.getElementById('nameCell').textContent || '') + ' ' + (document.getElementById('surnameCell').textContent || '');
           const bannerFullName = document.getElementById('bannerFullName');
-          if (bannerFullName) bannerFullName.textContent = newFullName;
-          const bannerEmailEl = document.getElementById('bannerEmail');
-          if (bannerEmailEl) bannerEmailEl.textContent = userData.email;
-          const userHeaderP = document.querySelector('.user-header p');
-          if (userHeaderP) {
-            const subtitle = userHeaderP.querySelector('small');
-            const subText = subtitle ? `<small>${subtitle.textContent}</small>` : '';
-            userHeaderP.innerHTML = `${newFullName} - Web Developer${subText}`;
-          }
+          if (bannerFullName) bannerFullName.textContent = newFullName.trim();
           isEditMode = false;
           editBtn.textContent = 'Edit';
           editBtn.classList.replace('btn-success', 'btn-primary');
@@ -158,7 +130,7 @@
         alertBox.classList.add('d-none'); alertBox.textContent = '';
         if (!isAcademicEditMode) {
           isAcademicEditMode = true;
-          const acadData = getUserData();
+          const acadData = getAcademicData();
           academicFields.forEach(field => {
             const f = field.getAttribute('data-field');
             if (f === 'degree') {
@@ -200,10 +172,10 @@
           document.getElementById('specializationCell').textContent = newSpec    || '\u2014';
           document.getElementById('experienceCell').textContent     = newExp !== '' ? newExp + (newExp === '1' ? ' year' : ' years') : '\u2014';
           document.getElementById('summaryCell').textContent        = newSummary || '\u2014';
-          const userData = getUserData();
+          const userData = getAcademicData();
           userData.degree = newDegree; userData.institution = newInst;
           userData.specialization = newSpec; userData.experience = newExp; userData.summary = newSummary;
-          saveUserData(userData);
+          saveAcademicData(userData);
           isAcademicEditMode = false;
           editAcademicBtn.textContent = 'Edit';
           editAcademicBtn.classList.replace('btn-success', 'btn-primary');

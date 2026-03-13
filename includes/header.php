@@ -1,6 +1,26 @@
 ﻿<?php
-// header.php â€” top navigation bar only.
-// Must be included AFTER layout.php which opens the HTML document and <body>.
+// Session is already started and guard already ran in layout.php (included before this).
+// DB connection — require_once so it won't double-load if already included.
+require_once dirname(__DIR__) . '/database/db.php';
+
+// Fetch minimal user data for navbar (profile pic + name)
+$_nav_user = null;
+try {
+    $s = $pdo->prepare('SELECT first_name, last_name, email, profilepic FROM users WHERE id = :id');
+    $s->execute([':id' => $_SESSION['user_id']]);
+    $_nav_user = $s->fetch();
+} catch (Exception $e) { /* fallback to session */ }
+
+$_nav_full  = htmlspecialchars(
+    ($_nav_user['first_name'] ?? $_SESSION['first_name'] ?? '') . ' ' .
+    ($_nav_user['last_name']  ?? $_SESSION['last_name']  ?? '')
+);
+$_nav_email = htmlspecialchars($_nav_user['email'] ?? $_SESSION['email'] ?? '');
+$_nav_role  = htmlspecialchars(ucfirst($_SESSION['role'] ?? 'user'));
+$_nav_pic   = (!empty($_nav_user['profilepic']))
+    ? 'data:image/jpeg;base64,' . base64_encode($_nav_user['profilepic'])
+    : '../../recruitment/assets/images/user2-160x160.jpg';
+// ─────────────────────────────────────────────────────────────────────────────
 ?>
     <!--begin::Header-->
     <nav class="app-header navbar navbar-expand bg-body">
@@ -49,23 +69,23 @@
           <li class="nav-item dropdown user-menu">
             <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
               <img
-                src="../../recruitment/assets/images/user2-160x160.jpg"
+                src="<?= $_nav_pic ?>"
                 class="user-image rounded-circle shadow"
                 alt="User Image"
               />
-              <span class="d-none d-md-inline" id="navbarUserName">Alexander Pierce</span>
+              <span class="d-none d-md-inline"><?= $_nav_full ?></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
               <!--begin::User Image-->
               <li class="user-header text-bg-primary">
                 <img
-                  src="../../recruitment/assets/images/user2-160x160.jpg"
+                  src="<?= $_nav_pic ?>"
                   class="rounded-circle shadow"
                   alt="User Image"
                 />
                 <p>
-                  Alexander Pierce - Web Developer
-                  <small>Member since Nov. 2023</small>
+                  <?= $_nav_full ?> — <?= $_nav_role ?>
+                  <small><?= $_nav_email ?></small>
                 </p>
               </li>
               <!--end::User Image-->

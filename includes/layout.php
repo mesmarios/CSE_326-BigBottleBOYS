@@ -3,6 +3,18 @@
 // Include this as the very first file on every page.
 // Optionally define $extra_head (string of <style>/<link>/<script> tags) before including to inject
 // page-specific head content.
+
+// ── Session & Auth guard (must run before ANY output) ──────────────────────
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (!isset($_SESSION['user_id'])) {
+    $depth    = substr_count(str_replace('\\', '/', $_SERVER['PHP_SELF']), '/') - 2;
+    $loginUrl = str_repeat('../', max(0, $depth)) . 'login.php';
+    header('Location: ' . $loginUrl);
+    exit;
+}
+// ───────────────────────────────────────────────────────────────────────────
 ?>
 <!doctype html>
 <html lang="en">

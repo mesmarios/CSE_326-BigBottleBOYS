@@ -1,4 +1,18 @@
-﻿<?php include('../../includes/layout.php'); include('../../includes/header.php'); include('../../includes/nav.php'); ?>
+﻿<?php
+include('../../includes/layout.php');
+include('../../includes/header.php');
+include('../../includes/nav.php');
+
+// Fetch full user record (header.php already validated session and set $pdo)
+$stmt = $pdo->prepare('SELECT * FROM users WHERE id = :id');
+$stmt->execute([':id' => $_SESSION['user_id']]);
+$user = $stmt->fetch();
+
+$profilePicSrc = (!empty($user['profilepic']))
+    ? 'data:image/jpeg;base64,' . base64_encode($user['profilepic'])
+    : '../../recruitment/assets/images/user2-160x160.jpg';
+$fullName = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
+?>
 <link rel="stylesheet" href="../../recruitment/assets/css/myprofile.css">
 <link rel="stylesheet" href="../../assets/css/user-ui.css">
 
@@ -31,14 +45,14 @@
                   <div class="profile-avatar-wrap">
                     <img
                       id="profilePicSmallBox"
-                      src="../../recruitment/assets/images/user2-160x160.jpg"
+                      src="<?= $profilePicSrc ?>"
                       alt="User Profile"
                     />
                   </div>
                   <div>
-                    <h4 class="mb-0 fw-bold" id="bannerFullName">Gio Kay</h4>
+                    <h4 class="mb-0 fw-bold" id="bannerFullName"><?= $fullName ?></h4>
                     <p class="mb-0 opacity-75" style="font-size:.85rem;">
-                      <i class="bi bi-envelope me-1"></i><span id="bannerEmail">bigbottleboy@gmail.com</span>
+                      <i class="bi bi-envelope me-1"></i><span id="bannerEmail"><?= htmlspecialchars($user['email']) ?></span>
                     </p>
                   </div>
                 </div>
@@ -54,27 +68,27 @@
                   <div class="card-body" id="userTable">
                     <div class="info-row">
                       <span class="info-label">Name</span>
-                      <span id="nameCell" class="info-value user-field" data-field="name">Gio</span>
+                      <span id="nameCell" class="info-value user-field" data-field="name"><?= htmlspecialchars($user['first_name']) ?></span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">Surname</span>
-                      <span id="surnameCell" class="info-value user-field" data-field="surname">Kay</span>
+                      <span id="surnameCell" class="info-value user-field" data-field="surname"><?= htmlspecialchars($user['last_name']) ?></span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">Email</span>
-                      <span id="emailCell" class="info-value">bigbottleboy@gmail.com</span>
+                      <span id="emailCell" class="info-value"><?= htmlspecialchars($user['email']) ?></span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">Address</span>
-                      <span id="addressCell" class="info-value user-field" data-field="address">New Jersey, USA</span>
+                      <span id="addressCell" class="info-value user-field" data-field="address"><?= htmlspecialchars($user['address'] ?? '—') ?></span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">Phone</span>
-                      <span id="phoneCell" class="info-value user-field" data-field="phone"></span>
+                      <span id="phoneCell" class="info-value user-field" data-field="phone"><?= htmlspecialchars($user['phone'] ?? '—') ?></span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">Date of Birth</span>
-                      <span id="dobCell" class="info-value user-field" data-field="dob"></span>
+                      <span id="dobCell" class="info-value user-field" data-field="dob">—</span>
                     </div>
                   </div>
                 </div>
