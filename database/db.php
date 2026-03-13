@@ -2,7 +2,7 @@
 // Αυτό το αρχείο γίνεται require_once σε κάθε σελίδα
 try {
  $pdo = new PDO(
- 'mysql:host=localhost;dbname=cei326_project;charset=utf8mb4',
+ 'mysql:host=localhost;dbname=bigbrothers;charset=utf8mb4',
  'root', // username
  '', // password (κενό σε local LAMP)
  [

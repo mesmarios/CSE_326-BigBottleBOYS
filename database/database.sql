@@ -4,8 +4,8 @@
 -- ============================================================================
 
 -- Create Database
-CREATE DATABASE IF NOT EXISTS specialist_management_system;
-USE specialist_management_system;
+CREATE DATABASE IF NOT EXISTS bigbrothers;
+USE bigbrothers;
 
 -- ============================================================================
 -- 1. ROLES TABLE - User roles/permissions
@@ -332,7 +332,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 -- User indexes
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_users_role ON users(role);
 
 -- Recruitment indexes
 CREATE INDEX idx_job_announcements_period ON job_announcements(period_id);
