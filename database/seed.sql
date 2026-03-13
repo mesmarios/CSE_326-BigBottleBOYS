@@ -3,7 +3,7 @@
 -- Sample data for testing and development
 -- ============================================================================
 
-USE specialist_management_system;
+USE bigbrothers;
 
 -- ============================================================================
 -- 1. INSERT ROLES

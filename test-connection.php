@@ -193,7 +193,7 @@ require_once 'includes/database-helper.php';
                 
                 try {
                     $pdo = getDBConnection();
-                    $stmt = $pdo->query("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'specialist_management_system'");
+                    $stmt = $pdo->query("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = " . $pdo->quote(DB_NAME));
                     $result = $stmt->fetch();
                     $table_count = $result['count'];
                     
@@ -208,7 +208,7 @@ require_once 'includes/database-helper.php';
                     echo '</div></div>';
                     
                     // List all tables
-                    $stmt = $pdo->query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'specialist_management_system' ORDER BY table_name");
+                    $stmt = $pdo->query("SELECT table_name FROM information_schema.tables WHERE table_schema = " . $pdo->quote(DB_NAME) . " ORDER BY table_name");
                     $tables = $stmt->fetchAll();
                     
                     if (!empty($tables)) {
@@ -259,7 +259,7 @@ require_once 'includes/database-helper.php';
                     echo '<span class="status-icon">' . ($user_count >= 15 ? '✓' : '⚠') . '</span>';
                     echo '<div class="status-text">';
                     echo '<strong>Users Found: ' . $user_count . '/15</strong>';
-                    echo '<p>If count is 0, run: mysql -u root specialist_management_system < seed.sql</p>';
+                    echo '<p>If count is 0, run: mysql -u root bigbrothers < database/seed.sql</p>';
                     echo '</div></div>';
                     
                     echo '<div class="status-box info">';
@@ -394,7 +394,7 @@ require_once 'includes/database-helper.php';
                     echo '<li>✗ Import database schema: mysql -u root < database.sql</li>';
                 }
                 if (!$test_results['sample_data']) {
-                    echo '<li>✗ Import sample data: mysql -u root specialist_management_system < seed.sql</li>';
+                    echo '<li>✗ Import sample data: mysql -u root bigbrothers < database/seed.sql</li>';
                 }
                 echo '</ol>';
             }

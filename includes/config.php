@@ -9,7 +9,7 @@ define('DB_HOST', 'localhost');
 define('DB_PORT', 3306);
 define('DB_USER', 'root');
 define('DB_PASS', '');  // XAMPP default is empty password
-define('DB_NAME', 'specialist_management_system');
+define('DB_NAME', 'bigbrothers');
 
 // Establish database connection
 try {

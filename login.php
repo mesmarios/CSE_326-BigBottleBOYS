@@ -1,14 +1,71 @@
 <?php
 session_start();
+require_once 'database/db.php';
+
+$errors = [];
+$emailInput = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['go_admin'])) {
-        header('Location: modules/admin/index.php');
-        exit;
+    $emailInput = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $isAdminLogin = isset($_POST['go_admin']);
+
+    if (!filter_var($emailInput, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Παρακαλώ εισάγετε έγκυρο email.';
     }
-    if (isset($_POST['login'])) {
-        header('Location: modules/recruitmentModule/index.php');
-        exit;
+
+    if ($password === '') {
+        $errors[] = 'Παρακαλώ εισάγετε κωδικό.';
+    }
+
+    if (empty($errors)) {
+        $stmt = $pdo->prepare(
+            "SELECT
+                u.id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.password_hash,
+                u.status,
+                GROUP_CONCAT(LOWER(REPLACE(r.name, ' ', '_')) SEPARATOR ',') AS role_keys
+            FROM users u
+            LEFT JOIN user_roles ur ON ur.user_id = u.id
+            LEFT JOIN roles r ON r.id = ur.role_id
+            WHERE u.email = :email
+            GROUP BY u.id
+            LIMIT 1"
+        );
+        $stmt->execute([':email' => $emailInput]);
+        $user = $stmt->fetch();
+
+        $isValidPassword = $user && password_verify($password, (string)$user['password_hash']);
+
+        if (!$isValidPassword) {
+            $errors[] = 'Λάθος email ή κωδικός.';
+        } elseif (($user['status'] ?? 'inactive') !== 'active') {
+            $errors[] = 'Ο λογαριασμός σας δεν είναι ενεργός.';
+        } else {
+            $roleKeys = array_filter(explode(',', (string)($user['role_keys'] ?? '')));
+            $isAdminUser = in_array('admin', $roleKeys, true);
+
+            if ($isAdminLogin && !$isAdminUser) {
+                $errors[] = 'Δεν έχετε δικαίωμα πρόσβασης στο Admin panel.';
+            } else {
+                $_SESSION['user_id'] = (int)$user['id'];
+                $_SESSION['user_email'] = (string)$user['email'];
+                $_SESSION['user_name'] = trim((string)$user['first_name'] . ' ' . (string)$user['last_name']);
+                $_SESSION['user_roles'] = $roleKeys;
+                $_SESSION['is_admin'] = $isAdminUser;
+
+                if ($isAdminLogin) {
+                    header('Location: modules/admin/index.php');
+                    exit;
+                }
+
+                header('Location: modules/recruitmentModule/index.php');
+                exit;
+            }
+        }
     }
 }
 
@@ -58,12 +115,20 @@ $registered = isset($_GET['registered']) && $_GET['registered'] == 1;
             </div>
         <?php endif; ?>
 
+        <?php if (!empty($errors)): ?>
+            <ul class="auth-errors">
+                <?php foreach ($errors as $err): ?>
+                    <li><?= htmlspecialchars($err) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+
         <form method="POST" class="auth-form">
             <div class="mb-4">
                 <label class="form-label login-label">Email <span class="required">*</span></label>
                 <input type="email" name="email" class="form-control form-control-login"
                        placeholder="email@παράδειγμα.com"
-                       value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                       value="<?= htmlspecialchars($emailInput) ?>">
             </div>
 
             <div class="mb-5">

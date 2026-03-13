@@ -1,3 +1,66 @@
+<?php
+require_once __DIR__ . '/../../includes/config.php';
+
+$users = [];
+$dbError = null;
+$roleCounters = [
+  'admin' => 0,
+  'evaluator' => 0,
+  'candidate' => 0,
+];
+
+if (!function_exists('safeInitial')) {
+  function safeInitial(string $value): string
+  {
+    $trimmed = trim($value);
+    if ($trimmed === '') {
+      return '';
+    }
+
+    if (function_exists('mb_substr')) {
+      return mb_strtoupper(mb_substr($trimmed, 0, 1, 'UTF-8'), 'UTF-8');
+    }
+
+    return strtoupper(substr($trimmed, 0, 1));
+  }
+}
+
+try {
+  $pdo = getDBConnection();
+  $stmt = $pdo->query(
+    "SELECT
+      u.id,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.status,
+      u.created_at,
+      GROUP_CONCAT(r.name ORDER BY r.name SEPARATOR ', ') AS role_names,
+      GROUP_CONCAT(LOWER(REPLACE(r.name, ' ', '_')) ORDER BY r.name SEPARATOR ',') AS role_keys
+    FROM users u
+    LEFT JOIN user_roles ur ON ur.user_id = u.id
+    LEFT JOIN roles r ON r.id = ur.role_id
+    GROUP BY u.id
+    ORDER BY u.created_at DESC"
+  );
+  $users = $stmt->fetchAll();
+
+  foreach ($users as $user) {
+    $keys = array_filter(explode(',', (string)($user['role_keys'] ?? '')));
+    if (in_array('admin', $keys, true)) {
+      $roleCounters['admin']++;
+    }
+    if (in_array('evaluator', $keys, true)) {
+      $roleCounters['evaluator']++;
+    }
+    if (in_array('candidate', $keys, true)) {
+      $roleCounters['candidate']++;
+    }
+  }
+} catch (Throwable $e) {
+  $dbError = $e->getMessage();
+}
+?>
 <!doctype html>
 <html lang="el">
   <head>
@@ -127,13 +190,19 @@
         <div class="app-content">
           <div class="container-fluid">
 
+            <?php if ($dbError !== null): ?>
+              <div class="alert alert-danger" role="alert">
+                Αποτυχία φόρτωσης χρηστών από τη βάση: <?php echo escape($dbError); ?>
+              </div>
+            <?php endif; ?>
+
             <!-- Stats Row -->
             <div class="row g-3 mb-4">
               <div class="col-6 col-md-3">
                 <div class="stat-card bg-body shadow-sm">
                   <div class="d-flex align-items-center gap-3">
                     <div class="stat-icon-wrap" style="background:#dbeafe;color:#1d4ed8;"><i class="bi bi-people-fill"></i></div>
-                    <div><div class="stat-value">124</div><div class="stat-label">Σύνολο Χρηστών</div></div>
+                    <div><div class="stat-value"><?php echo count($users); ?></div><div class="stat-label">Σύνολο Χρηστών</div></div>
                   </div>
                 </div>
               </div>
@@ -141,7 +210,7 @@
                 <div class="stat-card bg-body shadow-sm">
                   <div class="d-flex align-items-center gap-3">
                     <div class="stat-icon-wrap" style="background:#fee2e2;color:#b91c1c;"><i class="bi bi-shield-fill"></i></div>
-                    <div><div class="stat-value">3</div><div class="stat-label">Διαχειριστές</div></div>
+                    <div><div class="stat-value"><?php echo $roleCounters['admin']; ?></div><div class="stat-label">Διαχειριστές</div></div>
                   </div>
                 </div>
               </div>
@@ -149,7 +218,7 @@
                 <div class="stat-card bg-body shadow-sm">
                   <div class="d-flex align-items-center gap-3">
                     <div class="stat-icon-wrap" style="background:#fef3c7;color:#b45309;"><i class="bi bi-person-badge-fill"></i></div>
-                    <div><div class="stat-value">18</div><div class="stat-label">Αξιολογητές</div></div>
+                    <div><div class="stat-value"><?php echo $roleCounters['evaluator']; ?></div><div class="stat-label">Αξιολογητές</div></div>
                   </div>
                 </div>
               </div>
@@ -157,7 +226,7 @@
                 <div class="stat-card bg-body shadow-sm">
                   <div class="d-flex align-items-center gap-3">
                     <div class="stat-icon-wrap" style="background:#dcfce7;color:#15803d;"><i class="bi bi-person-fill"></i></div>
-                    <div><div class="stat-value">103</div><div class="stat-label">Αιτούντες</div></div>
+                    <div><div class="stat-value"><?php echo $roleCounters['candidate']; ?></div><div class="stat-label">Αιτούντες</div></div>
                   </div>
                 </div>
               </div>
@@ -174,8 +243,10 @@
                   <select class="form-select form-select-sm" style="width:auto;" id="roleFilter">
                     <option value="">Όλοι οι ρόλοι</option>
                     <option value="admin">Admin</option>
+                    <option value="hr_manager">HR Manager</option>
                     <option value="evaluator">Αξιολογητής</option>
-                    <option value="applicant">Αιτών</option>
+                    <option value="candidate">Αιτών</option>
+                    <option value="specialist">Specialist</option>
                   </select>
                 </div>
                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openAddUserModal()">
@@ -197,73 +268,54 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#dbeafe;color:#1d4ed8;">ΑΓ</div></td>
-                      <td class="fw-semibold">Ανδρέας Γεωργίου</td>
-                      <td class="text-secondary">a.georgiou@uni.gr</td>
-                      <td><span class="badge badge-role-admin rounded-pill px-3 py-1">Admin</span></td>
-                      <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργός</span></td>
-                      <td class="text-secondary small">01/01/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(1)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(1,'Ανδρέας Γεωργίου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#dcfce7;color:#15803d;">ΜΠ</div></td>
-                      <td class="fw-semibold">Μαρία Παπαδοπούλου</td>
-                      <td class="text-secondary">m.papadopoulou@uni.gr</td>
-                      <td><span class="badge badge-role-evaluator rounded-pill px-3 py-1">Αξιολογητής</span></td>
-                      <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργή</span></td>
-                      <td class="text-secondary small">15/02/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(2)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(2,'Μαρία Παπαδοπούλου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#fef3c7;color:#b45309;">ΝΚ</div></td>
-                      <td class="fw-semibold">Νίκος Κωνσταντίνου</td>
-                      <td class="text-secondary">n.konstantinou@email.gr</td>
-                      <td><span class="badge badge-role-applicant rounded-pill px-3 py-1">Αιτών</span></td>
-                      <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργός</span></td>
-                      <td class="text-secondary small">20/02/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(3)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(3,'Νίκος Κωνσταντίνου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#ede9fe;color:#6d28d9;">ΕΔ</div></td>
-                      <td class="fw-semibold">Ελένη Δημητρίου</td>
-                      <td class="text-secondary">e.dimitriou@email.gr</td>
-                      <td><span class="badge badge-role-applicant rounded-pill px-3 py-1">Αιτούσα</span></td>
-                      <td><span class="badge bg-secondary rounded-pill px-3 py-1">Ανενεργή</span></td>
-                      <td class="text-secondary small">05/01/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(4)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(4,'Ελένη Δημητρίου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="table-avatar-placeholder" style="background:#fee2e2;color:#b91c1c;">ΓΑ</div></td>
-                      <td class="fw-semibold">Γιώργος Αντωνίου</td>
-                      <td class="text-secondary">g.antoniou@uni.gr</td>
-                      <td><span class="badge badge-role-evaluator rounded-pill px-3 py-1">Αξιολογητής</span></td>
-                      <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργός</span></td>
-                      <td class="text-secondary small">10/01/2026</td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(5)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(5,'Γιώργος Αντωνίου')" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
+                    <?php if (count($users) === 0): ?>
+                      <tr>
+                        <td colspan="7" class="text-center text-secondary py-4">Δεν βρέθηκαν χρήστες στη βάση.</td>
+                      </tr>
+                    <?php else: ?>
+                      <?php foreach ($users as $user): ?>
+                        <?php
+                          $roleKeys = array_filter(explode(',', (string)($user['role_keys'] ?? '')));
+                          $primaryRole = $roleKeys[0] ?? '';
+                          $roleNames = (string)($user['role_names'] ?? 'Χωρίς Ρόλο');
+                          $fullName = trim((string)$user['first_name'] . ' ' . (string)$user['last_name']);
+                          $initials = safeInitial((string)$user['first_name']) . safeInitial((string)$user['last_name']);
+                          $createdAt = !empty($user['created_at']) ? date('d/m/Y', strtotime((string)$user['created_at'])) : '-';
+
+                          $statusRaw = (string)($user['status'] ?? 'inactive');
+                          $statusText = $statusRaw === 'active' ? 'Ενεργός' : ($statusRaw === 'suspended' ? 'Ανεσταλμένος' : 'Ανενεργός');
+                          $statusClass = $statusRaw === 'active' ? 'bg-success' : ($statusRaw === 'suspended' ? 'bg-warning text-dark' : 'bg-secondary');
+
+                          $roleClass = 'bg-info';
+                          if ($primaryRole === 'admin') {
+                              $roleClass = 'badge-role-admin';
+                          } elseif ($primaryRole === 'evaluator') {
+                              $roleClass = 'badge-role-evaluator';
+                          } elseif ($primaryRole === 'candidate') {
+                              $roleClass = 'badge-role-applicant';
+                          }
+                        ?>
+                        <tr data-role="<?php echo escape($primaryRole); ?>">
+                          <td><div class="table-avatar-placeholder" style="background:#dbeafe;color:#1d4ed8;"><?php echo escape($initials); ?></div></td>
+                          <td class="fw-semibold"><?php echo escape($fullName); ?></td>
+                          <td class="text-secondary"><?php echo escape((string)$user['email']); ?></td>
+                          <td><span class="badge <?php echo $roleClass; ?> rounded-pill px-3 py-1"><?php echo escape($roleNames); ?></span></td>
+                          <td><span class="badge <?php echo $statusClass; ?> rounded-pill px-3 py-1"><?php echo escape($statusText); ?></span></td>
+                          <td class="text-secondary small"><?php echo escape($createdAt); ?></td>
+                          <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(<?php echo (int)$user['id']; ?>)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick='confirmDeleteUser(<?php echo (int)$user['id']; ?>, <?php echo json_encode($fullName, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)' title="Διαγραφή"><i class="bi bi-trash"></i></button>
+                          </td>
+                        </tr>
+                      <?php endforeach; ?>
+                    <?php endif; ?>
                   </tbody>
                 </table>
               </div>
 
               <!-- Pagination -->
               <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
-                <small class="text-secondary">Εμφάνιση 1–5 από 124 χρήστες</small>
+                <small class="text-secondary">Εμφάνιση 1–<?php echo count($users); ?> από <?php echo count($users); ?> χρήστες</small>
                 <nav>
                   <ul class="pagination pagination-sm mb-0">
                     <li class="page-item disabled"><a class="page-link" href="#">&laquo;</a></li>
@@ -392,21 +444,24 @@
           });
         }
 
-        // Live search
-        document.getElementById('userSearch').addEventListener('input', function () {
-          const q = this.value.toLowerCase();
-          document.querySelectorAll('#usersTable tbody tr').forEach(function (row) {
-            row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
-          });
-        });
+        const searchInput = document.getElementById('userSearch');
+        const roleFilter = document.getElementById('roleFilter');
 
-        // Role filter
-        document.getElementById('roleFilter').addEventListener('change', function () {
-          const val = this.value.toLowerCase();
+        function applyUserFilters() {
+          const q = (searchInput?.value || '').toLowerCase();
+          const role = (roleFilter?.value || '').toLowerCase();
+
           document.querySelectorAll('#usersTable tbody tr').forEach(function (row) {
-            row.style.display = (!val || row.textContent.toLowerCase().includes(val)) ? '' : 'none';
+            const rowText = row.textContent.toLowerCase();
+            const rowRole = (row.dataset.role || '').toLowerCase();
+            const matchesSearch = !q || rowText.includes(q);
+            const matchesRole = !role || rowRole === role;
+            row.style.display = (matchesSearch && matchesRole) ? '' : 'none';
           });
-        });
+        }
+
+        searchInput?.addEventListener('input', applyUserFilters);
+        roleFilter?.addEventListener('change', applyUserFilters);
       });
 
       function openAddUserModal() {
