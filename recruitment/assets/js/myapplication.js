@@ -43,7 +43,7 @@ function showToast(msg, type = 'primary') {
   bootstrap.Toast.getOrCreateInstance(el, { delay: 3500 }).show();
 }
 
-/* ── API calls ────────────────────────────────────────────────── */
+/*  API calls  */
 async function loadAnnouncements() {
   try {
     const res  = await fetch(`${API_BASE}/announcements.php`);
