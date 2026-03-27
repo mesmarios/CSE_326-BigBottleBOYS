@@ -23,22 +23,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 /* ── GET: return profile + academic data ─────────────────────────── */
 function handleGet(PDO $pdo, int $userId): void {
     $stmt = $pdo->prepare("
-        SELECT first_name, last_name, email, phone, address, profile_data
+        SELECT first_name, last_name, email, phone, address,
+               dob, degree, institution, specialization, experience, summary
         FROM users WHERE id = ?
     ");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
 
-    $profileData = $user['profile_data'] ? json_decode($user['profile_data'], true) : [];
-
     echo json_encode([
-        'success'      => true,
-        'first_name'   => $user['first_name'],
-        'last_name'    => $user['last_name'],
-        'email'        => $user['email'],
-        'phone'        => $user['phone']   ?? '',
-        'address'      => $user['address'] ?? '',
-        'profile_data' => $profileData,
+        'success'    => true,
+        'first_name' => $user['first_name'],
+        'last_name'  => $user['last_name'],
+        'email'      => $user['email'],
+        'phone'      => $user['phone']   ?? '',
+        'address'    => $user['address'] ?? '',
+        'profile_data' => [
+            'dob'            => $user['dob']            ?? '',
+            'degree'         => $user['degree']         ?? '',
+            'institution'    => $user['institution']    ?? '',
+            'specialization' => $user['specialization'] ?? '',
+            'experience'     => $user['experience'] !== null ? (string)$user['experience'] : '',
+            'summary'        => $user['summary']        ?? '',
+        ],
     ]);
 }
 
@@ -50,7 +56,6 @@ function handlePost(PDO $pdo, int $userId): void {
         return;
     }
 
-    // Sanitise basic fields
     $firstName = trim($body['first_name'] ?? '');
     $lastName  = trim($body['last_name']  ?? '');
     $phone     = trim($body['phone']      ?? '');
@@ -61,26 +66,28 @@ function handlePost(PDO $pdo, int $userId): void {
         return;
     }
 
-    // Academic / extra data goes in profile_data JSON column
-    $pd = $body['profile_data'] ?? [];
-    $profileData = json_encode([
-        'dob'            => $pd['dob']            ?? '',
-        'degree'         => $pd['degree']         ?? '',
-        'institution'    => $pd['institution']    ?? '',
-        'specialization' => $pd['specialization'] ?? '',
-        'experience'     => $pd['experience']     ?? '',
-        'summary'        => $pd['summary']        ?? '',
-    ]);
+    $pd             = $body['profile_data'] ?? [];
+    $dob            = trim($pd['dob']            ?? '') ?: null;
+    $degree         = trim($pd['degree']         ?? '') ?: null;
+    $institution    = trim($pd['institution']    ?? '') ?: null;
+    $specialization = trim($pd['specialization'] ?? '') ?: null;
+    $experience     = ($pd['experience'] ?? '') !== '' ? (int)$pd['experience'] : null;
+    $summary        = trim($pd['summary']        ?? '') ?: null;
 
     $stmt = $pdo->prepare("
         UPDATE users
         SET first_name = ?, last_name = ?, phone = ?, address = ?,
-            profile_data = ?, updated_at = NOW()
+            dob = ?, degree = ?, institution = ?,
+            specialization = ?, experience = ?, summary = ?,
+            updated_at = NOW()
         WHERE id = ?
     ");
-    $stmt->execute([$firstName, $lastName, $phone, $address, $profileData, $userId]);
+    $stmt->execute([
+        $firstName, $lastName, $phone, $address,
+        $dob, $degree, $institution, $specialization, $experience, $summary,
+        $userId,
+    ]);
 
-    // Keep session first_name/last_name in sync
     $_SESSION['first_name'] = $firstName;
     $_SESSION['last_name']  = $lastName;
 

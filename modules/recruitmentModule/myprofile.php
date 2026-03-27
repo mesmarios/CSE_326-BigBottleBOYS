@@ -12,7 +12,14 @@ $profilePicSrc = (!empty($user['profilepic']))
     ? 'data:image/jpeg;base64,' . base64_encode($user['profilepic'])
     : '../../recruitment/assets/images/user2-160x160.jpg';
 $fullName    = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
-$profileData = (!empty($user['profile_data'])) ? json_decode($user['profile_data'], true) : [];
+$profileData = [
+    'dob'            => $user['dob']            ?? '',
+    'degree'         => $user['degree']         ?? '',
+    'institution'    => $user['institution']    ?? '',
+    'specialization' => $user['specialization'] ?? '',
+    'experience'     => $user['experience'] !== null ? (string)$user['experience'] : '',
+    'summary'        => $user['summary']        ?? '',
+];
 ?>
 <link rel="stylesheet" href="../../recruitment/assets/css/myprofile.css">
 <link rel="stylesheet" href="../../assets/css/user-ui.css">

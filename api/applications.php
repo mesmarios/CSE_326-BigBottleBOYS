@@ -42,6 +42,18 @@ function dbStatusToJs(string $s): string {
     return $map[$s] ?? 'Draft';
 }
 
+/* ── Collect sup paths from individual columns into an array ──────── */
+function getSupPaths(array $row): array {
+    $paths = [];
+    for ($i = 1; $i <= 5; $i++) {
+        $col = 'app_sup_path_' . $i;
+        if (!empty($row[$col])) {
+            $paths[] = $row[$col];
+        }
+    }
+    return $paths;
+}
+
 /* ── GET: list all applications for the current user ────────────── */
 function handleGet(PDO $pdo, int $userId): void {
     $stmt = $pdo->prepare("
@@ -51,7 +63,20 @@ function handleGet(PDO $pdo, int $userId): void {
             ca.status,
             ca.submitted_at,
             ca.created_at,
-            ca.form_data,
+            ca.app_phone,
+            ca.app_degree,
+            ca.app_institution,
+            ca.app_specialization,
+            ca.app_experience,
+            ca.app_summary,
+            ca.app_declared,
+            ca.app_cv_path,
+            ca.app_cl_path,
+            ca.app_sup_path_1,
+            ca.app_sup_path_2,
+            ca.app_sup_path_3,
+            ca.app_sup_path_4,
+            ca.app_sup_path_5,
             ja.title,
             s.name  AS school_name,
             d.name  AS department_name,
@@ -73,16 +98,13 @@ function handleGet(PDO $pdo, int $userId): void {
 
     $out = [];
     foreach ($rows as $r) {
-        $fd = $r['form_data'] ? json_decode($r['form_data'], true) : [];
+        $supPaths = getSupPaths($r);
 
-        // Build download URLs for files (relative from recruitment module pages)
-        $cvFileData  = !empty($fd['cv_path'])  ? '../../api/download.php?app_id=' . $r['id'] . '&type=cv'  : null;
-        $clFileData  = !empty($fd['cl_path'])  ? '../../api/download.php?app_id=' . $r['id'] . '&type=cl'  : null;
+        $cvFileData  = !empty($r['app_cv_path']) ? '../../api/download.php?app_id=' . $r['id'] . '&type=cv'  : null;
+        $clFileData  = !empty($r['app_cl_path']) ? '../../api/download.php?app_id=' . $r['id'] . '&type=cl'  : null;
         $supFilesData = [];
-        if (!empty($fd['sup_paths'])) {
-            foreach (array_keys($fd['sup_paths']) as $i) {
-                $supFilesData[] = '../../api/download.php?app_id=' . $r['id'] . '&type=sup&idx=' . $i;
-            }
+        foreach (array_keys($supPaths) as $i) {
+            $supFilesData[] = '../../api/download.php?app_id=' . $r['id'] . '&type=sup&idx=' . $i;
         }
 
         $out[] = [
@@ -101,17 +123,17 @@ function handleGet(PDO $pdo, int $userId): void {
                 'endDate'   => $r['end_date'],
             ],
             'data' => [
-                'phone'          => $fd['phone']          ?? '',
-                'degree'         => $fd['degree']         ?? '',
-                'institution'    => $fd['institution']    ?? '',
-                'specialization' => $fd['specialization'] ?? '',
-                'experience'     => $fd['experience']     ?? '',
-                'summary'        => $fd['summary']        ?? '',
-                'declared'       => $fd['declared']       ?? false,
-                'savedAt'        => $fd['savedAt']        ?? $r['created_at'],
-                'cvFileName'     => !empty($fd['cv_path'])  ? basename($fd['cv_path'])  : null,
-                'clFileName'     => !empty($fd['cl_path'])  ? basename($fd['cl_path'])  : null,
-                'supFileNames'   => !empty($fd['sup_paths']) ? array_map('basename', $fd['sup_paths']) : [],
+                'phone'          => $r['app_phone']          ?? '',
+                'degree'         => $r['app_degree']         ?? '',
+                'institution'    => $r['app_institution']    ?? '',
+                'specialization' => $r['app_specialization'] ?? '',
+                'experience'     => $r['app_experience'] !== null ? (string)$r['app_experience'] : '',
+                'summary'        => $r['app_summary']        ?? '',
+                'declared'       => (bool)($r['app_declared'] ?? false),
+                'savedAt'        => $r['created_at'],
+                'cvFileName'     => !empty($r['app_cv_path']) ? basename($r['app_cv_path']) : null,
+                'clFileName'     => !empty($r['app_cl_path']) ? basename($r['app_cl_path']) : null,
+                'supFileNames'   => array_map('basename', $supPaths),
                 'cvFileData'     => $cvFileData,
                 'clFileData'     => $clFileData,
                 'supFilesData'   => $supFilesData,
@@ -131,44 +153,40 @@ function handleSaveDraft(PDO $pdo, int $userId): void {
         return;
     }
 
-    // Check if a draft (or any non-submitted) record already exists
+    $phone          = trim($body['phone']          ?? '');
+    $degree         = trim($body['degree']         ?? '');
+    $institution    = trim($body['institution']    ?? '');
+    $specialization = trim($body['specialization'] ?? '');
+    $experience     = $body['experience'] !== '' && $body['experience'] !== null
+                        ? (int)$body['experience'] : null;
+    $summary        = trim($body['summary']        ?? '');
+
     $stmt = $pdo->prepare("
-        SELECT id, form_data FROM candidate_applications
+        SELECT id FROM candidate_applications
         WHERE candidate_id = ? AND announcement_id = ? AND status = 'draft'
     ");
     $stmt->execute([$userId, $announcementId]);
     $existing = $stmt->fetch();
 
-    // Preserve existing file paths so saving text fields doesn't wipe them
-    $existingFd = $existing ? (json_decode($existing['form_data'] ?? '{}', true) ?: []) : [];
-
-    $formData = json_encode([
-        'phone'          => $body['phone']          ?? '',
-        'degree'         => $body['degree']         ?? '',
-        'institution'    => $body['institution']    ?? '',
-        'specialization' => $body['specialization'] ?? '',
-        'experience'     => $body['experience']     ?? '',
-        'summary'        => $body['summary']        ?? '',
-        'declared'       => false,
-        'savedAt'        => date('c'),
-        'cv_path'        => $existingFd['cv_path']   ?? null,
-        'cl_path'        => $existingFd['cl_path']   ?? null,
-        'sup_paths'      => $existingFd['sup_paths'] ?? [],
-    ]);
-
     if ($existing) {
         $upd = $pdo->prepare("
-            UPDATE candidate_applications SET form_data = ?, updated_at = NOW() WHERE id = ?
+            UPDATE candidate_applications
+            SET app_phone = ?, app_degree = ?, app_institution = ?,
+                app_specialization = ?, app_experience = ?, app_summary = ?,
+                updated_at = NOW()
+            WHERE id = ?
         ");
-        $upd->execute([$formData, $existing['id']]);
+        $upd->execute([$phone, $degree, $institution, $specialization, $experience, $summary, $existing['id']]);
         echo json_encode(['success' => true, 'application_id' => $existing['id']]);
     } else {
         $ins = $pdo->prepare("
             INSERT INTO candidate_applications
-                (announcement_id, candidate_id, status, progress, form_data)
-            VALUES (?, ?, 'draft', 25, ?)
+                (announcement_id, candidate_id, status, progress,
+                 app_phone, app_degree, app_institution, app_specialization,
+                 app_experience, app_summary)
+            VALUES (?, ?, 'draft', 25, ?, ?, ?, ?, ?, ?)
         ");
-        $ins->execute([$announcementId, $userId, $formData]);
+        $ins->execute([$announcementId, $userId, $phone, $degree, $institution, $specialization, $experience, $summary]);
         echo json_encode(['success' => true, 'application_id' => (int)$pdo->lastInsertId()]);
     }
 }
@@ -181,16 +199,16 @@ function handleSubmit(PDO $pdo, int $userId): void {
         return;
     }
 
-    // Fetch existing record (draft or previous submission)
+    // Fetch existing record to preserve file paths not being replaced
     $stmt = $pdo->prepare("
-        SELECT id, form_data FROM candidate_applications
+        SELECT id, app_cv_path, app_cl_path,
+               app_sup_path_1, app_sup_path_2, app_sup_path_3, app_sup_path_4, app_sup_path_5
+        FROM candidate_applications
         WHERE candidate_id = ? AND announcement_id = ?
     ");
     $stmt->execute([$userId, $announcementId]);
     $existing = $stmt->fetch();
-    $existingFd = $existing ? (json_decode($existing['form_data'] ?? '{}', true) ?: []) : [];
 
-    // Upload dir (relative to project root)
     $uploadDir = dirname(__DIR__) . '/uploads/applications/';
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
@@ -199,11 +217,10 @@ function handleSubmit(PDO $pdo, int $userId): void {
     $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
     $prefix  = $userId . '_' . $announcementId . '_';
 
-    $cvPath  = $existingFd['cv_path']  ?? null;
-    $clPath  = $existingFd['cl_path']  ?? null;
-    $supPaths = $existingFd['sup_paths'] ?? [];
+    $cvPath   = $existing['app_cv_path'] ?? null;
+    $clPath   = $existing['app_cl_path'] ?? null;
+    $supPaths = $existing ? getSupPaths($existing) : [];
 
-    // Helper: move uploaded file safely
     $saveFile = function(array $fileArr, string $key) use ($uploadDir, $allowed, $prefix): ?string {
         if (empty($fileArr['tmp_name'])) return null;
         $ext = strtolower(pathinfo($fileArr['name'], PATHINFO_EXTENSION));
@@ -222,51 +239,66 @@ function handleSubmit(PDO $pdo, int $userId): void {
         $clPath = $saveFile($_FILES['cl'], 'cl') ?? $clPath;
     }
     if (!empty($_FILES['sup']['tmp_name'])) {
-        // Multiple file input named sup[]
         $files = $_FILES['sup'];
         $count = is_array($files['tmp_name']) ? count($files['tmp_name']) : 0;
         for ($i = 0; $i < $count && count($supPaths) < 5; $i++) {
             if (!empty($files['tmp_name'][$i])) {
-                $single = [
-                    'tmp_name' => $files['tmp_name'][$i],
-                    'name'     => $files['name'][$i],
-                ];
+                $single = ['tmp_name' => $files['tmp_name'][$i], 'name' => $files['name'][$i]];
                 $path = $saveFile($single, 'sup' . $i);
                 if ($path) $supPaths[] = $path;
             }
         }
     }
 
-    $formData = json_encode([
-        'phone'          => $_POST['phone']          ?? '',
-        'degree'         => $_POST['degree']         ?? '',
-        'institution'    => $_POST['institution']    ?? '',
-        'specialization' => $_POST['specialization'] ?? '',
-        'experience'     => $_POST['experience']     ?? '',
-        'summary'        => $_POST['summary']        ?? '',
-        'declared'       => true,
-        'savedAt'        => date('c'),
-        'cv_path'        => $cvPath,
-        'cl_path'        => $clPath,
-        'sup_paths'      => $supPaths,
-    ]);
+    // Pad sup paths to 5 slots
+    $supPaths = array_values($supPaths);
+    while (count($supPaths) < 5) $supPaths[] = null;
+
+    $phone          = trim($_POST['phone']          ?? '');
+    $degree         = trim($_POST['degree']         ?? '');
+    $institution    = trim($_POST['institution']    ?? '');
+    $specialization = trim($_POST['specialization'] ?? '');
+    $experience     = $_POST['experience'] !== '' ? (int)$_POST['experience'] : null;
+    $summary        = trim($_POST['summary']        ?? '');
 
     if ($existing) {
         $upd = $pdo->prepare("
             UPDATE candidate_applications
-            SET status = 'submitted', progress = 100,
-                submitted_at = NOW(), form_data = ?, updated_at = NOW()
+            SET status = 'submitted', progress = 100, submitted_at = NOW(),
+                app_phone = ?, app_degree = ?, app_institution = ?,
+                app_specialization = ?, app_experience = ?, app_summary = ?,
+                app_declared = 1,
+                app_cv_path = ?, app_cl_path = ?,
+                app_sup_path_1 = ?, app_sup_path_2 = ?, app_sup_path_3 = ?,
+                app_sup_path_4 = ?, app_sup_path_5 = ?,
+                updated_at = NOW()
             WHERE id = ?
         ");
-        $upd->execute([$formData, $existing['id']]);
+        $upd->execute([
+            $phone, $degree, $institution, $specialization, $experience, $summary,
+            $cvPath, $clPath,
+            $supPaths[0], $supPaths[1], $supPaths[2], $supPaths[3], $supPaths[4],
+            $existing['id'],
+        ]);
         $appId = $existing['id'];
     } else {
         $ins = $pdo->prepare("
             INSERT INTO candidate_applications
-                (announcement_id, candidate_id, status, progress, submitted_at, form_data)
-            VALUES (?, ?, 'submitted', 100, NOW(), ?)
+                (announcement_id, candidate_id, status, progress, submitted_at,
+                 app_phone, app_degree, app_institution, app_specialization,
+                 app_experience, app_summary, app_declared,
+                 app_cv_path, app_cl_path,
+                 app_sup_path_1, app_sup_path_2, app_sup_path_3, app_sup_path_4, app_sup_path_5)
+            VALUES (?, ?, 'submitted', 100, NOW(),
+                    ?, ?, ?, ?, ?, ?, 1,
+                    ?, ?, ?, ?, ?, ?, ?)
         ");
-        $ins->execute([$announcementId, $userId, $formData]);
+        $ins->execute([
+            $announcementId, $userId,
+            $phone, $degree, $institution, $specialization, $experience, $summary,
+            $cvPath, $clPath,
+            $supPaths[0], $supPaths[1], $supPaths[2], $supPaths[3], $supPaths[4],
+        ]);
         $appId = (int)$pdo->lastInsertId();
     }
 

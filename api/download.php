@@ -20,7 +20,9 @@ if (!$appId || !$type) {
 
 // Fetch the application – must belong to this user
 $stmt = $pdo->prepare("
-    SELECT form_data FROM candidate_applications
+    SELECT app_cv_path, app_cl_path,
+           app_sup_path_1, app_sup_path_2, app_sup_path_3, app_sup_path_4, app_sup_path_5
+    FROM candidate_applications
     WHERE id = ? AND candidate_id = ?
 ");
 $stmt->execute([$appId, $userId]);
@@ -31,14 +33,22 @@ if (!$row) {
     exit('Forbidden');
 }
 
-$fd = $row['form_data'] ? json_decode($row['form_data'], true) : [];
-
 $storedPath = null;
-if ($type === 'cv')  $storedPath = $fd['cv_path'] ?? null;
-elseif ($type === 'cl') $storedPath = $fd['cl_path'] ?? null;
-elseif ($type === 'sup') {
-    $paths = $fd['sup_paths'] ?? [];
-    $storedPath = $paths[$idx] ?? null;
+if ($type === 'cv') {
+    $storedPath = $row['app_cv_path'] ?? null;
+} elseif ($type === 'cl') {
+    $storedPath = $row['app_cl_path'] ?? null;
+} elseif ($type === 'sup') {
+    $supCols = [
+        $row['app_sup_path_1'],
+        $row['app_sup_path_2'],
+        $row['app_sup_path_3'],
+        $row['app_sup_path_4'],
+        $row['app_sup_path_5'],
+    ];
+    // Build flat array of non-empty paths, then pick by index
+    $supPaths = array_values(array_filter($supCols));
+    $storedPath = $supPaths[$idx] ?? null;
 }
 
 if (!$storedPath) {
@@ -50,7 +60,7 @@ if (!$storedPath) {
 $absPath = dirname(__DIR__) . '/' . $storedPath;
 
 // Prevent path traversal
-$realPath = realpath($absPath);
+$realPath   = realpath($absPath);
 $uploadRoot = realpath(dirname(__DIR__) . '/uploads/');
 if (!$realPath || !$uploadRoot || strpos($realPath, $uploadRoot) !== 0) {
     http_response_code(403);
@@ -62,8 +72,8 @@ if (!is_file($realPath)) {
     exit('File not found');
 }
 
-$ext      = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
-$mimeMap  = [
+$ext     = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
+$mimeMap = [
     'pdf'  => 'application/pdf',
     'doc'  => 'application/msword',
     'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
