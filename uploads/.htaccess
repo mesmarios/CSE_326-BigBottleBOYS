@@ -1,0 +1,11 @@
+# Prevent direct browser listing of this directory
+Options -Indexes
+
+# Allow only known file types to be served
+<FilesMatch "\.(pdf|doc|docx|jpg|jpeg|png)$">
+    Allow from all
+</FilesMatch>
+
+<FilesMatch "^(?!.*\.(pdf|doc|docx|jpg|jpeg|png)$)">
+    Deny from all
+</FilesMatch>

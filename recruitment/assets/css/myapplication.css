@@ -195,6 +195,19 @@
   .wizard-step:not(:last-child)::after { top: 14px; }
 }
 
+/* ---- Loading spinner for calls container ----------------------- */
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #6c757d;
+  font-size: .9rem;
+}
+
+/* ---- badge-evaluated status ------------------------------------ */
+.badge-evaluated { background:#e0d9f7; color:#4c1d95; }
+
 /* Blurry backdrop for all modals */
 .modal-backdrop {
   backdrop-filter: blur(4px);
