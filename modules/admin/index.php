@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/../../includes/admin-guard.php'; ?>
 <!doctype html>
 <html lang="el">
   <head>
@@ -24,8 +25,9 @@
     <div class="app-wrapper">
 
       <!-- ===== NAVBAR ===== -->
-      <nav class="app-header navbar navbar-expand bg-body">
-        <div class="container-fluid">
+      <header class="app-header">
+        <nav class="navbar navbar-expand bg-body h-100" aria-label="Primary">
+          <div class="container-fluid">
           <ul class="navbar-nav">
             <li class="nav-item">
               <a class="nav-link" href="#" role="button" onclick="toggleSidebar(event)" aria-label="Toggle sidebar">
@@ -93,8 +95,9 @@
               </ul>
             </li>
           </ul>
-        </div>
-      </nav>
+          </div>
+        </nav>
+      </header>
 
       <!-- ===== SIDEBAR ===== -->
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">

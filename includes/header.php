@@ -23,9 +23,10 @@ $_nav_pic   = (!empty($_nav_user['profilepic']))
 // ─────────────────────────────────────────────────────────────────────────────
 ?>
     <!--begin::Header-->
-    <nav class="app-header navbar navbar-expand bg-body">
-      <!--begin::Container-->
-      <div class="container-fluid">
+    <header class="app-header">
+      <nav class="navbar navbar-expand bg-body h-100" aria-label="Primary">
+        <!--begin::Container-->
+        <div class="container-fluid">
         <!--begin::Start Navbar Links-->
         <ul class="navbar-nav">
           <li class="nav-item">
@@ -100,9 +101,8 @@ $_nav_pic   = (!empty($_nav_user['profilepic']))
           <!--end::User Menu Dropdown-->
         </ul>
         <!--end::End Navbar Links-->
-      </div>
-      <!--end::Container-->
-    </nav>
+        </div>
+        <!--end::Container-->
+      </nav>
+    </header>
     <!--end::Header-->
-<html lang="en">
-  <!--begin::Head-->

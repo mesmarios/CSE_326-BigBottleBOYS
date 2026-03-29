@@ -76,14 +76,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="assets/images/17780_100tepak-logo.png" alt="ΤΕΠΑΚ Logo">
             <img src="assets/images/netaniaxou.jpg" alt="ΤΕΠΑΚ" class="auth-left-photo">
         </div>
-        <div class="auth-left-content">
+        <header class="auth-left-content">
             <div class="auth-left-stars">
                 <span class="stars">★★★★★</span>
                 <span>5.0 · από 200+ χρήστες</span>
             </div>
             <h1>Διαχείριση<br>Ειδικών Επιστημόνων<br>ΤΕΠΑΚ</h1>
             <p>Δημιουργήστε λογαριασμό και αποκτήστε πρόσβαση στο σύστημα υποβολής αιτήσεων.</p>
-        </div>
+        </header>
     </div>
 
     <!-- ── Right Panel ── -->

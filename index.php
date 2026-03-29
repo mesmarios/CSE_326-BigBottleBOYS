@@ -46,10 +46,12 @@ declare(strict_types=1);
 </head>
 <body>
   <main class="wrap">
-    <h1>Welcome to BigBottleBOYS</h1>
-    <p>Select the UI you want to open based on your role.</p>
+    <header>
+      <h1>Welcome to BigBottleBOYS</h1>
+      <p>Select the UI you want to open based on your role.</p>
+    </header>
     <div class="actions">
-      <a class="primary" href="modules/admin/index.php">Open Admin UI</a>
+      <a class="primary" href="login.php?admin=1&amp;redirect=modules/admin/index.php">Open Admin UI</a>
       <a href="modules/recruitmentModule/index.php">Open User UI</a>
       <a href="register.php">Register</a>
     </div>

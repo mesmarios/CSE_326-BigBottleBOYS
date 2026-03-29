@@ -2,13 +2,36 @@
 session_start();
 require_once 'database/db.php';
 
+function sanitizeLocalRedirect(?string $target): ?string
+{
+    if ($target === null) {
+        return null;
+    }
+
+    $target = trim($target);
+    if ($target === '' || str_contains($target, '://') || str_starts_with($target, '//')) {
+        return null;
+    }
+
+    $target = ltrim($target, '/');
+    return $target !== '' ? $target : null;
+}
+
 $errors     = [];
 $registered = isset($_GET['registered']) && $_GET['registered'] == 1;
+$requireAdmin = (isset($_GET['admin']) && $_GET['admin'] === '1')
+    || (isset($_POST['require_admin']) && $_POST['require_admin'] === '1');
+$redirectTo = sanitizeLocalRedirect($_POST['redirect_to'] ?? $_GET['redirect'] ?? null);
+
+if (isset($_SESSION['auth_error'])) {
+    $errors[] = $_SESSION['auth_error'];
+    unset($_SESSION['auth_error']);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email']    ?? '');
     $password = $_POST['password']      ?? '';
-    $isAdmin  = isset($_POST['go_admin']);
+    $isAdmin  = isset($_POST['go_admin']) || $requireAdmin;
 
     if ($email === '' || $password === '') {
         $errors[] = 'Συμπληρώστε email και κωδικό.';
@@ -30,9 +53,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['last_name']  = $user['last_name'];
                 $_SESSION['email']      = $user['email'];
 
-                header('Location: ' . ($user['role'] === 'admin'
+                $defaultTarget = $user['role'] === 'admin'
                     ? 'modules/admin/index.php'
-                    : 'modules/recruitmentModule/index.php'));
+                    : 'modules/recruitmentModule/index.php';
+                $target = $redirectTo;
+
+                if ($user['role'] !== 'admin' && $target !== null && str_starts_with($target, 'modules/admin/')) {
+                    $target = null;
+                }
+
+                header('Location: ' . ($target ?? $defaultTarget));
                 exit;
             }
         } else {
@@ -62,14 +92,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="assets/images/17780_100tepak-logo.png" alt="ΤΕΠΑΚ Logo">
             <img src="assets/images/netaniaxou.jpg" alt="ΤΕΠΑΚ" class="auth-left-photo">
         </div>
-        <div class="auth-left-content">
+        <header class="auth-left-content">
             <div class="auth-left-stars">
                 <span class="stars">★★★★★</span>
                 <span>5.0 · από 200+ χρήστες</span>
             </div>
             <h1>Διαχείριση<br>Ειδικών Επιστημόνων<br>ΤΕΠΑΚ</h1>
             <p>Δημιουργήστε λογαριασμό και αποκτήστε πρόσβαση στο σύστημα υποβολής αιτήσεων.</p>
-        </div>
+        </header>
     </div>
 
     <!-- Right Panel -->
@@ -78,7 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="assets/images/17780_100tepak-logo.png" alt="ΤΕΠΑΚ">
         </div>
         <h2>Σύνδεση</h2>
-        <p class="auth-subtitle">Καλώς ήρθατε πίσω.</p>
+        <p class="auth-subtitle">
+            <?= $requireAdmin ? 'Σύνδεση διαχειριστή με έγκυρα στοιχεία.' : 'Καλώς ήρθατε πίσω.' ?>
+        </p>
 
         <?php if ($registered): ?>
             <div class="auth-success">
@@ -95,6 +127,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" class="auth-form">
+            <input type="hidden" name="require_admin" value="<?= $requireAdmin ? '1' : '0' ?>">
+            <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($redirectTo ?? '') ?>">
             <div class="mb-4">
                 <label class="form-label login-label">Email <span class="required">*</span></label>
                 <input type="email" name="email" class="form-control form-control-login"
@@ -108,12 +142,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        placeholder="Εισάγετε τον κωδικό σας">
             </div>
 
-            <button type="submit" name="login" class="btn-auth btn-auth-login mb-3">
-                <i class="bi bi-box-arrow-in-right me-2"></i>Σύνδεση Χρήστη
-            </button>
-            <button type="submit" name="go_admin" class="btn-auth-secondary btn-auth-secondary-login">
-                <i class="bi bi-shield-lock me-2"></i>Σύνδεση Διαχειριστή
-            </button>
+            <?php if ($requireAdmin): ?>
+                <button type="submit" name="go_admin" class="btn-auth btn-auth-login mb-3">
+                    <i class="bi bi-shield-lock me-2"></i>Σύνδεση Διαχειριστή
+                </button>
+            <?php else: ?>
+                <button type="submit" name="login" class="btn-auth btn-auth-login mb-3">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Σύνδεση Χρήστη
+                </button>
+                <button type="submit" name="go_admin" class="btn-auth-secondary btn-auth-secondary-login">
+                    <i class="bi bi-shield-lock me-2"></i>Σύνδεση Διαχειριστή
+                </button>
+            <?php endif; ?>
         </form>
 
         <p class="auth-login-link">
