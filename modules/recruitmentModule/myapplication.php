@@ -15,6 +15,7 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
       SELECT
         ja.id,
         ja.title,
+        ja.status,
         COALESCE(d.name, '—') AS department,
         COALESCE(s.name, '—') AS school,
         COALESCE(c.name, '—') AS course_name,
@@ -35,6 +36,7 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
       $bootCalls[] = [
         'id' => (string)$row['id'],
         'title' => $row['title'],
+        'status' => $row['status'],
         'department' => $row['department'],
         'school' => $row['school'],
         'courses' => [$row['course_name']],

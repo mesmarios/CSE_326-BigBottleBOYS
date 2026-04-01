@@ -47,6 +47,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: manage_recruitment.php#applications');
         exit;
     }
+
+    if ($action === 'save_school') {
+        $id   = (int)($_POST['school_id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+        if ($name !== '') {
+            if ($id > 0) {
+                $pdo->prepare("UPDATE schools SET name=? WHERE id=?")->execute([$name, $id]);
+            } else {
+                $pdo->prepare("INSERT INTO schools (name) VALUES (?)")->execute([$name]);
+            }
+        }
+        header('Location: manage_recruitment.php#schools'); exit;
+    }
+
+    if ($action === 'delete_school') {
+        $id = (int)($_POST['school_id'] ?? 0);
+        if ($id > 0) $pdo->prepare("DELETE FROM schools WHERE id=?")->execute([$id]);
+        header('Location: manage_recruitment.php#schools'); exit;
+    }
+
+    if ($action === 'save_department') {
+        $id        = (int)($_POST['dept_id'] ?? 0);
+        $name      = trim($_POST['name'] ?? '');
+        $school_id = (int)($_POST['school_id'] ?? 0);
+        if ($name !== '' && $school_id > 0) {
+            if ($id > 0) {
+                $pdo->prepare("UPDATE departments SET name=?, school_id=? WHERE id=?")->execute([$name, $school_id, $id]);
+            } else {
+                $pdo->prepare("INSERT INTO departments (name, school_id) VALUES (?,?)")->execute([$name, $school_id]);
+            }
+        }
+        header('Location: manage_recruitment.php#departments'); exit;
+    }
+
+    if ($action === 'delete_department') {
+        $id = (int)($_POST['dept_id'] ?? 0);
+        if ($id > 0) $pdo->prepare("DELETE FROM departments WHERE id=?")->execute([$id]);
+        header('Location: manage_recruitment.php#departments'); exit;
+    }
+
+    if ($action === 'save_course') {
+        $id      = (int)($_POST['course_id'] ?? 0);
+        $name    = trim($_POST['name'] ?? '');
+        $dept_id = (int)($_POST['department_id'] ?? 0);
+        if ($name !== '' && $dept_id > 0) {
+            if ($id > 0) {
+                $pdo->prepare("UPDATE courses SET name=?, department_id=? WHERE id=?")->execute([$name, $dept_id, $id]);
+            } else {
+                $pdo->prepare("INSERT INTO courses (name, department_id) VALUES (?,?)")->execute([$name, $dept_id]);
+            }
+        }
+        header('Location: manage_recruitment.php#courses'); exit;
+    }
+
+    if ($action === 'delete_course') {
+        $id = (int)($_POST['course_id'] ?? 0);
+        if ($id > 0) $pdo->prepare("DELETE FROM courses WHERE id=?")->execute([$id]);
+        header('Location: manage_recruitment.php#courses'); exit;
+    }
+
+    if ($action === 'save_period') {
+        $id          = (int)($_POST['period_id'] ?? 0);
+        $name        = trim($_POST['name'] ?? '');
+        $start_date  = $_POST['start_date'] ?? '';
+        $end_date    = $_POST['end_date'] ?? '';
+        $status      = $_POST['status'] ?? 'planning';
+        $description = trim($_POST['description'] ?? '');
+        if ($name !== '' && $start_date !== '' && $end_date !== '') {
+            if ($id > 0) {
+                $pdo->prepare("UPDATE recruitment_periods SET name=?, start_date=?, end_date=?, status=?, description=? WHERE id=?")
+                    ->execute([$name, $start_date, $end_date, $status, $description, $id]);
+            } else {
+                $pdo->prepare("INSERT INTO recruitment_periods (name, start_date, end_date, status, description) VALUES (?,?,?,?,?)")
+                    ->execute([$name, $start_date, $end_date, $status, $description]);
+            }
+        }
+        header('Location: manage_recruitment.php#period'); exit;
+    }
+
+    if ($action === 'delete_period') {
+        $id = (int)($_POST['period_id'] ?? 0);
+        if ($id > 0) $pdo->prepare("DELETE FROM recruitment_periods WHERE id=?")->execute([$id]);
+        header('Location: manage_recruitment.php#period'); exit;
+    }
+
+    if ($action === 'delete_evaluator') {
+        $ae_id = (int)($_POST['ae_id'] ?? 0);
+        if ($ae_id > 0) $pdo->prepare("DELETE FROM application_evaluators WHERE id=?")->execute([$ae_id]);
+        header('Location: manage_recruitment.php#evaluators'); exit;
+    }
 }
 
 /* ── Fetch data for tables & modals ─────────────────────────── */
@@ -66,8 +156,28 @@ $announcements = $pdo->query("
 $schools    = $pdo->query("SELECT id, name FROM schools ORDER BY name")->fetchAll();
 $departments= $pdo->query("SELECT id, name, school_id FROM departments ORDER BY name")->fetchAll();
 $courses    = $pdo->query("SELECT id, name, department_id FROM courses ORDER BY name")->fetchAll();
-$periods    = $pdo->query("SELECT id, name FROM recruitment_periods ORDER BY start_date DESC")->fetchAll();
+$periods    = $pdo->query("SELECT id, name, start_date, end_date, status, description FROM recruitment_periods ORDER BY start_date DESC")->fetchAll();
 $evalUsers  = $pdo->query("SELECT id, first_name, last_name FROM users ORDER BY last_name, first_name")->fetchAll();
+
+$evalAssignments = $pdo->query("
+    SELECT ae.id AS ae_id, ja.title AS ann_title, u.first_name, u.last_name, ae.created_at
+    FROM application_evaluators ae
+    JOIN job_announcements ja ON ja.id = ae.announcement_id
+    JOIN users u ON u.id = ae.evaluator_id
+    ORDER BY ja.title, u.last_name
+")->fetchAll();
+
+$activePeriod = $pdo->query("SELECT * FROM recruitment_periods WHERE status='active' ORDER BY start_date DESC LIMIT 1")->fetch();
+if (!$activePeriod) {
+    $activePeriod = $pdo->query("SELECT * FROM recruitment_periods ORDER BY start_date DESC LIMIT 1")->fetch();
+}
+
+$periodStatusMap = [
+    'planning' => ['label' => 'Προγραμματισμός', 'class' => 'period-status-closed'],
+    'active'   => ['label' => 'Ανοιχτή',         'class' => 'period-status-open'],
+    'closed'   => ['label' => 'Κλειστή',          'class' => 'period-status-closed'],
+    'archived' => ['label' => 'Αρχειοθετήθηκε',  'class' => 'period-status-closed'],
+];
 
 $statusMap = [
     'published' => ['label' => 'Ανοιχτή',     'class' => 'bg-success'],
@@ -324,16 +434,14 @@ $statusMap = [
                       <i class="bi bi-search"></i>
                       <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση σχολής..." />
                     </div>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#schoolModal">
+                    <button class="btn btn-success btn-sm" onclick="openSchoolModal(0,'')">
                       <i class="bi bi-plus-lg me-1"></i>Νέα Σχολή
                     </button>
                   </div>
                   <div class="table-responsive">
                     <table class="table table-hover mb-0">
                       <thead class="table-light">
-                        <tr>
-                          <th>#</th><th>Όνομα Σχολής</th><th class="text-end">Ενέργειες</th>
-                        </tr>
+                        <tr><th>#</th><th>Όνομα Σχολής</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
                       <tbody>
                         <?php foreach ($schools as $i => $school): ?>
@@ -341,8 +449,12 @@ $statusMap = [
                           <td><?= $i + 1 ?></td>
                           <td class="fw-semibold"><?= htmlspecialchars($school['name']) ?></td>
                           <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="openSchoolModal(<?= $school['id'] ?>, <?= htmlspecialchars(json_encode($school['name']), ENT_QUOTES) ?>)"><i class="bi bi-pencil"></i></button>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Διαγραφή σχολής;');">
+                              <input type="hidden" name="action" value="delete_school">
+                              <input type="hidden" name="school_id" value="<?= $school['id'] ?>">
+                              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
                           </td>
                         </tr>
                         <?php endforeach; ?>
@@ -363,7 +475,7 @@ $statusMap = [
                       <i class="bi bi-search"></i>
                       <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση τμήματος..." />
                     </div>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#deptModal">
+                    <button class="btn btn-success btn-sm" onclick="openDeptModal(0,'',0)">
                       <i class="bi bi-plus-lg me-1"></i>Νέο Τμήμα
                     </button>
                   </div>
@@ -381,8 +493,12 @@ $statusMap = [
                           <td class="fw-semibold"><?= htmlspecialchars($dept['name']) ?></td>
                           <td><?= htmlspecialchars($schoolById[$dept['school_id']] ?? '—') ?></td>
                           <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="openDeptModal(<?= $dept['id'] ?>, <?= htmlspecialchars(json_encode($dept['name']), ENT_QUOTES) ?>, <?= $dept['school_id'] ?>)"><i class="bi bi-pencil"></i></button>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Διαγραφή τμήματος;');">
+                              <input type="hidden" name="action" value="delete_department">
+                              <input type="hidden" name="dept_id" value="<?= $dept['id'] ?>">
+                              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
                           </td>
                         </tr>
                         <?php endforeach; ?>
@@ -403,30 +519,35 @@ $statusMap = [
                       <i class="bi bi-search"></i>
                       <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση μαθήματος..." />
                     </div>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#courseModal">
+                    <button class="btn btn-success btn-sm" onclick="openCourseModal(0,'',0)">
                       <i class="bi bi-plus-lg me-1"></i>Νέο Μάθημα
                     </button>
                   </div>
                   <div class="table-responsive">
                     <table class="table table-hover mb-0">
                       <thead class="table-light">
-                        <tr><th>Μάθημα</th><th>Τμήμα</th><th class="text-end">Ενέργειες</th></tr>
+                        <tr><th>#</th><th>Μάθημα</th><th>Τμήμα</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
                       <tbody>
                         <?php
                         $deptById = array_column($departments, 'name', 'id');
-                        foreach ($courses as $course): ?>
+                        foreach ($courses as $i => $course): ?>
                         <tr>
+                          <td><?= $i + 1 ?></td>
                           <td class="fw-semibold"><?= htmlspecialchars($course['name']) ?></td>
                           <td><?= htmlspecialchars($deptById[$course['department_id']] ?? '—') ?></td>
                           <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="openCourseModal(<?= $course['id'] ?>, <?= htmlspecialchars(json_encode($course['name']), ENT_QUOTES) ?>, <?= $course['department_id'] ?>)"><i class="bi bi-pencil"></i></button>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Διαγραφή μαθήματος;');">
+                              <input type="hidden" name="action" value="delete_course">
+                              <input type="hidden" name="course_id" value="<?= $course['id'] ?>">
+                              <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
                           </td>
                         </tr>
                         <?php endforeach; ?>
                         <?php if (empty($courses)): ?>
-                        <tr><td colspan="3" class="text-center text-muted py-3">Δεν υπάρχουν μαθήματα.</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-3">Δεν υπάρχουν μαθήματα.</td></tr>
                         <?php endif; ?>
                       </tbody>
                     </table>
@@ -437,51 +558,59 @@ $statusMap = [
               <!-- ===== TAB: PERIOD ===== -->
               <div class="tab-pane fade" id="period" role="tabpanel">
                 <div class="row g-4">
+                  <!-- Edit / New form -->
                   <div class="col-12 col-lg-7">
                     <div class="config-card bg-body shadow-sm">
                       <div class="config-card-header">
                         <i class="bi bi-calendar-range text-success"></i>
-                        Τρέχουσα Περίοδος Αιτήσεων
+                        <span id="periodFormTitle"><?= $activePeriod ? 'Επεξεργασία Περιόδου' : 'Νέα Περίοδος Αιτήσεων' ?></span>
                       </div>
                       <div class="config-card-body">
+                        <?php if ($activePeriod):
+                            $ps = $periodStatusMap[$activePeriod['status']] ?? ['label'=>$activePeriod['status'],'class'=>'period-status-closed'];
+                        ?>
                         <div class="d-flex align-items-center gap-2 mb-3">
-                          <span class="period-status-badge period-status-open">
-                            <i class="bi bi-circle-fill" style="font-size:.5rem;"></i> Ανοιχτή
+                          <span class="period-status-badge <?= $ps['class'] ?>">
+                            <i class="bi bi-circle-fill" style="font-size:.5rem;"></i> <?= $ps['label'] ?>
                           </span>
-                          <small class="text-secondary">Η περίοδος αιτήσεων είναι ενεργή</small>
+                          <small class="text-secondary"><?= htmlspecialchars($activePeriod['name']) ?></small>
                         </div>
-                        <form>
+                        <?php endif; ?>
+                        <form method="POST" id="periodForm">
+                          <input type="hidden" name="action" value="save_period">
+                          <input type="hidden" name="period_id" id="periodFormId" value="<?= $activePeriod['id'] ?? 0 ?>">
                           <div class="row g-3">
                             <div class="col-md-6">
-                              <label class="form-label fw-semibold">Έναρξη Περιόδου</label>
-                              <input type="date" class="form-control" value="2026-02-01" />
+                              <label class="form-label fw-semibold">Έναρξη Περιόδου <span class="text-danger">*</span></label>
+                              <input type="date" class="form-control" name="start_date" id="periodStart" required value="<?= htmlspecialchars($activePeriod['start_date'] ?? '') ?>" />
                             </div>
                             <div class="col-md-6">
-                              <label class="form-label fw-semibold">Λήξη Περιόδου</label>
-                              <input type="date" class="form-control" value="2026-04-30" />
+                              <label class="form-label fw-semibold">Λήξη Περιόδου <span class="text-danger">*</span></label>
+                              <input type="date" class="form-control" name="end_date" id="periodEnd" required value="<?= htmlspecialchars($activePeriod['end_date'] ?? '') ?>" />
                             </div>
                             <div class="col-12">
-                              <label class="form-label fw-semibold">Τίτλος Περιόδου</label>
-                              <input type="text" class="form-control" value="Εαρινό Εξάμηνο 2025–2026" />
+                              <label class="form-label fw-semibold">Τίτλος Περιόδου <span class="text-danger">*</span></label>
+                              <input type="text" class="form-control" name="name" id="periodName" required value="<?= htmlspecialchars($activePeriod['name'] ?? '') ?>" placeholder="π.χ. Εαρινό Εξάμηνο 2025–2026" />
                             </div>
                             <div class="col-12">
                               <label class="form-label fw-semibold">Περιγραφή</label>
-                              <textarea class="form-control" rows="3">Περίοδος υποβολής αιτήσεων για το εαρινό εξάμηνο του ακαδημαϊκού έτους 2025-2026.</textarea>
+                              <textarea class="form-control" name="description" id="periodDesc" rows="3"><?= htmlspecialchars($activePeriod['description'] ?? '') ?></textarea>
                             </div>
                             <div class="col-md-6">
                               <label class="form-label fw-semibold">Κατάσταση</label>
-                              <select class="form-select">
-                                <option selected>Ανοιχτή</option>
-                                <option>Κλειστή</option>
-                                <option>Προσεχώς</option>
+                              <select class="form-select" name="status" id="periodStatus">
+                                <option value="planning" <?= ($activePeriod['status'] ?? '') === 'planning' ? 'selected' : '' ?>>Προγραμματισμός</option>
+                                <option value="active"   <?= ($activePeriod['status'] ?? '') === 'active'   ? 'selected' : '' ?>>Ανοιχτή</option>
+                                <option value="closed"   <?= ($activePeriod['status'] ?? '') === 'closed'   ? 'selected' : '' ?>>Κλειστή</option>
+                                <option value="archived" <?= ($activePeriod['status'] ?? '') === 'archived' ? 'selected' : '' ?>>Αρχειοθετήθηκε</option>
                               </select>
                             </div>
-                            <div class="col-12 pt-1">
-                              <button type="button" class="btn btn-primary">
-                                <i class="bi bi-floppy me-1"></i>Αποθήκευση Αλλαγών
+                            <div class="col-12 pt-1 d-flex gap-2 flex-wrap">
+                              <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-floppy me-1"></i>Αποθήκευση
                               </button>
-                              <button type="button" class="btn btn-danger ms-2">
-                                <i class="bi bi-x-circle me-1"></i>Κλείσιμο Περιόδου
+                              <button type="button" class="btn btn-outline-success" onclick="clearPeriodForm()">
+                                <i class="bi bi-plus-lg me-1"></i>Νέα Περίοδος
                               </button>
                             </div>
                           </div>
@@ -489,15 +618,33 @@ $statusMap = [
                       </div>
                     </div>
                   </div>
+                  <!-- Periods list -->
                   <div class="col-12 col-lg-5">
                     <div class="config-card bg-body shadow-sm">
-                      <div class="config-card-header"><i class="bi bi-clock-history text-warning"></i>Ιστορικό Περιόδων</div>
+                      <div class="config-card-header"><i class="bi bi-clock-history text-warning"></i>Όλες οι Περίοδοι</div>
                       <div class="config-card-body p-0">
                         <ul class="list-group list-group-flush">
-                          <?php foreach ($periods as $period): ?>
-                          <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                              <div class="fw-semibold small"><?= htmlspecialchars($period['name']) ?></div>
+                          <?php foreach ($periods as $period):
+                              $ps = $periodStatusMap[$period['status']] ?? ['label'=>$period['status'],'class'=>'period-status-closed'];
+                          ?>
+                          <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                            <div style="min-width:0;">
+                              <div class="fw-semibold small text-truncate"><?= htmlspecialchars($period['name']) ?></div>
+                              <div class="text-secondary" style="font-size:.78rem;">
+                                <?= date('d/m/Y', strtotime($period['start_date'])) ?> – <?= date('d/m/Y', strtotime($period['end_date'])) ?>
+                              </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                              <span class="period-status-badge <?= $ps['class'] ?>"><?= $ps['label'] ?></span>
+                              <button class="btn btn-sm btn-outline-primary" title="Επεξεργασία"
+                                onclick="editPeriod(<?= htmlspecialchars(json_encode($period), ENT_QUOTES) ?>)">
+                                <i class="bi bi-pencil"></i>
+                              </button>
+                              <form method="POST" style="display:inline;" onsubmit="return confirm('Διαγραφή περιόδου;');">
+                                <input type="hidden" name="action" value="delete_period">
+                                <input type="hidden" name="period_id" value="<?= $period['id'] ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                              </form>
                             </div>
                           </li>
                           <?php endforeach; ?>
@@ -515,7 +662,7 @@ $statusMap = [
               <div class="tab-pane fade" id="evaluators" role="tabpanel">
                 <div class="admin-table-card bg-body shadow-sm">
                   <div class="admin-table-toolbar">
-                    <h6 class="mb-0 fw-semibold">Ανάθεση Αξιολογητών σε Αιτήσεις</h6>
+                    <h6 class="mb-0 fw-semibold">Αναθέσεις Αξιολογητών</h6>
                     <button class="btn btn-success btn-sm" onclick="openAssignModal(0,'')">
                       <i class="bi bi-person-plus me-1"></i>Νέα Ανάθεση
                     </button>
@@ -523,16 +670,26 @@ $statusMap = [
                   <div class="table-responsive">
                     <table class="table table-hover mb-0">
                       <thead class="table-light">
-                        <tr><th>Αίτηση</th><th>Αξιολογητής</th><th class="text-end">Ενέργειες</th></tr>
+                        <tr><th>Αγγελία</th><th>Αξιολογητής</th><th>Ημ/νία Ανάθεσης</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
                       <tbody>
-                        <?php foreach ($announcements as $ann): if (empty($ann['evaluators'])) continue; ?>
+                        <?php foreach ($evalAssignments as $ea): ?>
                         <tr>
-                          <td><?= htmlspecialchars($ann['title']) ?></td>
-                          <td><?= htmlspecialchars($ann['evaluators']) ?></td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-person-dash"></i></button></td>
+                          <td class="fw-semibold"><?= htmlspecialchars($ea['ann_title']) ?></td>
+                          <td><?= htmlspecialchars($ea['first_name'] . ' ' . $ea['last_name']) ?></td>
+                          <td class="text-secondary small"><?= date('d/m/Y', strtotime($ea['created_at'])) ?></td>
+                          <td class="text-end">
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Αφαίρεση αξιολογητή;');">
+                              <input type="hidden" name="action" value="delete_evaluator">
+                              <input type="hidden" name="ae_id" value="<?= $ea['ae_id'] ?>">
+                              <button type="submit" class="btn btn-sm btn-outline-danger" title="Αφαίρεση"><i class="bi bi-person-dash"></i></button>
+                            </form>
+                          </td>
                         </tr>
                         <?php endforeach; ?>
+                        <?php if (empty($evalAssignments)): ?>
+                        <tr><td colspan="4" class="text-center text-muted py-4"><i class="bi bi-person-x fs-4 d-block mb-1"></i>Δεν υπάρχουν αναθέσεις ακόμα.</td></tr>
+                        <?php endif; ?>
                       </tbody>
                     </table>
                   </div>
@@ -676,52 +833,64 @@ $statusMap = [
       </div>
     </div>
 
-    <!-- Generic small modals -->
+    <!-- School Modal -->
     <div class="modal fade" id="schoolModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Νέα Σχολή</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="mb-3"><label class="form-label fw-semibold">Όνομα Σχολής</label><input type="text" class="form-control" placeholder="π.χ. Σχολή Θετικών Επιστημών" /></div>
-        </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
+        <form method="POST">
+          <input type="hidden" name="action" value="save_school">
+          <input type="hidden" name="school_id" id="schoolModalId" value="0">
+          <div class="modal-header"><h5 class="modal-title" id="schoolModalTitle">Νέα Σχολή</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <div class="mb-3"><label class="form-label fw-semibold">Όνομα Σχολής <span class="text-danger">*</span></label><input type="text" class="form-control" name="name" id="schoolModalName" required placeholder="π.χ. Σχολή Θετικών Επιστημών" /></div>
+          </div>
+          <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
+        </form>
       </div></div>
     </div>
 
+    <!-- Department Modal -->
     <div class="modal fade" id="deptModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Νέο Τμήμα</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="mb-3"><label class="form-label fw-semibold">Όνομα Τμήματος</label><input type="text" class="form-control" placeholder="π.χ. Τμήμα Μαθηματικών" /></div>
-          <div class="mb-3"><label class="form-label fw-semibold">Σχολή</label>
-            <select class="form-select">
-              <option value="">Επιλέξτε σχολή...</option>
-              <?php foreach ($schools as $sc): ?>
-              <option value="<?= $sc['id'] ?>"><?= htmlspecialchars($sc['name']) ?></option>
-              <?php endforeach; ?>
-            </select>
+        <form method="POST">
+          <input type="hidden" name="action" value="save_department">
+          <input type="hidden" name="dept_id" id="deptModalId" value="0">
+          <div class="modal-header"><h5 class="modal-title" id="deptModalTitle">Νέο Τμήμα</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <div class="mb-3"><label class="form-label fw-semibold">Όνομα Τμήματος <span class="text-danger">*</span></label><input type="text" class="form-control" name="name" id="deptModalName" required placeholder="π.χ. Τμήμα Μαθηματικών" /></div>
+            <div class="mb-3"><label class="form-label fw-semibold">Σχολή <span class="text-danger">*</span></label>
+              <select class="form-select" name="school_id" id="deptModalSchool" required>
+                <option value="">Επιλέξτε σχολή...</option>
+                <?php foreach ($schools as $sc): ?>
+                <option value="<?= $sc['id'] ?>"><?= htmlspecialchars($sc['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
+          <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
+        </form>
       </div></div>
     </div>
 
+    <!-- Course Modal -->
     <div class="modal fade" id="courseModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Νέο Μάθημα</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-12"><label class="form-label fw-semibold">Τίτλος Μαθήματος</label><input type="text" class="form-control" placeholder="π.χ. Ανάλυση Ι" /></div>
-            <div class="col-md-6"><label class="form-label fw-semibold">Τμήμα</label>
-              <select class="form-select">
-                <option value="">Επιλέξτε...</option>
+        <form method="POST">
+          <input type="hidden" name="action" value="save_course">
+          <input type="hidden" name="course_id" id="courseModalId" value="0">
+          <div class="modal-header"><h5 class="modal-title" id="courseModalTitle">Νέο Μάθημα</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <div class="mb-3"><label class="form-label fw-semibold">Τίτλος Μαθήματος <span class="text-danger">*</span></label><input type="text" class="form-control" name="name" id="courseModalName" required placeholder="π.χ. Ανάλυση Ι" /></div>
+            <div class="mb-3"><label class="form-label fw-semibold">Τμήμα <span class="text-danger">*</span></label>
+              <select class="form-select" name="department_id" id="courseModalDept" required>
+                <option value="">Επιλέξτε τμήμα...</option>
                 <?php foreach ($departments as $dep): ?>
                 <option value="<?= $dep['id'] ?>"><?= htmlspecialchars($dep['name']) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
           </div>
-        </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
+          <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
+        </form>
       </div></div>
     </div>
 
@@ -821,6 +990,50 @@ $statusMap = [
         const sel = document.getElementById('evalAnnSelect');
         sel.value = annId || '';
         new bootstrap.Modal(document.getElementById('evalModal')).show();
+      }
+
+      function openSchoolModal(id, name) {
+        document.getElementById('schoolModalTitle').textContent = id > 0 ? 'Επεξεργασία Σχολής' : 'Νέα Σχολή';
+        document.getElementById('schoolModalId').value = id;
+        document.getElementById('schoolModalName').value = name;
+        new bootstrap.Modal(document.getElementById('schoolModal')).show();
+      }
+
+      function openDeptModal(id, name, schoolId) {
+        document.getElementById('deptModalTitle').textContent = id > 0 ? 'Επεξεργασία Τμήματος' : 'Νέο Τμήμα';
+        document.getElementById('deptModalId').value = id;
+        document.getElementById('deptModalName').value = name;
+        document.getElementById('deptModalSchool').value = schoolId;
+        new bootstrap.Modal(document.getElementById('deptModal')).show();
+      }
+
+      function openCourseModal(id, name, deptId) {
+        document.getElementById('courseModalTitle').textContent = id > 0 ? 'Επεξεργασία Μαθήματος' : 'Νέο Μάθημα';
+        document.getElementById('courseModalId').value = id;
+        document.getElementById('courseModalName').value = name;
+        document.getElementById('courseModalDept').value = deptId;
+        new bootstrap.Modal(document.getElementById('courseModal')).show();
+      }
+
+      function editPeriod(p) {
+        document.getElementById('periodFormTitle').textContent = 'Επεξεργασία Περιόδου';
+        document.getElementById('periodFormId').value  = p.id;
+        document.getElementById('periodName').value    = p.name;
+        document.getElementById('periodStart').value   = p.start_date;
+        document.getElementById('periodEnd').value     = p.end_date;
+        document.getElementById('periodStatus').value  = p.status;
+        document.getElementById('periodDesc').value    = p.description || '';
+        document.getElementById('periodForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function clearPeriodForm() {
+        document.getElementById('periodFormTitle').textContent = 'Νέα Περίοδος Αιτήσεων';
+        document.getElementById('periodFormId').value  = '0';
+        document.getElementById('periodName').value    = '';
+        document.getElementById('periodStart').value   = '';
+        document.getElementById('periodEnd').value     = '';
+        document.getElementById('periodStatus').value  = 'planning';
+        document.getElementById('periodDesc').value    = '';
       }
     </script>
   </body>

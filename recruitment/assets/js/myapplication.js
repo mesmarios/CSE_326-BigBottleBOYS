@@ -29,6 +29,8 @@ function formatDate(iso) {
 function today() { return new Date().toISOString(); }
 
 function isCallOpen(call) {
+  if (call.status === 'closed' || call.status === 'cancelled' || call.status === 'draft') return false;
+  if (call.status === 'published') return true;
   const t = today();
   return t >= call.startDate && t <= call.endDate;
 }
