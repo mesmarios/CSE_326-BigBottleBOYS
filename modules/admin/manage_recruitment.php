@@ -901,6 +901,74 @@ $statusMap = [
     <script src="../../assets/js/adminlte.js" defer></script>
     <script src="../../assets/js/changes.js" defer></script>
     <script>
+      const departmentsData = <?= json_encode(array_map(static function ($dep) {
+        return [
+          'id' => (int)$dep['id'],
+          'name' => $dep['name'],
+          'school_id' => (int)$dep['school_id'],
+        ];
+      }, $departments), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+      const coursesData = <?= json_encode(array_map(static function ($course) {
+        return [
+          'id' => (int)$course['id'],
+          'name' => $course['name'],
+          'department_id' => (int)$course['department_id'],
+        ];
+      }, $courses), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+      function populateSelect(selectEl, items, placeholder, valueKey, labelKey, selectedValue, filterKey, filterValue) {
+        const normalizedSelected = selectedValue ? String(selectedValue) : '';
+        const normalizedFilter = filterValue ? String(filterValue) : '';
+
+        selectEl.innerHTML = '';
+
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = placeholder;
+        selectEl.appendChild(placeholderOption);
+
+        items
+          .filter(item => !normalizedFilter || String(item[filterKey]) === normalizedFilter)
+          .forEach(item => {
+            const option = document.createElement('option');
+            option.value = String(item[valueKey]);
+            option.textContent = item[labelKey];
+            if (option.value === normalizedSelected) {
+              option.selected = true;
+            }
+            selectEl.appendChild(option);
+          });
+      }
+
+      function populateDepartmentOptions(schoolId, selectedDeptId = '') {
+        const deptSelect = document.getElementById('modalDept');
+        populateSelect(
+          deptSelect,
+          departmentsData,
+          'Επιλέξτε τμήμα...',
+          'id',
+          'name',
+          selectedDeptId,
+          'school_id',
+          schoolId
+        );
+      }
+
+      function populateCourseOptions(deptId, selectedCourseId = '') {
+        const courseSelect = document.getElementById('modalCourse');
+        populateSelect(
+          courseSelect,
+          coursesData,
+          'Επιλέξτε μάθημα...',
+          'id',
+          'name',
+          selectedCourseId,
+          'department_id',
+          deptId
+        );
+      }
+
       document.addEventListener('DOMContentLoaded', function () {
         const sw = document.querySelector('.sidebar-wrapper');
         if (sw && OverlayScrollbarsGlobal?.OverlayScrollbars) {
@@ -930,27 +998,17 @@ $statusMap = [
           });
         }
 
-        // Filter departments & courses in modal based on school selection
         document.getElementById('modalSchool').addEventListener('change', function () {
-          const schoolId = this.value;
-          const deptSel = document.getElementById('modalDept');
-          deptSel.querySelectorAll('option[data-school]').forEach(opt => {
-            opt.style.display = (!schoolId || opt.dataset.school === schoolId) ? '' : 'none';
-          });
-          deptSel.value = '';
-          document.getElementById('modalCourse').value = '';
-          document.getElementById('modalCourse').querySelectorAll('option[data-dept]').forEach(opt => {
-            opt.style.display = 'none';
-          });
+          populateDepartmentOptions(this.value, '');
+          populateCourseOptions('', '');
         });
 
         document.getElementById('modalDept').addEventListener('change', function () {
-          const deptId = this.value;
-          document.getElementById('modalCourse').querySelectorAll('option[data-dept]').forEach(opt => {
-            opt.style.display = (!deptId || opt.dataset.dept === deptId) ? '' : 'none';
-          });
-          document.getElementById('modalCourse').value = '';
+          populateCourseOptions(this.value, '');
         });
+
+        populateDepartmentOptions('', '');
+        populateCourseOptions('', '');
       });
 
       function switchTab(tabId) {
@@ -965,8 +1023,8 @@ $statusMap = [
         document.getElementById('modalPeriod').value = '';
         document.getElementById('modalStatus').value = 'draft';
         document.getElementById('modalSchool').value = '';
-        document.getElementById('modalDept').value = '';
-        document.getElementById('modalCourse').value = '';
+        populateDepartmentOptions('', '');
+        populateCourseOptions('', '');
         document.getElementById('modalNumPos').value = '1';
         document.getElementById('modalDesc').value = '';
         new bootstrap.Modal(document.getElementById('appModal')).show();
@@ -979,8 +1037,8 @@ $statusMap = [
         document.getElementById('modalPeriod').value = ann.period_id;
         document.getElementById('modalStatus').value = ann.status;
         document.getElementById('modalSchool').value = ann.school_id;
-        document.getElementById('modalDept').value = ann.department_id;
-        document.getElementById('modalCourse').value = ann.course_id;
+        populateDepartmentOptions(ann.school_id, ann.department_id);
+        populateCourseOptions(ann.department_id, ann.course_id);
         document.getElementById('modalNumPos').value = ann.number_of_positions;
         document.getElementById('modalDesc').value = ann.description || '';
         new bootstrap.Modal(document.getElementById('appModal')).show();
