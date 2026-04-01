@@ -1,4 +1,159 @@
-﻿<?php include('../../includes/layout.php'); include('../../includes/header.php'); include('../../includes/nav.php'); ?>
+﻿<?php
+include('../../includes/layout.php');
+include('../../includes/header.php');
+include('../../includes/nav.php');
+
+$bootCalls = [];
+$bootSubmissions = [];
+$bootUser = [];
+
+if (!empty($_SESSION['user_id']) && isset($pdo)) {
+  $candidateId = (int)$_SESSION['user_id'];
+
+  try {
+    $userStmt = $pdo->prepare('SELECT first_name, last_name, email, phone FROM users WHERE id = :id LIMIT 1');
+    $userStmt->execute([':id' => $candidateId]);
+    $userRow = $userStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $bootUser = [
+      'name' => $userRow['first_name'] ?? '',
+      'surname' => $userRow['last_name'] ?? '',
+      'email' => $userRow['email'] ?? '',
+      'phone' => $userRow['phone'] ?? '',
+    ];
+
+    $appsSql = "
+      SELECT
+        ca.id AS application_id,
+        ca.announcement_id,
+        ca.status,
+        ca.submitted_at,
+        ca.reviewed_at,
+        ca.updated_at,
+        ja.title,
+        COALESCE(d.name, '—') AS department,
+        COALESCE(s.name, '—') AS school,
+        COALESCE(c.name, '—') AS course_name
+      FROM candidate_applications ca
+      INNER JOIN job_announcements ja ON ja.id = ca.announcement_id
+      LEFT JOIN departments d ON d.id = ja.department_id
+      LEFT JOIN schools s ON s.id = ja.school_id
+      LEFT JOIN courses c ON c.id = ja.course_id
+      WHERE ca.candidate_id = :candidate_id
+        AND ca.status <> 'draft'
+        AND ca.submitted_at IS NOT NULL
+      ORDER BY ca.submitted_at DESC, ca.id DESC
+    ";
+    $appsStmt = $pdo->prepare($appsSql);
+    $appsStmt->execute([':candidate_id' => $candidateId]);
+    $appRows = $appsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $responseMap = [];
+    $applicationIds = array_column($appRows, 'application_id');
+
+    if (!empty($applicationIds)) {
+      $placeholders = implode(',', array_fill(0, count($applicationIds), '?'));
+      $respSql = "
+        SELECT
+          ar.application_id,
+          aff.field_name,
+          aff.field_type,
+          ar.response_value,
+          ar.file_path
+        FROM application_responses ar
+        INNER JOIN application_form_fields aff ON aff.id = ar.field_id
+        WHERE ar.application_id IN ($placeholders)
+      ";
+      $respStmt = $pdo->prepare($respSql);
+      $respStmt->execute($applicationIds);
+
+      foreach ($respStmt->fetchAll(PDO::FETCH_ASSOC) as $responseRow) {
+        $applicationId = (int)$responseRow['application_id'];
+        if (!isset($responseMap[$applicationId])) {
+          $responseMap[$applicationId] = [];
+        }
+
+        $fieldName = $responseRow['field_name'];
+        $value = $responseRow['response_value'];
+        $filePath = $responseRow['file_path'];
+
+        switch ($fieldName) {
+          case 'full_name':
+            $responseMap[$applicationId]['fullName'] = $value;
+            break;
+          case 'email':
+            $responseMap[$applicationId]['email'] = $value;
+            break;
+          case 'phone':
+            $responseMap[$applicationId]['phone'] = $value;
+            break;
+          case 'address':
+            $responseMap[$applicationId]['address'] = $value;
+            break;
+          case 'education':
+            $responseMap[$applicationId]['degree'] = $value;
+            break;
+          case 'experience':
+            $responseMap[$applicationId]['experience'] = $value;
+            break;
+          case 'motivation':
+            $responseMap[$applicationId]['summary'] = $value;
+            break;
+          case 'cv':
+            $responseMap[$applicationId]['cvFileName'] = basename($filePath ?: $value ?: 'CV');
+            if (!empty($filePath)) {
+              $responseMap[$applicationId]['cvFilePath'] = $filePath;
+            }
+            break;
+          default:
+            $responseMap[$applicationId][$fieldName] = $value;
+            break;
+        }
+      }
+    }
+
+    foreach ($appRows as $row) {
+      $applicationId = (int)$row['application_id'];
+      $callId = (string)$row['announcement_id'];
+      $statusMap = [
+        'submitted' => 'Submitted',
+        'under_review' => 'Under Review',
+        'accepted' => 'Approved',
+        'rejected' => 'Rejected',
+        'withdrawn' => 'Rejected',
+      ];
+
+      $bootCalls[$callId] = [
+        'id' => $callId,
+        'title' => $row['title'],
+        'department' => $row['department'],
+        'school' => $row['school'],
+        'courses' => [$row['course_name']],
+      ];
+
+      $bootSubmissions[] = [
+        'applicationId' => $applicationId,
+        'callId' => $callId,
+        'title' => $row['title'],
+        'department' => $row['department'],
+        'school' => $row['school'],
+        'courses' => [$row['course_name']],
+        'submittedDate' => $row['submitted_at'] ? date('Y-m-d', strtotime($row['submitted_at'])) : null,
+        'updatedDate' => $row['updated_at'] ? date('c', strtotime($row['updated_at'])) : null,
+        'reviewedDate' => $row['reviewed_at'] ? date('c', strtotime($row['reviewed_at'])) : null,
+        'status' => $statusMap[$row['status']] ?? 'Submitted',
+        'data' => $responseMap[$applicationId] ?? [],
+      ];
+    }
+
+    $bootCalls = array_values($bootCalls);
+  } catch (Throwable $e) {
+    $bootCalls = [];
+    $bootSubmissions = [];
+    $bootUser = [];
+  }
+}
+?>
 <link rel="stylesheet" href="../../recruitment/assets/css/applicationstatus.css">
 <link rel="stylesheet" href="../../assets/css/user-ui.css">
 
@@ -138,5 +293,12 @@
 
 <?php include('../../includes/footer.php'); ?>
 
+<script>
+  window.APPLICATIONSTATUS_BOOTSTRAP = {
+    calls: <?= json_encode($bootCalls, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    submissions: <?= json_encode($bootSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    user: <?= json_encode($bootUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
+  };
+</script>
 <script src="../../recruitment/assets/js/applicationstatus.js"></script>
 

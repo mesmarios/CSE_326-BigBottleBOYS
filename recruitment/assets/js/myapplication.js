@@ -1,26 +1,81 @@
 /* ================================================================
-   myapplication.js  –  Recruitment Module: My Applications
-   All data is fetched from / persisted to the PHP API.
-   No localStorage is used for application data.
+  Bootstrap data from PHP (DB-backed). Falls back to local sample
+  data when bootstrap is not provided.
 ================================================================= */
+const BOOTSTRAP = window.MYAPPLICATION_BOOTSTRAP || {};
 
-const API_BASE = '../../api';
+const AVAILABLE_CALLS = Array.isArray(BOOTSTRAP.calls)
+  ? BOOTSTRAP.calls.map(call => ({
+      ...call,
+      id: String(call.id),
+      courses: Array.isArray(call.courses) ? call.courses : [call.courses || '—'],
+    }))
+  : [];
 
-/* ── In-memory state (loaded from server on init) ─────────────── */
-let AVAILABLE_CALLS = [];   // published announcements
-let myApplications  = [];   // current user's applications
+let serverSubmissions = Array.isArray(BOOTSTRAP.submissions)
+  ? BOOTSTRAP.submissions.map(sub => ({ ...sub, callId: String(sub.callId) }))
+  : null;
 
-/* ── Helpers ──────────────────────────────────────────────────── */
+/* ================================================================
+   Helpers
+================================================================= */
 function formatDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
   const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${mn[parseInt(m, 10) - 1]} ${parseInt(d, 10)}, ${y}`;
+  return `${mn[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`;
 }
 
+function today() { return new Date().toISOString(); }
+
 function isCallOpen(call) {
-  const today = new Date().toISOString().slice(0, 10);
-  return today >= call.startDate && today <= call.endDate;
+  const t = today();
+  return t >= call.startDate && t <= call.endDate;
+}
+
+function getUserData() {
+  if (BOOTSTRAP.user && Object.keys(BOOTSTRAP.user).length) {
+    return {
+      name: BOOTSTRAP.user.name || '',
+      surname: BOOTSTRAP.user.surname || '',
+      email: BOOTSTRAP.user.email || '',
+      phone: BOOTSTRAP.user.phone || '',
+      degree: BOOTSTRAP.user.degree || '',
+      institution: BOOTSTRAP.user.institution || '',
+      specialization: BOOTSTRAP.user.specialization || '',
+      experience: BOOTSTRAP.user.experience || '',
+      summary: BOOTSTRAP.user.summary || '',
+    };
+  }
+
+  const s = localStorage.getItem('userProfileData');
+  if (s) return JSON.parse(s);
+  return {
+    name: 'Alexander', surname: 'Pierce', email: 'alexander@example.com',
+    phone: '', degree: '', institution: '', specialization: '', experience: '', summary: ''
+  };
+}
+
+function getDrafts()            { const s = localStorage.getItem('applicationDrafts');       return s ? JSON.parse(s) : {}; }
+function saveDraftsLS(d)        { localStorage.setItem('applicationDrafts', JSON.stringify(d)); }
+function getSubmissions()       {
+  if (Array.isArray(serverSubmissions)) return serverSubmissions;
+  const s = localStorage.getItem('submittedApplications');
+  return s ? JSON.parse(s) : [];
+}
+function saveSubmissionsLS(a)   {
+  if (Array.isArray(serverSubmissions)) {
+    serverSubmissions = a.map(sub => ({ ...sub, callId: String(sub.callId) }));
+  }
+  localStorage.setItem('submittedApplications', JSON.stringify(a));
+}
+
+function showToast(msg, type = 'primary') {
+  const el  = document.getElementById('appToast');
+  const msg$ = document.getElementById('appToastMsg');
+  msg$.textContent = msg;
+  el.className = `toast align-items-center text-bg-${type} border-0`;
+  bootstrap.Toast.getOrCreateInstance(el, { delay: 3500 }).show();
 }
 
 function statusBadge(status) {
@@ -31,60 +86,39 @@ function statusBadge(status) {
     'Approved':     ['badge-approved',  'bi-check-circle-fill'],
     'Rejected':     ['badge-rejected',  'bi-x-circle-fill'],
   };
-  const [cls, icon] = map[status] || ['badge-draft', 'bi-circle'];
+  const [cls, icon] = map[status] || ['badge-draft','bi-circle'];
   return `<span class="badge rounded-pill ${cls}"><i class="bi ${icon} me-1"></i>${status}</span>`;
 }
 
-function showToast(msg, type = 'primary') {
-  const el   = document.getElementById('appToast');
-  const msgEl = document.getElementById('appToastMsg');
-  msgEl.textContent = msg;
-  el.className = `toast align-items-center text-bg-${type} border-0`;
-  bootstrap.Toast.getOrCreateInstance(el, { delay: 3500 }).show();
-}
-
-/*  API calls  */
-async function loadAnnouncements() {
-  try {
-    const res  = await fetch(`${API_BASE}/announcements.php`);
-    const data = await res.json();
-    if (data.success) AVAILABLE_CALLS = data.announcements;
-  } catch (e) {
-    console.error('Failed to load announcements', e);
-  }
-}
-
-async function loadApplications() {
-  try {
-    const res  = await fetch(`${API_BASE}/applications.php`);
-    const data = await res.json();
-    if (data.success) myApplications = data.applications;
-  } catch (e) {
-    console.error('Failed to load applications', e);
-  }
-}
-
-/* ── Render: Available Calls ──────────────────────────────────── */
+/* ================================================================
+   Render Available Calls
+================================================================= */
 function renderCalls() {
-  const container    = document.getElementById('callsContainer');
-  const submittedIds = myApplications
-    .filter(a => a.status !== 'Draft')
-    .map(a => a.callId);
-  const draftIds = myApplications
-    .filter(a => a.status === 'Draft')
-    .map(a => a.callId);
-
+  const container   = document.getElementById('callsContainer');
+  const drafts      = getDrafts();
+  const submissions = getSubmissions();
+  const submittedIds = submissions.map(s => s.callId);
   container.innerHTML = '';
 
   if (!AVAILABLE_CALLS.length) {
-    container.innerHTML = '<div class="col-12 text-center text-muted py-4">No open positions at this time.</div>';
+    container.innerHTML = `
+      <div class="col-12">
+        <div class="card call-card">
+          <div class="card-body text-center text-muted py-5">
+            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+            <h6 class="mb-2">No application calls available</h6>
+            <p class="mb-0">There are currently no recruitment announcements in the database.</p>
+          </div>
+        </div>
+      </div>
+    `;
     return;
   }
 
   AVAILABLE_CALLS.forEach(call => {
     const open             = isCallOpen(call);
     const alreadySubmitted = submittedIds.includes(call.id);
-    const hasDraft         = draftIds.includes(call.id);
+    const hasDraft         = drafts[call.id] != null;
 
     let actionBtn = '';
     if (alreadySubmitted) {
@@ -136,147 +170,153 @@ function renderCalls() {
     `);
   });
 
-  container.querySelectorAll('.open-wizard').forEach(btn => {
-    btn.addEventListener('click', () => openWizard(parseInt(btn.dataset.callId, 10)));
+  document.querySelectorAll('#callsContainer .open-wizard').forEach(btn => {
+    btn.addEventListener('click', () => openWizard(btn.dataset.callId));
   });
 }
 
-/* ── Render: My Applications Table ───────────────────────────── */
+/* ================================================================
+   Render My Applications Table
+================================================================= */
 function renderMyApplications() {
-  const tbody = document.getElementById('myApplicationsBody');
-  const noRow = document.getElementById('noApplicationsRow');
+  const tbody    = document.getElementById('myApplicationsBody');
+  const noRow    = document.getElementById('noApplicationsRow');
+  const drafts   = getDrafts();
+  const subs     = getSubmissions();
+  const rows     = [];
+
+  subs.forEach(sub => {
+    const call = AVAILABLE_CALLS.find(c => String(c.id) === String(sub.callId)) || {};
+    rows.push({ callId: String(sub.callId), title: sub.title || call.title || String(sub.callId),
+                department: sub.department || call.department || '—',
+                submittedDate: sub.submittedDate, status: sub.status || 'Submitted', isDraft: false });
+  });
+
+  Object.keys(drafts).forEach(callId => {
+    if (!subs.find(s => String(s.callId) === String(callId))) {
+      const call = AVAILABLE_CALLS.find(c => String(c.id) === String(callId)) || {};
+      rows.push({ callId, title: call.title || callId, department: call.department || '—',
+                  submittedDate: null, status: 'Draft', isDraft: true });
+    }
+  });
 
   tbody.querySelectorAll('tr.dyn-row').forEach(r => r.remove());
 
-  if (!myApplications.length) { noRow.style.display = ''; return; }
+  if (!rows.length) { noRow.style.display = ''; return; }
   noRow.style.display = 'none';
 
-  myApplications.forEach(app => {
-    const callInfo = AVAILABLE_CALLS.find(c => c.id === app.callId) || app.callInfo || {};
-    const isDraft  = app.status === 'Draft';
-
-    const btn = isDraft
+  rows.forEach(row => {
+    const btn = row.isDraft
       ? `<div class="d-flex align-items-center justify-content-end gap-2">
-           <button class="btn btn-sm btn-warning open-wizard" data-call-id="${app.callId}">
+           <button class="btn btn-sm btn-warning open-wizard" data-call-id="${row.callId}">
              <i class="bi bi-pencil-square me-1"></i>Continue
            </button>
-           <button class="btn btn-sm btn-outline-danger delete-draft" data-call-id="${app.callId}" title="Delete draft">
+           <button class="btn btn-sm btn-outline-danger delete-draft" data-call-id="${row.callId}"
+                   title="Delete draft">
              <i class="bi bi-x-lg"></i>
            </button>
          </div>`
-      : `<button class="btn btn-sm btn-outline-secondary view-app" data-call-id="${app.callId}">
+      : `<button class="btn btn-sm btn-outline-secondary view-app" data-call-id="${row.callId}">
            <i class="bi bi-eye me-1"></i>View
          </button>`;
 
     tbody.insertAdjacentHTML('beforeend', `
       <tr class="dyn-row">
-        <td class="fw-semibold">${callInfo.title || app.callId}</td>
-        <td>${callInfo.department || '—'}</td>
-        <td>${app.submittedDate ? formatDate(app.submittedDate) : '<span class="text-muted">—</span>'}</td>
-        <td>${statusBadge(app.status)}</td>
+        <td class="fw-semibold">${row.title}</td>
+        <td>${row.department}</td>
+        <td>${row.submittedDate ? formatDate(row.submittedDate) : '<span class="text-muted">—</span>'}</td>
+        <td>${statusBadge(row.status)}</td>
         <td class="text-end">${btn}</td>
       </tr>
     `);
   });
 
-  tbody.querySelectorAll('.open-wizard').forEach(b =>
-    b.addEventListener('click', () => openWizard(parseInt(b.dataset.callId, 10))));
-  tbody.querySelectorAll('.view-app').forEach(b =>
-    b.addEventListener('click', () => openWizard(parseInt(b.dataset.callId, 10), true)));
-  tbody.querySelectorAll('.delete-draft').forEach(b =>
-    b.addEventListener('click', () => deleteDraft(parseInt(b.dataset.callId, 10))));
+  tbody.querySelectorAll('.open-wizard').forEach(b => b.addEventListener('click', () => openWizard(b.dataset.callId)));
+  tbody.querySelectorAll('.view-app').forEach(b  => b.addEventListener('click', () => openWizard(b.dataset.callId, true)));
+  tbody.querySelectorAll('.delete-draft').forEach(b => b.addEventListener('click', () => deleteDraft(b.dataset.callId)));
 }
 
-/* ── Delete Draft ─────────────────────────────────────────────── */
-async function deleteDraft(callId) {
-  if (!confirm('Delete this draft? This cannot be undone.')) return;
-  try {
-    await fetch(`${API_BASE}/applications.php?action=delete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ announcement_id: callId }),
-    });
-    await loadApplications();
-    renderCalls();
-    renderMyApplications();
-  } catch (e) {
-    showToast('Could not delete draft.', 'danger');
-  }
+/* ================================================================
+   Delete Draft
+================================================================= */
+function deleteDraft(callId) {
+  if (!confirm(`Delete the draft for "${callId}"? This cannot be undone.`)) return;
+  const drafts = getDrafts();
+  delete drafts[callId];
+  saveDraftsLS(drafts);
+  renderMyApplications();
+  renderCalls();
 }
 
-/* ── Wizard State ─────────────────────────────────────────────── */
-let currentCallId = null;
-let currentStep   = 1;
-const TOTAL_STEPS = 4;
+/* ================================================================
+   Wizard State
+================================================================= */
+let currentCallId  = null;
+let currentStep    = 1;
+const TOTAL_STEPS  = 4;
 let uploadedFiles     = { cv: null, cl: null, supporting: [] };
-let uploadedFilesData = { cv: null, cl: null, supporting: [] };
+let uploadedFilesData = { cv: null, cl: null, supporting: [] }; // base64 data URLs for persistence
 let isReadonly        = false;
 
 function openWizard(callId, viewOnly = false) {
-  // Find call info – check available calls first, then embedded callInfo
-  let call = AVAILABLE_CALLS.find(c => c.id === callId);
-  if (!call) {
-    const appRecord = myApplications.find(a => a.callId === callId);
-    call = appRecord ? appRecord.callInfo : null;
-  }
-  if (!call) return;
-
-  const appRecord = myApplications.find(a => a.callId === callId);
-  isReadonly      = viewOnly || (appRecord && appRecord.status !== 'Draft');
-  currentCallId   = callId;
-  currentStep     = 1;
+  const normalizedCallId = String(callId);
+  const subs   = getSubmissions();
+  isReadonly   = viewOnly || subs.some(s => String(s.callId) === normalizedCallId);
+  currentCallId = normalizedCallId;
+  currentStep   = 1;
   uploadedFiles     = { cv: null, cl: null, supporting: [] };
   uploadedFilesData = { cv: null, cl: null, supporting: [] };
 
+  const call = AVAILABLE_CALLS.find(c => String(c.id) === normalizedCallId);
+  if (!call) return;
+
   document.getElementById('modalCallSubtitle').textContent = `${call.title} — ${call.department}`;
 
-  const saved = appRecord ? (appRecord.data || {}) : {};
+  const user  = getUserData();
+  const draft = (getDrafts())[normalizedCallId] || {};
+  // For submitted applications the draft was deleted; fall back to the saved submission data
+  const submissionRecord = subs.find(s => String(s.callId) === normalizedCallId);
+  const saved = (submissionRecord && submissionRecord.data) ? submissionRecord.data : draft;
 
-  // Step 1
-  const navUser = (() => {
-    const el = document.querySelector('.user-header p');
-    if (!el) return { name: '', email: '' };
-    const txt = el.textContent || '';
-    return { name: txt.split('—')[0]?.trim() || '', email: '' };
-  })();
-
-  document.getElementById('s1FullName').textContent   = (window.CareerTrack?.fullName) || navUser.name || '';
-  document.getElementById('s1Email').textContent      = (window.CareerTrack?.email)    || '';
+  // Step 1 – static fields
+  document.getElementById('s1FullName').textContent   = `${user.name} ${user.surname}`;
+  document.getElementById('s1Email').textContent      = user.email;
   document.getElementById('s1Position').textContent   = call.title;
   document.getElementById('s1Department').textContent = call.department;
   document.getElementById('s1School').textContent     = call.school;
   document.getElementById('s1Courses').textContent    = call.courses.join(', ');
-  document.getElementById('s1Phone').value            = saved.phone || '';
+  document.getElementById('s1Phone').value            = saved.phone || user.phone || '';
 
-  // Step 2
-  document.getElementById('s2Degree').value         = saved.degree         || '';
-  document.getElementById('s2Institution').value    = saved.institution    || '';
-  document.getElementById('s2Specialization').value = saved.specialization || '';
-  document.getElementById('s2Experience').value     = saved.experience     || '';
-  document.getElementById('s2Summary').value        = saved.summary        || '';
+  // Step 2 – pre-fill from saved/submission data, fall back to profile
+  document.getElementById('s2Degree').value         = saved.degree         || user.degree         || '';
+  document.getElementById('s2Institution').value    = saved.institution    || user.institution    || '';
+  document.getElementById('s2Specialization').value = saved.specialization || user.specialization || '';
+  document.getElementById('s2Experience').value     = saved.experience     || user.experience     || '';
+  document.getElementById('s2Summary').value        = saved.summary        || user.summary        || '';
   updateSummaryCount();
 
-  // Step 3 – file previews from server
+  // Step 3 – file preview names (File objects can't be persisted)
   resetFilePreviews();
-  if (saved.cvFileName) addFilePreviewItem('cvPreview', saved.cvFileName, 'cv', saved.cvFileData || null);
-  if (saved.clFileName) addFilePreviewItem('clPreview', saved.clFileName, 'cl', saved.clFileData || null);
-  if (saved.supFileNames) {
-    saved.supFileNames.forEach((n, i) => {
-      const url = saved.supFilesData ? saved.supFilesData[i] : null;
-      addFilePreviewItem('supPreview', n, 'sup', url);
-    });
-  }
+  if (saved.cvFileName)  addFilePreviewItem('cvPreview',  saved.cvFileName, 'cv',  saved.cvFileData  || null);
+  if (saved.clFileName)  addFilePreviewItem('clPreview',  saved.clFileName, 'cl',  saved.clFileData  || null);
+  (saved.supFileNames || []).forEach((n, i) => addFilePreviewItem('supPreview', n, 'sup', (saved.supFilesData && saved.supFilesData[i]) || null));
 
-  // Step 4
+  // Restore persisted base64 data back into uploadedFilesData so that
+  // collectFormData() / submitApplication() can carry it into the submission record
+  if (saved.cvFileData)  uploadedFilesData.cv = saved.cvFileData;
+  if (saved.clFileData)  uploadedFilesData.cl = saved.clFileData;
+  if (saved.supFilesData && saved.supFilesData.length) uploadedFilesData.supporting = [...saved.supFilesData];
+
+  // Step 4 – declaration
   document.getElementById('declarationCheck').checked = saved.declared || false;
   document.getElementById('declarationError').classList.add('d-none');
   document.getElementById('cvError').classList.add('d-none');
 
-  // Readonly / editable UI state
-  const overlay   = document.getElementById('submittedOverlay');
-  const declSect  = document.getElementById('declarationSection');
-  const btnSubmit = document.getElementById('btnSubmit');
-  const btnDraft  = document.getElementById('btnSaveDraft');
+  // Readonly toggle
+  const overlay    = document.getElementById('submittedOverlay');
+  const declSect   = document.getElementById('declarationSection');
+  const btnSubmit  = document.getElementById('btnSubmit');
+  const btnDraft   = document.getElementById('btnSaveDraft');
   if (isReadonly) {
     overlay.classList.remove('d-none');
     declSect.classList.add('d-none');
@@ -304,23 +344,28 @@ function setFormReadonly(ro) {
     z.style.pointerEvents = ro ? 'none' : '';
     z.style.opacity       = ro ? '.6'   : '';
   });
-  document.querySelector('#applicationModal .modal-content')
-    ?.classList.toggle('wizard-readonly', ro);
+  // Hide all red required asterisks and validation messages in view mode
+  const modalContent = document.querySelector('#applicationModal .modal-content');
+  if (modalContent) modalContent.classList.toggle('wizard-readonly', ro);
 }
 
-/* ── Stepper navigation ───────────────────────────────────────── */
+/* ================================================================
+   Stepper navigation
+================================================================= */
 function goToStep(n) {
   for (let i = 1; i <= TOTAL_STEPS; i++) {
     document.getElementById(`step${i}`).classList.toggle('active', i === n);
     const nav    = document.getElementById(`stepNav${i}`);
     const circle = nav.querySelector('.step-circle');
-    nav.classList.remove('active', 'done');
+    nav.classList.remove('active','done');
     if      (i < n)  { nav.classList.add('done');   circle.innerHTML = '<i class="bi bi-check-lg"></i>'; }
     else if (i === n) { nav.classList.add('active'); circle.textContent = i; }
     else              { circle.textContent = i; }
   }
+
   currentStep = n;
   document.getElementById('btnPrev').style.display = n > 1 ? '' : 'none';
+
   const btnNext   = document.getElementById('btnNext');
   const btnSubmit = document.getElementById('btnSubmit');
   if (n < TOTAL_STEPS) {
@@ -330,29 +375,45 @@ function goToStep(n) {
     btnNext.classList.add('d-none');
     if (!isReadonly) btnSubmit.classList.remove('d-none');
   }
+
   document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
   document.querySelectorAll('.field-invalid').forEach(el => el.classList.remove('field-invalid'));
 }
 
-/* ── Field validation helper ──────────────────────────────────── */
+/* ================================================================
+   Helper: mark / unmark a field as invalid and toggle the parent
+   column's .field-invalid class so required asterisks become visible
+================================================================= */
 function setFieldInvalid(el, invalid) {
   el.classList.toggle('is-invalid', invalid);
   const col = el.closest('[class*="col-"]') || el.closest('.mb-4');
   if (col) col.classList.toggle('field-invalid', invalid);
 }
 
+/* ================================================================
+   Per-step validation
+================================================================= */
 function validateStep(step) {
   let ok = true;
+
   if (step === 1) {
     const phone = document.getElementById('s1Phone');
     const pVal  = phone.value.trim();
-    if (!pVal || /[a-zA-Z]/.test(pVal) || !/\d/.test(pVal)) {
+    const hasLetters = /[a-zA-Z]/.test(pVal);
+    const hasDigits  = /\d/.test(pVal);
+    if (!pVal || hasLetters || !hasDigits) {
       setFieldInvalid(phone, true);
+      // Update the feedback message dynamically
+      const fb = phone.nextElementSibling;
+      if (fb && fb.classList.contains('invalid-feedback')) {
+        fb.textContent = hasLetters ? 'Phone number must contain only digits, spaces, +, -, or parentheses.' : 'Please enter a valid phone number.';
+      }
       ok = false;
     } else {
       setFieldInvalid(phone, false);
     }
   }
+
   if (step === 2) {
     ['s2Degree','s2Institution','s2Specialization','s2Experience','s2Summary'].forEach(id => {
       const el = document.getElementById(id);
@@ -365,16 +426,22 @@ function validateStep(step) {
       setFieldInvalid(exp, true); ok = false;
     }
   }
+
   if (step === 3) {
-    const hasCv = uploadedFiles.cv || document.getElementById('cvPreview').children.length > 0;
+    const cvPreview = document.getElementById('cvPreview');
+    const hasCv     = uploadedFiles.cv || cvPreview.children.length > 0;
     if (!hasCv) { document.getElementById('cvError').classList.remove('d-none'); ok = false; }
     else          document.getElementById('cvError').classList.add('d-none');
   }
+
   return ok;
 }
 
-/* ── Wizard button events ─────────────────────────────────────── */
+/* ================================================================
+   Wizard button events
+================================================================= */
 document.getElementById('btnNext').addEventListener('click', () => {
+  // Skip validation entirely when just viewing a submitted application
   if (!isReadonly && !validateStep(currentStep)) return;
   if (currentStep < TOTAL_STEPS) goToStep(currentStep + 1);
 });
@@ -383,20 +450,12 @@ document.getElementById('btnPrev').addEventListener('click', () => {
   if (currentStep > 1) goToStep(currentStep - 1);
 });
 
-document.getElementById('btnSaveDraft').addEventListener('click', async () => {
-  const btn = document.getElementById('btnSaveDraft');
-  btn.disabled = true;
-  try {
-    await persistDraft();
-    showToast('Draft saved. You can continue your application at any time.', 'primary');
-  } catch (e) {
-    showToast('Could not save draft.', 'danger');
-  } finally {
-    btn.disabled = false;
-  }
+document.getElementById('btnSaveDraft').addEventListener('click', () => {
+  persistDraft();
+  showToast('Draft saved. You can continue your application at any time.', 'primary');
 });
 
-document.getElementById('btnSubmit').addEventListener('click', async () => {
+document.getElementById('btnSubmit').addEventListener('click', () => {
   const check = document.getElementById('declarationCheck');
   const errEl  = document.getElementById('declarationError');
   if (!check.checked) {
@@ -412,63 +471,61 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     return;
   }
 
-  const btn = document.getElementById('btnSubmit');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Submitting…';
-  try {
-    await submitApplication();
-  } catch (e) {
-    showToast('Submission failed. Please try again.', 'danger');
-    btn.disabled = false;
-    btn.innerHTML = 'Submit Application';
-  }
+  submitApplication();
 });
 
-/* ── Persist draft to server ──────────────────────────────────── */
-async function persistDraft() {
-  const res = await fetch(`${API_BASE}/applications.php?action=save_draft`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      announcement_id: currentCallId,
-      phone:           document.getElementById('s1Phone').value,
-      degree:          document.getElementById('s2Degree').value,
-      institution:     document.getElementById('s2Institution').value,
-      specialization:  document.getElementById('s2Specialization').value,
-      experience:      document.getElementById('s2Experience').value,
-      summary:         document.getElementById('s2Summary').value,
-    }),
-  });
-  const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'Save failed');
-  await loadApplications();
+/* ================================================================
+   Collect / persist draft
+================================================================= */
+function collectFormData() {
+  const cvPreview  = document.getElementById('cvPreview');
+  const clPreview  = document.getElementById('clPreview');
+  const supPreview = document.getElementById('supPreview');
+  return {
+    phone:          document.getElementById('s1Phone').value,
+    degree:         document.getElementById('s2Degree').value,
+    institution:    document.getElementById('s2Institution').value,
+    specialization: document.getElementById('s2Specialization').value,
+    experience:     document.getElementById('s2Experience').value,
+    summary:        document.getElementById('s2Summary').value,
+    declared:       document.getElementById('declarationCheck').checked,
+    cvFileName:    uploadedFiles.cv  ? uploadedFiles.cv.name  : (cvPreview.children.length  ? cvPreview.children[0].dataset.filename  : null),
+    clFileName:    uploadedFiles.cl  ? uploadedFiles.cl.name  : (clPreview.children.length  ? clPreview.children[0].dataset.filename  : null),
+    supFileNames:  uploadedFiles.supporting.length
+                     ? uploadedFiles.supporting.map(f => f.name)
+                     : Array.from(supPreview.children).map(li => li.dataset.filename),
+    cvFileData:    uploadedFilesData.cv  || null,
+    clFileData:    uploadedFilesData.cl  || null,
+    supFilesData:  uploadedFilesData.supporting.length ? [...uploadedFilesData.supporting] : [],
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function persistDraft() {
+  const drafts = getDrafts();
+  drafts[currentCallId] = collectFormData();
+  saveDraftsLS(drafts);
   renderCalls();
   renderMyApplications();
 }
 
-/* ── Submit application to server ─────────────────────────────── */
-async function submitApplication() {
-  const fd = new FormData();
-  fd.append('announcement_id', currentCallId);
-  fd.append('phone',           document.getElementById('s1Phone').value);
-  fd.append('degree',          document.getElementById('s2Degree').value);
-  fd.append('institution',     document.getElementById('s2Institution').value);
-  fd.append('specialization',  document.getElementById('s2Specialization').value);
-  fd.append('experience',      document.getElementById('s2Experience').value);
-  fd.append('summary',         document.getElementById('s2Summary').value);
+/* ================================================================
+   Submit application
+================================================================= */
+function submitApplication() {
+  // Remove draft
+  const drafts = getDrafts();
+  delete drafts[currentCallId];
+  saveDraftsLS(drafts);
 
-  if (uploadedFiles.cv)  fd.append('cv', uploadedFiles.cv);
-  if (uploadedFiles.cl)  fd.append('cl', uploadedFiles.cl);
-  uploadedFiles.supporting.forEach(f => fd.append('sup[]', f));
+  // Store submission
+  const subs = getSubmissions();
+  if (!subs.find(s => s.callId === currentCallId)) {
+    subs.push({ callId: currentCallId, submittedDate: today(), status: 'Submitted', data: collectFormData() });
+    saveSubmissionsLS(subs);
+  }
 
-  const res  = await fetch(`${API_BASE}/applications.php?action=submit`, {
-    method: 'POST',
-    body:   fd,
-  });
-  const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'Submit failed');
-
-  // Show locked overlay inside modal
+  // Show locked state in modal
   document.getElementById('submittedOverlay').classList.remove('d-none');
   document.getElementById('declarationSection').classList.add('d-none');
   document.getElementById('btnSubmit').classList.add('d-none');
@@ -479,16 +536,17 @@ async function submitApplication() {
   showToast('Application submitted successfully!', 'success');
 
   const modalEl = document.getElementById('applicationModal');
-  modalEl.addEventListener('hidden.bs.modal', async function handler() {
-    modalEl.removeEventListener('hidden.bs.modal', handler);
-    await loadApplications();
+  modalEl.addEventListener('hidden.bs.modal', function handler() {
     renderCalls();
     renderMyApplications();
+    modalEl.removeEventListener('hidden.bs.modal', handler);
   });
 }
 
-/* ── File upload handling ─────────────────────────────────────── */
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+/* ================================================================
+   File upload handling
+================================================================= */
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 function addFilePreviewItem(listId, filename, type, viewUrl = null) {
   const ul = document.getElementById(listId);
@@ -496,11 +554,17 @@ function addFilePreviewItem(listId, filename, type, viewUrl = null) {
   li.dataset.filename = filename;
 
   const previewHtml = viewUrl
-    ? `<button class="preview-file"><i class="bi bi-eye me-1"></i>View</button>`
-    : `<button class="preview-file" disabled title="Preview not available"><i class="bi bi-eye me-1"></i>View</button>`;
+    ? `<button class="preview-file" aria-label="View ${filename}">
+         <i class="bi bi-eye me-1"></i>View
+       </button>`
+    : `<button class="preview-file" disabled title="File preview unavailable">
+         <i class="bi bi-eye me-1"></i>View
+       </button>`;
 
   const removeHtml = !isReadonly
-    ? `<button class="remove-file" data-type="${type}" data-name="${filename}"><i class="bi bi-x-lg"></i></button>`
+    ? `<button class="remove-file" aria-label="Remove" data-type="${type}" data-name="${filename}">
+         <i class="bi bi-x-lg"></i>
+       </button>`
     : '';
 
   li.innerHTML = `<i class="bi bi-file-earmark-fill"></i>
@@ -509,78 +573,71 @@ function addFilePreviewItem(listId, filename, type, viewUrl = null) {
     ${removeHtml}`;
 
   if (!isReadonly) {
-    li.querySelector('.remove-file')?.addEventListener('click', () => removeUploadedFile(li, type, filename));
+    li.querySelector('.remove-file').addEventListener('click', () => removeUploadedFile(li, type, filename));
   }
-
+  // View button: convert data URL → Blob URL so browser can open it
   if (viewUrl) {
     li.querySelector('.preview-file').addEventListener('click', () => {
+      let url = viewUrl;
       if (viewUrl.startsWith('data:')) {
-        // Convert base64 data URL to Blob for preview
         try {
           const [header, b64] = viewUrl.split(',');
           const mime  = header.match(/:(.*?);/)[1];
           const bytes = atob(b64);
           const buf   = new Uint8Array(bytes.length);
           for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
-          window.open(URL.createObjectURL(new Blob([buf], { type: mime })), '_blank');
-        } catch (e) { window.open(viewUrl, '_blank'); }
-      } else {
-        // Server-side file URL – open directly
-        window.open(viewUrl, '_blank');
+          url = URL.createObjectURL(new Blob([buf], { type: mime }));
+        } catch(e) { /* fallback: try opening as-is */ }
       }
+      window.open(url, '_blank');
     });
   }
-
   ul.appendChild(li);
 }
 
 function removeUploadedFile(li, type, name) {
   if (type === 'cv') {
     li.remove();
-    uploadedFiles.cv     = null;
+    uploadedFiles.cv = null;
     uploadedFilesData.cv = null;
     document.getElementById('cvFile').value = '';
     document.getElementById('cvChosen').style.display = 'none';
   } else if (type === 'cl') {
     li.remove();
-    uploadedFiles.cl     = null;
+    uploadedFiles.cl = null;
     uploadedFilesData.cl = null;
     document.getElementById('clFile').value = '';
     document.getElementById('clChosen').style.display = 'none';
   } else {
-    const ul     = document.getElementById('supPreview');
-    const domIdx = Array.from(ul.children).indexOf(li);
+    // Determine DOM index BEFORE removing the element
+    const ul      = document.getElementById('supPreview');
+    const domIdx  = Array.from(ul.children).indexOf(li);
     li.remove();
     const fileIdx = uploadedFiles.supporting.findIndex(f => f.name === name);
     if (fileIdx !== -1) {
       uploadedFiles.supporting.splice(fileIdx, 1);
       uploadedFilesData.supporting.splice(fileIdx, 1);
     } else if (domIdx !== -1) {
+      // File was loaded from a saved draft (no File object); remove by DOM position
       uploadedFilesData.supporting.splice(domIdx, 1);
     }
   }
 }
 
 function resetFilePreviews() {
-  ['cvPreview','clPreview','supPreview'].forEach(id => {
-    document.getElementById(id).innerHTML = '';
-  });
+  ['cvPreview','clPreview','supPreview'].forEach(id => document.getElementById(id).innerHTML = '');
   ['cvChosen','clChosen'].forEach(id => {
     const el = document.getElementById(id);
     el.textContent = ''; el.style.display = 'none';
   });
-  ['cvFile','clFile','supFiles'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
+  ['cvFile','clFile','supFiles'].forEach(id => { document.getElementById(id).value = ''; });
 }
 
 function bindSingleFile(inputId, chosenId, previewId, type) {
   document.getElementById(inputId).addEventListener('change', function () {
     const file = this.files[0];
     if (!file) return;
-    if (file.size > MAX_FILE_SIZE) {
-      showToast(`"${file.name}" exceeds the 5 MB limit.`, 'danger'); return;
-    }
+    if (file.size > MAX_FILE_SIZE) { showToast(`"${file.name}" exceeds the 5 MB limit.`, 'danger'); return; }
     document.getElementById(previewId).innerHTML = '';
     if (type === 'cv') uploadedFiles.cv = file;
     if (type === 'cl') uploadedFiles.cl = file;
@@ -588,8 +645,9 @@ function bindSingleFile(inputId, chosenId, previewId, type) {
     chosen.textContent = file.name;
     chosen.style.display = 'block';
     document.getElementById('cvError').classList.add('d-none');
+    // Read as base64 data URL so the View button works even after submission
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = function (e) {
       const dataUrl = e.target.result;
       if (type === 'cv') uploadedFilesData.cv = dataUrl;
       if (type === 'cl') uploadedFilesData.cl = dataUrl;
@@ -601,7 +659,7 @@ function bindSingleFile(inputId, chosenId, previewId, type) {
 
 function bindMultiFile(inputId, previewId) {
   document.getElementById(inputId).addEventListener('change', function () {
-    const files     = Array.from(this.files);
+    const files    = Array.from(this.files);
     const oversized = files.filter(f => f.size > MAX_FILE_SIZE);
     const valid     = files.filter(f => f.size <= MAX_FILE_SIZE);
     if (oversized.length) showToast(`${oversized.length} file(s) exceeded 5 MB and were skipped.`, 'warning');
@@ -610,7 +668,7 @@ function bindMultiFile(inputId, previewId) {
     valid.slice(0, slots).forEach(f => {
       uploadedFiles.supporting.push(f);
       const reader = new FileReader();
-      reader.onload = e => {
+      reader.onload = function (e) {
         uploadedFilesData.supporting.push(e.target.result);
         addFilePreviewItem(previewId, f.name, 'sup', e.target.result);
       };
@@ -620,6 +678,7 @@ function bindMultiFile(inputId, previewId) {
   });
 }
 
+// Drag-over visual feedback
 document.querySelectorAll('.upload-zone').forEach(zone => {
   zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
   zone.addEventListener('dragleave', ()  => zone.classList.remove('dragover'));
@@ -630,42 +689,63 @@ bindSingleFile('cvFile', 'cvChosen', 'cvPreview', 'cv');
 bindSingleFile('clFile', 'clChosen', 'clPreview', 'cl');
 bindMultiFile ('supFiles', 'supPreview');
 
-/* ── Live validation ──────────────────────────────────────────── */
+/* ================================================================
+   Live validation clearing – remove red errors as user fixes fields
+================================================================= */
+(function bindLiveValidation() {
+  // Phone: clear when valid content present
+  document.getElementById('s1Phone').addEventListener('input', function () {
+    if (this.value.trim() && /\d/.test(this.value) && !/[a-zA-Z]/.test(this.value)) {
+      setFieldInvalid(this, false);
+    }
+  });
+
+  // Step 2 text / select fields: clear as soon as they have a value
+  ['s2Degree','s2Institution','s2Specialization','s2Summary'].forEach(id => {
+    const el = document.getElementById(id);
+    const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(evt, function () {
+      if (this.value.trim()) setFieldInvalid(this, false);
+    });
+  });
+
+  // Experience: clear when a valid non-negative integer is entered
+  document.getElementById('s2Experience').addEventListener('input', function () {
+    const v = parseFloat(this.value);
+    if (this.value.trim() && !isNaN(v) && Number.isInteger(v) && v >= 0 && v <= 60) {
+      setFieldInvalid(this, false);
+    }
+  });
+  // Declaration checkbox: clear error as soon as checked
+  document.getElementById('declarationCheck').addEventListener('change', function () {
+    if (this.checked) {
+      document.getElementById('declarationError').classList.add('d-none');
+      this.closest('.mb-4').classList.remove('field-invalid');
+    }
+  });
+})();
+
+/* ================================================================
+   Phone – strip letters on input
+================================================================= */
 document.getElementById('s1Phone').addEventListener('input', function () {
+  // Remove any letter characters as they are typed
   const cleaned = this.value.replace(/[a-zA-Z]/g, '');
   if (cleaned !== this.value) {
     const pos = this.selectionStart - (this.value.length - cleaned.length);
     this.value = cleaned;
     this.setSelectionRange(pos, pos);
     setFieldInvalid(this, true);
-  } else if (this.value.trim() && /\d/.test(this.value)) {
-    setFieldInvalid(this, false);
+    const fb = this.nextElementSibling;
+    if (fb && fb.classList.contains('invalid-feedback')) {
+      fb.textContent = 'Phone number must contain only digits, spaces, +, -, or parentheses.';
+    }
   }
 });
 
-['s2Degree','s2Institution','s2Specialization','s2Summary'].forEach(id => {
-  const el  = document.getElementById(id);
-  const evt = el.tagName === 'SELECT' ? 'change' : 'input';
-  el.addEventListener(evt, function () {
-    if (this.value.trim()) setFieldInvalid(this, false);
-  });
-});
-
-document.getElementById('s2Experience').addEventListener('input', function () {
-  const v = parseFloat(this.value);
-  if (this.value.trim() && !isNaN(v) && Number.isInteger(v) && v >= 0 && v <= 60) {
-    setFieldInvalid(this, false);
-  }
-});
-
-document.getElementById('declarationCheck').addEventListener('change', function () {
-  if (this.checked) {
-    document.getElementById('declarationError').classList.add('d-none');
-    this.closest('.mb-4').classList.remove('field-invalid');
-  }
-});
-
-/* ── Summary counter ──────────────────────────────────────────── */
+/* ================================================================
+   Summary character counter
+================================================================= */
 function updateSummaryCount() {
   const ta = document.getElementById('s2Summary');
   if (ta.value.length > 1500) ta.value = ta.value.slice(0, 1500);
@@ -673,13 +753,24 @@ function updateSummaryCount() {
 }
 document.getElementById('s2Summary').addEventListener('input', updateSummaryCount);
 
-/* ── Bootstrap-ready init ─────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', async function () {
-  // Show loading state
-  const callsContainer = document.getElementById('callsContainer');
-  callsContainer.innerHTML = '<div class="col-12 loading-spinner"><span class="spinner-border spinner-border-sm me-2"></span>Loading positions…</div>';
+/* ================================================================
+   Navbar user name sync
+================================================================= */
+(function syncNavbar() {
+  const u = getUserData();
+  const navName = document.getElementById('navbarUserName');
+  if (navName) navName.textContent = `${u.name} ${u.surname}`;
+  const uhp = document.querySelector('.user-header p');
+  if (uhp) {
+    const small = uhp.querySelector('small');
+    uhp.innerHTML = `${u.name} ${u.surname} - Web Developer${small ? `<small>${small.textContent}</small>` : ''}`;
+  }
+})();
 
-  await Promise.all([loadAnnouncements(), loadApplications()]);
+/* ================================================================
+   Bootstrap-ready initialisation
+================================================================= */
+document.addEventListener('DOMContentLoaded', function () {
   renderCalls();
   renderMyApplications();
 });

@@ -90,7 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="auth-left">
         <div class="auth-left-logo">
             <img src="assets/images/17780_100tepak-logo.png" alt="ΤΕΠΑΚ Logo">
-            <img src="assets/images/netaniaxou.jpg" alt="ΤΕΠΑΚ" class="auth-left-photo">
         </div>
         <header class="auth-left-content">
             <div class="auth-left-stars">
