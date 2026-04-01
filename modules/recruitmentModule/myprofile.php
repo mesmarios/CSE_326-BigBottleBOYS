@@ -11,7 +11,15 @@ $user = $stmt->fetch();
 $profilePicSrc = (!empty($user['profilepic']))
     ? 'data:image/jpeg;base64,' . base64_encode($user['profilepic'])
     : '../../recruitment/assets/images/user2-160x160.jpg';
-$fullName = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
+$fullName    = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
+$profileData = [
+    'dob'            => $user['dob']            ?? '',
+    'degree'         => $user['degree']         ?? '',
+    'institution'    => $user['institution']    ?? '',
+    'specialization' => $user['specialization'] ?? '',
+    'experience'     => isset($user['experience']) && $user['experience'] !== null ? (string)$user['experience'] : '',
+    'summary'        => $user['summary']        ?? '',
+];
 ?>
 <link rel="stylesheet" href="../../recruitment/assets/css/myprofile.css">
 <link rel="stylesheet" href="../../assets/css/user-ui.css">
@@ -88,7 +96,7 @@ $fullName = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
                     </div>
                     <div class="info-row">
                       <span class="info-label">Date of Birth</span>
-                      <span id="dobCell" class="info-value user-field" data-field="dob">—</span>
+                      <span id="dobCell" class="info-value user-field" data-field="dob"><?= htmlspecialchars($profileData['dob'] ?? '') ?: '—' ?></span>
                     </div>
                   </div>
                 </div>
@@ -105,23 +113,23 @@ $fullName = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
                     <div id="academicValidationAlert" class="alert alert-danger d-none py-2 mb-3" role="alert"></div>
                     <div class="info-row">
                       <span class="info-label">Highest Degree</span>
-                      <span id="degreeCell" class="info-value academic-field" data-field="degree">—</span>
+                      <span id="degreeCell" class="info-value academic-field" data-field="degree"><?= htmlspecialchars($profileData['degree'] ?? '') ?: '—' ?></span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">Institution</span>
-                      <span id="institutionCell" class="info-value academic-field" data-field="institution">—</span>
+                      <span id="institutionCell" class="info-value academic-field" data-field="institution"><?= htmlspecialchars($profileData['institution'] ?? '') ?: '—' ?></span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">Specialization</span>
-                      <span id="specializationCell" class="info-value academic-field" data-field="specialization">—</span>
+                      <span id="specializationCell" class="info-value academic-field" data-field="specialization"><?= htmlspecialchars($profileData['specialization'] ?? '') ?: '—' ?></span>
                     </div>
                     <div class="info-row">
                       <span class="info-label">Experience</span>
-                      <span id="experienceCell" class="info-value academic-field" data-field="experience">—</span>
+                      <span id="experienceCell" class="info-value academic-field" data-field="experience"><?= ($profileData['experience'] ?? '') !== '' ? htmlspecialchars($profileData['experience']) . ' year(s)' : '—' ?></span>
                     </div>
                     <div class="info-row" style="align-items:flex-start;">
                       <span class="info-label" style="padding-top:.15rem;">Summary</span>
-                      <span id="summaryCell" class="info-value academic-field" data-field="summary" style="white-space:pre-wrap;">—</span>
+                      <span id="summaryCell" class="info-value academic-field" data-field="summary" style="white-space:pre-wrap;"><?= htmlspecialchars($profileData['summary'] ?? '') ?: '—' ?></span>
                     </div>
                   </div>
                 </div>
@@ -132,6 +140,14 @@ $fullName = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
         </div>
         <!--end::App Content-->
 
+    <script>
+      window.CareerTrack = window.CareerTrack || {};
+      window.CareerTrack.fullName    = <?= json_encode($fullName) ?>;
+      window.CareerTrack.firstName   = <?= json_encode(htmlspecialchars($user['first_name'])) ?>;
+      window.CareerTrack.email       = <?= json_encode(htmlspecialchars($user['email'])) ?>;
+      window.CareerTrack.profilePic  = <?= json_encode($profilePicSrc) ?>;
+      window.CareerTrack.profileData = <?= json_encode($profileData ?: new stdClass()) ?>;
+    </script>
     <script src="../../recruitment/assets/js/myprofile.js"></script>
 
 <?php include('../../includes/footer.php'); ?>

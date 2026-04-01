@@ -16,8 +16,8 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-require_once 'includes/config.php';
-require_once 'includes/database-helper.php';
+require_once dirname(__DIR__) . '/includes/config.php';
+require_once dirname(__DIR__) . '/includes/database-helper.php';
 
 ?>
 <!DOCTYPE html>

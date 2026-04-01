@@ -60,10 +60,12 @@ $buildProjectUrl = static function (string $path) use ($projectBasePath): string
 </head>
 <body>
   <main class="wrap">
-    <h1>Welcome to BigBottleBOYS</h1>
-    <p>Select the UI you want to open based on your role.</p>
+    <header>
+      <h1>Welcome to BigBottleBOYS</h1>
+      <p>Select the UI you want to open based on your role.</p>
+    </header>
     <div class="actions">
-      <a class="primary" href="<?= htmlspecialchars($buildProjectUrl('modules/admin/index.php')) ?>">Open Admin UI</a>
+      <a class="primary" href="<?= htmlspecialchars($buildProjectUrl('login.php?admin=1&redirect=modules/admin/index.php')) ?>">Open Admin UI</a>
       <a href="<?= htmlspecialchars($buildProjectUrl('modules/recruitmentModule/index.php')) ?>">Open User UI</a>
       <a href="<?= htmlspecialchars($buildProjectUrl('register.php')) ?>">Register</a>
     </div>
