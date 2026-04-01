@@ -1,4 +1,81 @@
-<?php require_once __DIR__ . '/../../includes/admin-guard.php'; ?>
+<?php
+require_once __DIR__ . '/../../includes/admin-guard.php';
+require_once __DIR__ . '/../../database/db.php';
+
+/* ── POST handlers ──────────────────────────────────────────── */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'save_announcement') {
+        $id          = (int)($_POST['announcement_id'] ?? 0);
+        $title       = trim($_POST['title'] ?? '');
+        $school_id   = (int)($_POST['school_id'] ?? 0);
+        $dept_id     = (int)($_POST['department_id'] ?? 0);
+        $course_id   = (int)($_POST['course_id'] ?? 0);
+        $period_id   = (int)($_POST['period_id'] ?? 0);
+        $status      = $_POST['status'] ?? 'draft';
+        $description = trim($_POST['description'] ?? '');
+        $num_pos     = max(1, (int)($_POST['number_of_positions'] ?? 1));
+
+        if ($id > 0) {
+            $stmt = $pdo->prepare("UPDATE job_announcements SET title=?, school_id=?, department_id=?, course_id=?, status=?, description=?, number_of_positions=? WHERE id=?");
+            $stmt->execute([$title, $school_id, $dept_id, $course_id, $status, $description, $num_pos, $id]);
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO job_announcements (period_id, school_id, department_id, course_id, title, description, number_of_positions, status) VALUES (?,?,?,?,?,?,?,?)");
+            $stmt->execute([$period_id, $school_id, $dept_id, $course_id, $title, $description, $num_pos, $status]);
+        }
+        header('Location: manage_recruitment.php#applications');
+        exit;
+    }
+
+    if ($action === 'delete_announcement') {
+        $id = (int)($_POST['announcement_id'] ?? 0);
+        if ($id > 0) {
+            $pdo->prepare("DELETE FROM job_announcements WHERE id=?")->execute([$id]);
+        }
+        header('Location: manage_recruitment.php#applications');
+        exit;
+    }
+
+    if ($action === 'assign_evaluator') {
+        $ann_id  = (int)($_POST['announcement_id'] ?? 0);
+        $eval_id = (int)($_POST['evaluator_id'] ?? 0);
+        if ($ann_id > 0 && $eval_id > 0) {
+            $stmt = $pdo->prepare("INSERT IGNORE INTO application_evaluators (announcement_id, evaluator_id) VALUES (?,?)");
+            $stmt->execute([$ann_id, $eval_id]);
+        }
+        header('Location: manage_recruitment.php#applications');
+        exit;
+    }
+}
+
+/* ── Fetch data for tables & modals ─────────────────────────── */
+$announcements = $pdo->query("
+    SELECT ja.*, s.name AS school_name, d.name AS dept_name, c.name AS course_name,
+           GROUP_CONCAT(DISTINCT CONCAT(u.first_name,' ',u.last_name) SEPARATOR ', ') AS evaluators
+    FROM job_announcements ja
+    LEFT JOIN schools s ON s.id = ja.school_id
+    LEFT JOIN departments d ON d.id = ja.department_id
+    LEFT JOIN courses c ON c.id = ja.course_id
+    LEFT JOIN application_evaluators ae ON ae.announcement_id = ja.id
+    LEFT JOIN users u ON u.id = ae.evaluator_id
+    GROUP BY ja.id
+    ORDER BY ja.created_at DESC
+")->fetchAll();
+
+$schools    = $pdo->query("SELECT id, name FROM schools ORDER BY name")->fetchAll();
+$departments= $pdo->query("SELECT id, name, school_id FROM departments ORDER BY name")->fetchAll();
+$courses    = $pdo->query("SELECT id, name, department_id FROM courses ORDER BY name")->fetchAll();
+$periods    = $pdo->query("SELECT id, name FROM recruitment_periods ORDER BY start_date DESC")->fetchAll();
+$evalUsers  = $pdo->query("SELECT id, first_name, last_name FROM users ORDER BY last_name, first_name")->fetchAll();
+
+$statusMap = [
+    'published' => ['label' => 'Ανοιχτή',     'class' => 'bg-success'],
+    'closed'    => ['label' => 'Κλειστή',      'class' => 'bg-secondary'],
+    'draft'     => ['label' => 'Πρόχειρο',     'class' => 'bg-warning text-dark'],
+    'cancelled' => ['label' => 'Ακυρωμένη',   'class' => 'bg-danger'],
+];
+?>
 <!doctype html>
 <html lang="el">
   <head>
@@ -164,21 +241,22 @@
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                       <div class="admin-table-search">
                         <i class="bi bi-search"></i>
-                        <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση αίτησης..." />
+                        <input type="text" id="appSearch" class="form-control form-control-sm" placeholder="Αναζήτηση αίτησης..." />
                       </div>
-                      <select class="form-select form-select-sm" style="width:auto;">
+                      <select id="appStatusFilter" class="form-select form-select-sm" style="width:auto;">
                         <option value="">Όλες οι καταστάσεις</option>
-                        <option>Ανοιχτή</option>
-                        <option>Υπό Αξιολόγηση</option>
-                        <option>Κλειστή</option>
+                        <option value="published">Ανοιχτή</option>
+                        <option value="draft">Πρόχειρο</option>
+                        <option value="closed">Κλειστή</option>
+                        <option value="cancelled">Ακυρωμένη</option>
                       </select>
                     </div>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#appModal">
+                    <button class="btn btn-success btn-sm" onclick="openNewModal()">
                       <i class="bi bi-plus-lg me-1"></i>Νέα Αίτηση
                     </button>
                   </div>
                   <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="appTable">
                       <thead class="table-light">
                         <tr>
                           <th>#</th>
@@ -191,45 +269,47 @@
                         </tr>
                       </thead>
                       <tbody>
-                        <tr>
-                          <td class="text-secondary small">001</td>
-                          <td class="fw-semibold">Καθηγητής Μαθηματικών Α' Τάξης</td>
-                          <td>Σχολή Θετικών Επιστημών</td>
-                          <td>Τμήμα Μαθηματικών</td>
-                          <td>Μ. Παπαδοπούλου</td>
-                          <td><span class="badge bg-success rounded-pill px-3">Ανοιχτή</span></td>
+                        <?php if (empty($announcements)): ?>
+                        <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox fs-4 d-block mb-1"></i>Δεν υπάρχουν αιτήσεις ακόμα.</td></tr>
+                        <?php else: ?>
+                        <?php foreach ($announcements as $i => $ann):
+                            $s = $statusMap[$ann['status']] ?? ['label' => $ann['status'], 'class' => 'bg-secondary'];
+                        ?>
+                        <tr data-status="<?= htmlspecialchars($ann['status']) ?>">
+                          <td class="text-secondary small"><?= str_pad($i + 1, 3, '0', STR_PAD_LEFT) ?></td>
+                          <td class="fw-semibold"><?= htmlspecialchars($ann['title']) ?></td>
+                          <td><?= htmlspecialchars($ann['school_name'] ?? '—') ?></td>
+                          <td><?= htmlspecialchars($ann['dept_name'] ?? '—') ?></td>
+                          <td><?= htmlspecialchars($ann['evaluators'] ?? '—') ?></td>
+                          <td><span class="badge <?= $s['class'] ?> rounded-pill px-3"><?= $s['label'] ?></span></td>
                           <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-secondary me-1" title="Ανάθεση"><i class="bi bi-person-plus"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Διαγραφή"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-primary me-1" title="Επεξεργασία"
+                              onclick="openEditModal(<?= htmlspecialchars(json_encode([
+                                'id'            => $ann['id'],
+                                'title'         => $ann['title'],
+                                'school_id'     => $ann['school_id'],
+                                'department_id' => $ann['department_id'],
+                                'course_id'     => $ann['course_id'],
+                                'period_id'     => $ann['period_id'],
+                                'status'        => $ann['status'],
+                                'description'   => $ann['description'] ?? '',
+                                'number_of_positions' => $ann['number_of_positions'],
+                              ]), ENT_QUOTES) ?>)">
+                              <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary me-1" title="Ανάθεση Αξιολογητή"
+                              onclick="openAssignModal(<?= $ann['id'] ?>, <?= htmlspecialchars(json_encode($ann['title']), ENT_QUOTES) ?>)">
+                              <i class="bi bi-person-plus"></i>
+                            </button>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Να διαγραφεί η αγγελία «<?= htmlspecialchars($ann['title'], ENT_QUOTES) ?>»;');">
+                              <input type="hidden" name="action" value="delete_announcement">
+                              <input type="hidden" name="announcement_id" value="<?= $ann['id'] ?>">
+                              <button type="submit" class="btn btn-sm btn-outline-danger" title="Διαγραφή"><i class="bi bi-trash"></i></button>
+                            </form>
                           </td>
                         </tr>
-                        <tr>
-                          <td class="text-secondary small">002</td>
-                          <td class="fw-semibold">Εκπαιδευτικός Φυσικής Β' Γυμνασίου</td>
-                          <td>Σχολή Φυσικής</td>
-                          <td>Τμήμα Φυσικής</td>
-                          <td>Γ. Αντωνίου</td>
-                          <td><span class="badge bg-warning text-dark rounded-pill px-3">Υπό Αξιολόγηση</span></td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-secondary me-1" title="Ανάθεση"><i class="bi bi-person-plus"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td class="text-secondary small">003</td>
-                          <td class="fw-semibold">Καθηγητής Πληροφορικής Γ' Λυκείου</td>
-                          <td>Σχολή Πληροφορικής</td>
-                          <td>Τμήμα Πληροφορικής</td>
-                          <td>—</td>
-                          <td><span class="badge bg-secondary rounded-pill px-3">Κλειστή</span></td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-secondary me-1" title="Ανάθεση"><i class="bi bi-person-plus"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
+                        <?php endforeach; ?>
+                        <?php endif; ?>
                       </tbody>
                     </table>
                   </div>
@@ -252,31 +332,23 @@
                     <table class="table table-hover mb-0">
                       <thead class="table-light">
                         <tr>
-                          <th>#</th><th>Όνομα Σχολής</th><th>Κωδικός</th><th>Τμήματα</th><th class="text-end">Ενέργειες</th>
+                          <th>#</th><th>Όνομα Σχολής</th><th class="text-end">Ενέργειες</th>
                         </tr>
                       </thead>
                       <tbody>
+                        <?php foreach ($schools as $i => $school): ?>
                         <tr>
-                          <td>1</td><td class="fw-semibold">Σχολή Θετικών Επιστημών</td><td><code>ΘΕ</code></td><td>3</td>
+                          <td><?= $i + 1 ?></td>
+                          <td class="fw-semibold"><?= htmlspecialchars($school['name']) ?></td>
                           <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
                             <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                           </td>
                         </tr>
-                        <tr>
-                          <td>2</td><td class="fw-semibold">Σχολή Πληροφορικής</td><td><code>ΠΛ</code></td><td>2</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>3</td><td class="fw-semibold">Σχολή Ανθρωπιστικών Σπουδών</td><td><code>ΑΝΘ</code></td><td>4</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($schools)): ?>
+                        <tr><td colspan="3" class="text-center text-muted py-3">Δεν υπάρχουν σχολές.</td></tr>
+                        <?php endif; ?>
                       </tbody>
                     </table>
                   </div>
@@ -298,30 +370,25 @@
                   <div class="table-responsive">
                     <table class="table table-hover mb-0">
                       <thead class="table-light">
-                        <tr><th>#</th><th>Τμήμα</th><th>Σχολή</th><th>Μαθήματα</th><th class="text-end">Ενέργειες</th></tr>
+                        <tr><th>#</th><th>Τμήμα</th><th>Σχολή</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
                       <tbody>
+                        <?php
+                        $schoolById = array_column($schools, 'name', 'id');
+                        foreach ($departments as $i => $dept): ?>
                         <tr>
-                          <td>1</td><td class="fw-semibold">Τμήμα Μαθηματικών</td><td>Θετικών Επιστημών</td><td>8</td>
+                          <td><?= $i + 1 ?></td>
+                          <td class="fw-semibold"><?= htmlspecialchars($dept['name']) ?></td>
+                          <td><?= htmlspecialchars($schoolById[$dept['school_id']] ?? '—') ?></td>
                           <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
                             <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                           </td>
                         </tr>
-                        <tr>
-                          <td>2</td><td class="fw-semibold">Τμήμα Φυσικής</td><td>Θετικών Επιστημών</td><td>6</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>3</td><td class="fw-semibold">Τμήμα Πληροφορικής</td><td>Σχολή Πληροφορικής</td><td>10</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($departments)): ?>
+                        <tr><td colspan="4" class="text-center text-muted py-3">Δεν υπάρχουν τμήματα.</td></tr>
+                        <?php endif; ?>
                       </tbody>
                     </table>
                   </div>
@@ -332,17 +399,9 @@
               <div class="tab-pane fade" id="courses" role="tabpanel">
                 <div class="admin-table-card bg-body shadow-sm">
                   <div class="admin-table-toolbar">
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                      <div class="admin-table-search">
-                        <i class="bi bi-search"></i>
-                        <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση μαθήματος..." />
-                      </div>
-                      <select class="form-select form-select-sm" style="width:auto;">
-                        <option value="">Όλα τα τμήματα</option>
-                        <option>Μαθηματικών</option>
-                        <option>Φυσικής</option>
-                        <option>Πληροφορικής</option>
-                      </select>
+                    <div class="admin-table-search">
+                      <i class="bi bi-search"></i>
+                      <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση μαθήματος..." />
                     </div>
                     <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#courseModal">
                       <i class="bi bi-plus-lg me-1"></i>Νέο Μάθημα
@@ -351,21 +410,24 @@
                   <div class="table-responsive">
                     <table class="table table-hover mb-0">
                       <thead class="table-light">
-                        <tr><th>Κωδικός</th><th>Μάθημα</th><th>Τμήμα</th><th>Εξάμηνο</th><th>ECTS</th><th class="text-end">Ενέργειες</th></tr>
+                        <tr><th>Μάθημα</th><th>Τμήμα</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
                       <tbody>
+                        <?php
+                        $deptById = array_column($departments, 'name', 'id');
+                        foreach ($courses as $course): ?>
                         <tr>
-                          <td><code>MAT101</code></td><td class="fw-semibold">Ανάλυση Ι</td><td>Μαθηματικών</td><td>1ο</td><td>6</td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
+                          <td class="fw-semibold"><?= htmlspecialchars($course['name']) ?></td>
+                          <td><?= htmlspecialchars($deptById[$course['department_id']] ?? '—') ?></td>
+                          <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                          </td>
                         </tr>
-                        <tr>
-                          <td><code>PHY101</code></td><td class="fw-semibold">Μηχανική</td><td>Φυσικής</td><td>1ο</td><td>7</td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
-                        </tr>
-                        <tr>
-                          <td><code>CS101</code></td><td class="fw-semibold">Εισαγωγή στον Προγραμματισμό</td><td>Πληροφορικής</td><td>1ο</td><td>6</td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
-                        </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($courses)): ?>
+                        <tr><td colspan="3" class="text-center text-muted py-3">Δεν υπάρχουν μαθήματα.</td></tr>
+                        <?php endif; ?>
                       </tbody>
                     </table>
                   </div>
@@ -404,7 +466,7 @@
                             </div>
                             <div class="col-12">
                               <label class="form-label fw-semibold">Περιγραφή</label>
-                              <textarea class="form-control" rows="3" placeholder="Προαιρετική περιγραφή της περιόδου αιτήσεων...">Περίοδος υποβολής αιτήσεων για το εαρινό εξάμηνο του ακαδημαϊκού έτους 2025-2026.</textarea>
+                              <textarea class="form-control" rows="3">Περίοδος υποβολής αιτήσεων για το εαρινό εξάμηνο του ακαδημαϊκού έτους 2025-2026.</textarea>
                             </div>
                             <div class="col-md-6">
                               <label class="form-label fw-semibold">Κατάσταση</label>
@@ -432,27 +494,16 @@
                       <div class="config-card-header"><i class="bi bi-clock-history text-warning"></i>Ιστορικό Περιόδων</div>
                       <div class="config-card-body p-0">
                         <ul class="list-group list-group-flush">
+                          <?php foreach ($periods as $period): ?>
                           <li class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
-                              <div class="fw-semibold small">Εαρινό 2025–2026</div>
-                              <div class="text-secondary" style="font-size:.8rem;">01/02/2026 – 30/04/2026</div>
+                              <div class="fw-semibold small"><?= htmlspecialchars($period['name']) ?></div>
                             </div>
-                            <span class="period-status-badge period-status-open">Ανοιχτή</span>
                           </li>
-                          <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                              <div class="fw-semibold small">Χειμερινό 2025–2026</div>
-                              <div class="text-secondary" style="font-size:.8rem;">01/09/2025 – 30/11/2025</div>
-                            </div>
-                            <span class="period-status-badge period-status-closed">Κλειστή</span>
-                          </li>
-                          <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                              <div class="fw-semibold small">Εαρινό 2024–2025</div>
-                              <div class="text-secondary" style="font-size:.8rem;">01/02/2025 – 30/04/2025</div>
-                            </div>
-                            <span class="period-status-badge period-status-closed">Κλειστή</span>
-                          </li>
+                          <?php endforeach; ?>
+                          <?php if (empty($periods)): ?>
+                          <li class="list-group-item text-muted text-center py-3">Δεν υπάρχουν περίοδοι.</li>
+                          <?php endif; ?>
                         </ul>
                       </div>
                     </div>
@@ -465,30 +516,23 @@
                 <div class="admin-table-card bg-body shadow-sm">
                   <div class="admin-table-toolbar">
                     <h6 class="mb-0 fw-semibold">Ανάθεση Αξιολογητών σε Αιτήσεις</h6>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#evalModal">
+                    <button class="btn btn-success btn-sm" onclick="openAssignModal(0,'')">
                       <i class="bi bi-person-plus me-1"></i>Νέα Ανάθεση
                     </button>
                   </div>
                   <div class="table-responsive">
                     <table class="table table-hover mb-0">
                       <thead class="table-light">
-                        <tr><th>Αίτηση</th><th>Αξιολογητής</th><th>Ημ/νία Ανάθεσης</th><th>Κατάσταση Αξιολόγησης</th><th class="text-end">Ενέργειες</th></tr>
+                        <tr><th>Αίτηση</th><th>Αξιολογητής</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
                       <tbody>
+                        <?php foreach ($announcements as $ann): if (empty($ann['evaluators'])) continue; ?>
                         <tr>
-                          <td>Καθηγητής Μαθηματικών Α'</td>
-                          <td><div class="d-flex align-items-center gap-2"><div class="table-avatar-placeholder" style="background:#dbeafe;color:#1d4ed8;">ΜΠ</div>Μαρία Παπαδοπούλου</div></td>
-                          <td class="text-secondary small">05/02/2026</td>
-                          <td><span class="badge bg-warning text-dark rounded-pill px-3">Σε εξέλιξη</span></td>
+                          <td><?= htmlspecialchars($ann['title']) ?></td>
+                          <td><?= htmlspecialchars($ann['evaluators']) ?></td>
                           <td class="text-end"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-person-dash"></i></button></td>
                         </tr>
-                        <tr>
-                          <td>Εκπαιδευτικός Φυσικής Β'</td>
-                          <td><div class="d-flex align-items-center gap-2"><div class="table-avatar-placeholder" style="background:#fee2e2;color:#b91c1c;">ΓΑ</div>Γιώργος Αντωνίου</div></td>
-                          <td class="text-secondary small">10/02/2026</td>
-                          <td><span class="badge bg-success rounded-pill px-3">Ολοκληρώθηκε</span></td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-person-dash"></i></button></td>
-                        </tr>
+                        <?php endforeach; ?>
                       </tbody>
                     </table>
                   </div>
@@ -511,75 +555,133 @@
     </div>
 
     <!-- ===== MODALS ===== -->
-    <!-- Application Modal -->
+
+    <!-- Add / Edit Announcement Modal -->
     <div class="modal fade" id="appModal" tabindex="-1" aria-labelledby="appModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="appModalLabel">Νέα Αίτηση</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label fw-semibold">Τίτλος Αίτησης <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" placeholder="π.χ. Καθηγητής Μαθηματικών Α' Τάξης" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Σχολή</label>
-                <select class="form-select">
-                  <option value="">Επιλέξτε σχολή...</option>
-                  <option>Σχολή Θετικών Επιστημών</option>
-                  <option>Σχολή Πληροφορικής</option>
-                  <option>Σχολή Ανθρωπιστικών Σπουδών</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Τμήμα</label>
-                <select class="form-select">
-                  <option value="">Επιλέξτε τμήμα...</option>
-                  <option>Τμήμα Μαθηματικών</option>
-                  <option>Τμήμα Φυσικής</option>
-                  <option>Τμήμα Πληροφορικής</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Μάθημα</label>
-                <select class="form-select">
-                  <option value="">Επιλέξτε μάθημα...</option>
-                  <option>Ανάλυση Ι</option>
-                  <option>Μηχανική</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Αξιολογητής</label>
-                <select class="form-select">
-                  <option value="">Ανάθεση αξιολογητή...</option>
-                  <option>Μαρία Παπαδοπούλου</option>
-                  <option>Γιώργος Αντωνίου</option>
-                </select>
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-semibold">Περιγραφή</label>
-                <textarea class="form-control" rows="3" placeholder="Περιγραφή της αίτησης..."></textarea>
+          <form method="POST">
+            <input type="hidden" name="action" value="save_announcement">
+            <input type="hidden" name="announcement_id" id="modalAnnId" value="0">
+            <div class="modal-header">
+              <h5 class="modal-title" id="appModalLabel">Νέα Αγγελία</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Τίτλος Αγγελίας <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" name="title" id="modalTitle" required placeholder="π.χ. Καθηγητής Μαθηματικών Α' Τάξης" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Περίοδος <span class="text-danger">*</span></label>
+                  <select class="form-select" name="period_id" id="modalPeriod" required>
+                    <option value="">Επιλέξτε περίοδο...</option>
+                    <?php foreach ($periods as $p): ?>
+                    <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['name']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Κατάσταση</label>
+                  <select class="form-select" name="status" id="modalStatus">
+                    <option value="draft">Πρόχειρο</option>
+                    <option value="published">Ανοιχτή</option>
+                    <option value="closed">Κλειστή</option>
+                    <option value="cancelled">Ακυρωμένη</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Σχολή <span class="text-danger">*</span></label>
+                  <select class="form-select" name="school_id" id="modalSchool" required>
+                    <option value="">Επιλέξτε σχολή...</option>
+                    <?php foreach ($schools as $sc): ?>
+                    <option value="<?= $sc['id'] ?>"><?= htmlspecialchars($sc['name']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Τμήμα <span class="text-danger">*</span></label>
+                  <select class="form-select" name="department_id" id="modalDept" required>
+                    <option value="">Επιλέξτε τμήμα...</option>
+                    <?php foreach ($departments as $dep): ?>
+                    <option value="<?= $dep['id'] ?>" data-school="<?= $dep['school_id'] ?>"><?= htmlspecialchars($dep['name']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Μάθημα <span class="text-danger">*</span></label>
+                  <select class="form-select" name="course_id" id="modalCourse" required>
+                    <option value="">Επιλέξτε μάθημα...</option>
+                    <?php foreach ($courses as $co): ?>
+                    <option value="<?= $co['id'] ?>" data-dept="<?= $co['department_id'] ?>"><?= htmlspecialchars($co['name']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Αριθμός Θέσεων</label>
+                  <input type="number" class="form-control" name="number_of_positions" id="modalNumPos" min="1" value="1" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Περιγραφή</label>
+                  <textarea class="form-control" name="description" id="modalDesc" rows="3" placeholder="Περιγραφή της αγγελίας..."></textarea>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
-            <button type="button" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button>
-          </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+              <button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
 
-    <!-- Generic small modal for School/Dept/Course -->
+    <!-- Assign Evaluator Modal -->
+    <div class="modal fade" id="evalModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form method="POST">
+            <input type="hidden" name="action" value="assign_evaluator">
+            <div class="modal-header">
+              <h5 class="modal-title">Ανάθεση Αξιολογητή</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Αγγελία</label>
+                <select class="form-select" name="announcement_id" id="evalAnnSelect" required>
+                  <option value="">Επιλέξτε αγγελία...</option>
+                  <?php foreach ($announcements as $ann): ?>
+                  <option value="<?= $ann['id'] ?>"><?= htmlspecialchars($ann['title']) ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Αξιολογητής</label>
+                <select class="form-select" name="evaluator_id" required>
+                  <option value="">Επιλέξτε αξιολογητή...</option>
+                  <?php foreach ($evalUsers as $eu): ?>
+                  <option value="<?= $eu['id'] ?>"><?= htmlspecialchars($eu['first_name'] . ' ' . $eu['last_name']) ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+              <button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Ανάθεση</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generic small modals -->
     <div class="modal fade" id="schoolModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h5 class="modal-title">Νέα Σχολή</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
           <div class="mb-3"><label class="form-label fw-semibold">Όνομα Σχολής</label><input type="text" class="form-control" placeholder="π.χ. Σχολή Θετικών Επιστημών" /></div>
-          <div class="mb-3"><label class="form-label fw-semibold">Κωδικός</label><input type="text" class="form-control" placeholder="π.χ. ΘΕ" maxlength="10" /></div>
         </div>
         <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
       </div></div>
@@ -591,7 +693,12 @@
         <div class="modal-body">
           <div class="mb-3"><label class="form-label fw-semibold">Όνομα Τμήματος</label><input type="text" class="form-control" placeholder="π.χ. Τμήμα Μαθηματικών" /></div>
           <div class="mb-3"><label class="form-label fw-semibold">Σχολή</label>
-            <select class="form-select"><option value="">Επιλέξτε σχολή...</option><option>Σχολή Θετικών Επιστημών</option><option>Σχολή Πληροφορικής</option></select>
+            <select class="form-select">
+              <option value="">Επιλέξτε σχολή...</option>
+              <?php foreach ($schools as $sc): ?>
+              <option value="<?= $sc['id'] ?>"><?= htmlspecialchars($sc['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
           </div>
         </div>
         <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
@@ -603,25 +710,18 @@
         <div class="modal-header"><h5 class="modal-title">Νέο Μάθημα</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
           <div class="row g-3">
-            <div class="col-md-4"><label class="form-label fw-semibold">Κωδικός</label><input type="text" class="form-control" placeholder="π.χ. MAT101" /></div>
-            <div class="col-md-8"><label class="form-label fw-semibold">Τίτλος Μαθήματος</label><input type="text" class="form-control" placeholder="π.χ. Ανάλυση Ι" /></div>
-            <div class="col-md-6"><label class="form-label fw-semibold">Τμήμα</label><select class="form-select"><option value="">Επιλέξτε...</option><option>Μαθηματικών</option><option>Φυσικής</option><option>Πληροφορικής</option></select></div>
-            <div class="col-md-3"><label class="form-label fw-semibold">Εξάμηνο</label><input type="number" class="form-control" min="1" max="10" placeholder="1" /></div>
-            <div class="col-md-3"><label class="form-label fw-semibold">ECTS</label><input type="number" class="form-control" min="1" max="12" placeholder="6" /></div>
+            <div class="col-12"><label class="form-label fw-semibold">Τίτλος Μαθήματος</label><input type="text" class="form-control" placeholder="π.χ. Ανάλυση Ι" /></div>
+            <div class="col-md-6"><label class="form-label fw-semibold">Τμήμα</label>
+              <select class="form-select">
+                <option value="">Επιλέξτε...</option>
+                <?php foreach ($departments as $dep): ?>
+                <option value="<?= $dep['id'] ?>"><?= htmlspecialchars($dep['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
           </div>
         </div>
         <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
-      </div></div>
-    </div>
-
-    <div class="modal fade" id="evalModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Ανάθεση Αξιολογητή</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="mb-3"><label class="form-label fw-semibold">Αίτηση</label><select class="form-select"><option value="">Επιλέξτε αίτηση...</option><option>Καθηγητής Μαθηματικών Α'</option><option>Εκπαιδευτικός Φυσικής Β'</option></select></div>
-          <div class="mb-3"><label class="form-label fw-semibold">Αξιολογητής</label><select class="form-select"><option value="">Επιλέξτε αξιολογητή...</option><option>Μαρία Παπαδοπούλου</option><option>Γιώργος Αντωνίου</option></select></div>
-        </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Ανάθεση</button></div>
       </div></div>
     </div>
 
@@ -639,21 +739,88 @@
             scrollbars: { theme: 'os-theme-light', autoHide: 'leave', clickScroll: true }
           });
         }
-
-        // Handle anchor-based tab switching from sidebar links
         const hash = window.location.hash;
         if (hash) {
           const tabBtn = document.querySelector('[data-bs-target="' + hash + '"]');
           if (tabBtn) new bootstrap.Tab(tabBtn).show();
         }
+
+        // Search filter
+        document.getElementById('appSearch').addEventListener('input', filterTable);
+        document.getElementById('appStatusFilter').addEventListener('change', filterTable);
+
+        function filterTable() {
+          const search = document.getElementById('appSearch').value.toLowerCase();
+          const status = document.getElementById('appStatusFilter').value;
+          document.querySelectorAll('#appTable tbody tr[data-status]').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const rowStatus = row.dataset.status;
+            const matchText = text.includes(search);
+            const matchStatus = !status || rowStatus === status;
+            row.style.display = matchText && matchStatus ? '' : 'none';
+          });
+        }
+
+        // Filter departments & courses in modal based on school selection
+        document.getElementById('modalSchool').addEventListener('change', function () {
+          const schoolId = this.value;
+          const deptSel = document.getElementById('modalDept');
+          deptSel.querySelectorAll('option[data-school]').forEach(opt => {
+            opt.style.display = (!schoolId || opt.dataset.school === schoolId) ? '' : 'none';
+          });
+          deptSel.value = '';
+          document.getElementById('modalCourse').value = '';
+          document.getElementById('modalCourse').querySelectorAll('option[data-dept]').forEach(opt => {
+            opt.style.display = 'none';
+          });
+        });
+
+        document.getElementById('modalDept').addEventListener('change', function () {
+          const deptId = this.value;
+          document.getElementById('modalCourse').querySelectorAll('option[data-dept]').forEach(opt => {
+            opt.style.display = (!deptId || opt.dataset.dept === deptId) ? '' : 'none';
+          });
+          document.getElementById('modalCourse').value = '';
+        });
       });
 
       function switchTab(tabId) {
         const tabBtn = document.querySelector('[data-bs-target="#' + tabId + '"]');
-        if (tabBtn) {
-          new bootstrap.Tab(tabBtn).show();
-          window.location.hash = '#' + tabId;
-        }
+        if (tabBtn) { new bootstrap.Tab(tabBtn).show(); window.location.hash = '#' + tabId; }
+      }
+
+      function openNewModal() {
+        document.getElementById('appModalLabel').textContent = 'Νέα Αγγελία';
+        document.getElementById('modalAnnId').value = '0';
+        document.getElementById('modalTitle').value = '';
+        document.getElementById('modalPeriod').value = '';
+        document.getElementById('modalStatus').value = 'draft';
+        document.getElementById('modalSchool').value = '';
+        document.getElementById('modalDept').value = '';
+        document.getElementById('modalCourse').value = '';
+        document.getElementById('modalNumPos').value = '1';
+        document.getElementById('modalDesc').value = '';
+        new bootstrap.Modal(document.getElementById('appModal')).show();
+      }
+
+      function openEditModal(ann) {
+        document.getElementById('appModalLabel').textContent = 'Επεξεργασία Αγγελίας';
+        document.getElementById('modalAnnId').value = ann.id;
+        document.getElementById('modalTitle').value = ann.title;
+        document.getElementById('modalPeriod').value = ann.period_id;
+        document.getElementById('modalStatus').value = ann.status;
+        document.getElementById('modalSchool').value = ann.school_id;
+        document.getElementById('modalDept').value = ann.department_id;
+        document.getElementById('modalCourse').value = ann.course_id;
+        document.getElementById('modalNumPos').value = ann.number_of_positions;
+        document.getElementById('modalDesc').value = ann.description || '';
+        new bootstrap.Modal(document.getElementById('appModal')).show();
+      }
+
+      function openAssignModal(annId, annTitle) {
+        const sel = document.getElementById('evalAnnSelect');
+        sel.value = annId || '';
+        new bootstrap.Modal(document.getElementById('evalModal')).show();
       }
     </script>
   </body>
