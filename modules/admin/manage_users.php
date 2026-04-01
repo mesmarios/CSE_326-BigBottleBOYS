@@ -26,37 +26,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: manage_users.php?msg=' . urlencode('Ο χρήστης διαγράφηκε επιτυχώς.') . '&mtype=success');
             exit;
         } catch (Throwable $e) {
-            header('Location: manage_users.php?msg=' . urlencode('Αποτυχία διαγραφής χρήστη: ' . $e->getMessage()) . '&mtype=danger');
+            header('Location: manage_users.php?msg=' . urlencode('Αποτυχία διαγραφής χρήστη. Ελέγξτε αν υπάρχουν συνδεδεμένα δεδομένα.') . '&mtype=danger');
             exit;
         }
 
     } elseif ($action === 'add') {
+        $username = trim($_POST['username'] ?? '');
         $fn    = trim($_POST['first_name'] ?? '');
         $ln    = trim($_POST['last_name']  ?? '');
         $email = trim($_POST['email']      ?? '');
         $phone = trim($_POST['phone']      ?? '') ?: null;
         $role  = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
         $pass  = $_POST['password'] ?? '';
-        if ($fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL) && strlen($pass) >= 8) {
+        $passConfirm = $_POST['password_confirm'] ?? '';
+
+        if ($pass !== $passConfirm) {
+            header('Location: manage_users.php?msg=' . urlencode('Ο κωδικός και η επιβεβαίωση δεν ταιριάζουν.') . '&mtype=danger');
+            exit;
+        }
+
+        if ($username && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL) && strlen($pass) >= 8) {
+            $check = $pdo->prepare('SELECT id FROM users WHERE email = ? OR username = ?');
+            $check->execute([$email, $username]);
+            if ($check->fetch()) {
+                header('Location: manage_users.php?msg=' . urlencode('Το email ή το username χρησιμοποιείται ήδη.') . '&mtype=danger');
+                exit;
+            }
+
             $hash = password_hash($pass, PASSWORD_DEFAULT);
-            $pdo->prepare('INSERT INTO users (first_name,last_name,email,phone,role,password_hash) VALUES (?,?,?,?,?,?)')
-                ->execute([$fn, $ln, $email, $phone, $role, $hash]);
+            $pdo->prepare('INSERT INTO users (username, first_name, last_name, email, phone, role, password_hash) VALUES (?,?,?,?,?,?,?)')
+                ->execute([$username, $fn, $ln, $email, $phone, $role, $hash]);
             header('Location: manage_users.php?msg=' . urlencode('Ο χρήστης προστέθηκε επιτυχώς.') . '&mtype=success');
             exit;
         }
-        header('Location: manage_users.php?msg=' . urlencode('Σφάλμα: Ελέγξτε τα στοιχεία (email, κωδικός ≥8 χαρακτήρες).') . '&mtype=danger');
+        header('Location: manage_users.php?msg=' . urlencode('Σφάλμα: Ελέγξτε τα στοιχεία (username, email, κωδικός ≥8 χαρακτήρες).') . '&mtype=danger');
         exit;
 
     } elseif ($action === 'edit') {
         $id    = (int)($_POST['user_id'] ?? 0);
+        $username = trim($_POST['username'] ?? '');
         $fn    = trim($_POST['first_name'] ?? '');
         $ln    = trim($_POST['last_name']  ?? '');
         $email = trim($_POST['email']      ?? '');
         $phone = trim($_POST['phone']      ?? '') ?: null;
         $role  = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
-        if ($id > 0 && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $pdo->prepare('UPDATE users SET first_name=?,last_name=?,email=?,phone=?,role=?,updated_at=NOW() WHERE id=?')
-                ->execute([$fn, $ln, $email, $phone, $role, $id]);
+
+        if ($id > 0 && $username && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $check = $pdo->prepare('SELECT id FROM users WHERE (email = ? OR username = ?) AND id <> ?');
+            $check->execute([$email, $username, $id]);
+            if ($check->fetch()) {
+                header('Location: manage_users.php?msg=' . urlencode('Το email ή το username χρησιμοποιείται ήδη.') . '&mtype=danger');
+                exit;
+            }
+
+            $pdo->prepare('UPDATE users SET username=?, first_name=?, last_name=?, email=?, phone=?, role=?, updated_at=NOW() WHERE id=?')
+                ->execute([$username, $fn, $ln, $email, $phone, $role, $id]);
             header('Location: manage_users.php?msg=' . urlencode('Τα στοιχεία αποθηκεύτηκαν επιτυχώς.') . '&mtype=success');
             exit;
         }
@@ -69,7 +93,7 @@ $flashMsg  = isset($_GET['msg'])   ? htmlspecialchars($_GET['msg'])   : null;
 $flashType = isset($_GET['mtype']) ? htmlspecialchars($_GET['mtype']) : 'success';
 
 $stmt = $pdo->query(
-    "SELECT id, first_name, last_name, email, phone, role, created_at
+    "SELECT id, username, first_name, last_name, email, phone, role, created_at
      FROM users ORDER BY created_at DESC"
 );
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -360,6 +384,10 @@ function avatarInitials(string $f, string $l): string {
               <input type="hidden" id="userFormId" name="user_id" value="">
               <div class="row g-3">
                 <div class="col-md-6">
+                  <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="userUsername" name="username" placeholder="π.χ. andreas_g" required />
+                </div>
+                <div class="col-md-6">
                   <label class="form-label fw-semibold">Όνομα <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="userFirstName" name="first_name" placeholder="π.χ. Ανδρέας" required />
                 </div>
@@ -389,7 +417,7 @@ function avatarInitials(string $f, string $l): string {
                 </div>
                 <div class="col-md-6" id="confirmPasswordField">
                   <label class="form-label fw-semibold">Επιβεβαίωση Κωδικού</label>
-                  <input type="password" class="form-control" id="userPasswordConfirm" placeholder="Επαναλάβετε τον κωδικό" />
+                  <input type="password" class="form-control" id="userPasswordConfirm" name="password_confirm" placeholder="Επαναλάβετε τον κωδικό" />
                 </div>
               </div>
             </form>
@@ -444,6 +472,7 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userForm').reset();
         document.getElementById('userFormAction').value = 'add';
         document.getElementById('userFormId').value = '';
+        document.getElementById('userUsername').value = '';
         document.getElementById('passwordField').style.display = '';
         document.getElementById('confirmPasswordField').style.display = '';
         document.getElementById('userPassword').setAttribute('required', 'required');
@@ -456,6 +485,7 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userModalLabel').textContent = 'Επεξεργασία Χρήστη';
         document.getElementById('userFormAction').value = 'edit';
         document.getElementById('userFormId').value = id;
+        document.getElementById('userUsername').value  = u.username   || '';
         document.getElementById('userFirstName').value = u.first_name || '';
         document.getElementById('userLastName').value  = u.last_name  || '';
         document.getElementById('userEmail').value     = u.email      || '';

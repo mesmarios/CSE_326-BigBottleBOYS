@@ -1,660 +1,930 @@
-<?php require_once __DIR__ . '/../../includes/admin-guard.php'; ?>
+<?php
+require_once __DIR__ . '/../../includes/admin-guard.php';
+require_once __DIR__ . '/../../includes/config.php';
+
+$pdo = getDBConnection();
+
+function redirectRecruitment(string $message, string $type = 'success', string $anchor = ''): void
+{
+    $location = 'manage_recruitment.php?msg=' . urlencode($message) . '&mtype=' . urlencode($type);
+    if ($anchor !== '') {
+        $location .= '#' . $anchor;
+    }
+    header('Location: ' . $location);
+    exit;
+}
+
+function safeDelete(PDO $pdo, string $sql, array $params, string $successMessage, string $anchor): void
+{
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        redirectRecruitment($successMessage, 'success', $anchor);
+    } catch (Throwable $e) {
+        redirectRecruitment('Η διαγραφή δεν μπόρεσε να ολοκληρωθεί λόγω συνδεδεμένων εγγραφών.', 'danger', $anchor);
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'save_school') {
+        $id = (int) ($_POST['school_id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+
+        if ($name === '') {
+            redirectRecruitment('Το όνομα σχολής είναι υποχρεωτικό.', 'danger', 'schools');
+        }
+
+        if ($id > 0) {
+            $stmt = $pdo->prepare('UPDATE schools SET name = :name, description = :description, updated_at = NOW() WHERE id = :id');
+            $stmt->execute([':name' => $name, ':description' => $description !== '' ? $description : null, ':id' => $id]);
+            redirectRecruitment('Η σχολή ενημερώθηκε επιτυχώς.', 'success', 'schools');
+        }
+
+        $stmt = $pdo->prepare('INSERT INTO schools (name, description) VALUES (:name, :description)');
+        $stmt->execute([':name' => $name, ':description' => $description !== '' ? $description : null]);
+        redirectRecruitment('Η σχολή προστέθηκε επιτυχώς.', 'success', 'schools');
+    }
+
+    if ($action === 'delete_school') {
+        safeDelete($pdo, 'DELETE FROM schools WHERE id = :id', [':id' => (int) ($_POST['school_id'] ?? 0)], 'Η σχολή διαγράφηκε επιτυχώς.', 'schools');
+    }
+
+    if ($action === 'save_department') {
+        $id = (int) ($_POST['department_id'] ?? 0);
+        $schoolId = (int) ($_POST['school_id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+
+        if ($schoolId <= 0 || $name === '') {
+            redirectRecruitment('Το τμήμα χρειάζεται σχολή και όνομα.', 'danger', 'departments');
+        }
+
+        if ($id > 0) {
+            $stmt = $pdo->prepare(
+                'UPDATE departments
+                 SET school_id = :school_id, name = :name, description = :description, updated_at = NOW()
+                 WHERE id = :id'
+            );
+            $stmt->execute([
+                ':school_id' => $schoolId,
+                ':name' => $name,
+                ':description' => $description !== '' ? $description : null,
+                ':id' => $id,
+            ]);
+            redirectRecruitment('Το τμήμα ενημερώθηκε επιτυχώς.', 'success', 'departments');
+        }
+
+        $stmt = $pdo->prepare('INSERT INTO departments (school_id, name, description) VALUES (:school_id, :name, :description)');
+        $stmt->execute([
+            ':school_id' => $schoolId,
+            ':name' => $name,
+            ':description' => $description !== '' ? $description : null,
+        ]);
+        redirectRecruitment('Το τμήμα προστέθηκε επιτυχώς.', 'success', 'departments');
+    }
+
+    if ($action === 'delete_department') {
+        safeDelete($pdo, 'DELETE FROM departments WHERE id = :id', [':id' => (int) ($_POST['department_id'] ?? 0)], 'Το τμήμα διαγράφηκε επιτυχώς.', 'departments');
+    }
+
+    if ($action === 'save_course') {
+        $id = (int) ($_POST['course_id'] ?? 0);
+        $departmentId = (int) ($_POST['department_id'] ?? 0);
+        $code = trim($_POST['code'] ?? '');
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $credits = (int) ($_POST['credits'] ?? 0);
+        $semester = (int) ($_POST['semester'] ?? 0);
+
+        if ($departmentId <= 0 || $code === '' || $name === '') {
+            redirectRecruitment('Το μάθημα χρειάζεται τμήμα, κωδικό και όνομα.', 'danger', 'courses');
+        }
+
+        try {
+            if ($id > 0) {
+                $stmt = $pdo->prepare(
+                    'UPDATE courses
+                     SET department_id = :department_id, code = :code, name = :name, description = :description, credits = :credits, semester = :semester, updated_at = NOW()
+                     WHERE id = :id'
+                );
+                $stmt->execute([
+                    ':department_id' => $departmentId,
+                    ':code' => $code,
+                    ':name' => $name,
+                    ':description' => $description !== '' ? $description : null,
+                    ':credits' => $credits > 0 ? $credits : null,
+                    ':semester' => $semester > 0 ? $semester : null,
+                    ':id' => $id,
+                ]);
+                redirectRecruitment('Το μάθημα ενημερώθηκε επιτυχώς.', 'success', 'courses');
+            }
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO courses (department_id, code, name, description, credits, semester)
+                 VALUES (:department_id, :code, :name, :description, :credits, :semester)'
+            );
+            $stmt->execute([
+                ':department_id' => $departmentId,
+                ':code' => $code,
+                ':name' => $name,
+                ':description' => $description !== '' ? $description : null,
+                ':credits' => $credits > 0 ? $credits : null,
+                ':semester' => $semester > 0 ? $semester : null,
+            ]);
+            redirectRecruitment('Το μάθημα προστέθηκε επιτυχώς.', 'success', 'courses');
+        } catch (Throwable $e) {
+            redirectRecruitment('Ο κωδικός μαθήματος πρέπει να είναι μοναδικός.', 'danger', 'courses');
+        }
+    }
+
+    if ($action === 'delete_course') {
+        safeDelete($pdo, 'DELETE FROM courses WHERE id = :id', [':id' => (int) ($_POST['course_id'] ?? 0)], 'Το μάθημα διαγράφηκε επιτυχώς.', 'courses');
+    }
+
+    if ($action === 'save_period') {
+        $id = (int) ($_POST['period_id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+        $startDate = trim($_POST['start_date'] ?? '');
+        $endDate = trim($_POST['end_date'] ?? '');
+        $status = $_POST['status'] ?? 'planning';
+        $description = trim($_POST['description'] ?? '');
+
+        if ($name === '' || $startDate === '' || $endDate === '') {
+            redirectRecruitment('Η περίοδος χρειάζεται τίτλο και ημερομηνίες.', 'danger', 'periods');
+        }
+
+        if ($id > 0) {
+            $stmt = $pdo->prepare(
+                'UPDATE recruitment_periods
+                 SET name = :name, start_date = :start_date, end_date = :end_date, status = :status, description = :description, updated_at = NOW()
+                 WHERE id = :id'
+            );
+            $stmt->execute([
+                ':name' => $name,
+                ':start_date' => $startDate,
+                ':end_date' => $endDate,
+                ':status' => $status,
+                ':description' => $description !== '' ? $description : null,
+                ':id' => $id,
+            ]);
+            redirectRecruitment('Η περίοδος ενημερώθηκε επιτυχώς.', 'success', 'periods');
+        }
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO recruitment_periods (name, start_date, end_date, status, description)
+             VALUES (:name, :start_date, :end_date, :status, :description)'
+        );
+        $stmt->execute([
+            ':name' => $name,
+            ':start_date' => $startDate,
+            ':end_date' => $endDate,
+            ':status' => $status,
+            ':description' => $description !== '' ? $description : null,
+        ]);
+        redirectRecruitment('Η περίοδος προστέθηκε επιτυχώς.', 'success', 'periods');
+    }
+
+    if ($action === 'delete_period') {
+        safeDelete($pdo, 'DELETE FROM recruitment_periods WHERE id = :id', [':id' => (int) ($_POST['period_id'] ?? 0)], 'Η περίοδος διαγράφηκε επιτυχώς.', 'periods');
+    }
+
+    if ($action === 'save_announcement') {
+        $id = (int) ($_POST['announcement_id'] ?? 0);
+        $periodId = (int) ($_POST['period_id'] ?? 0);
+        $schoolId = (int) ($_POST['school_id'] ?? 0);
+        $departmentId = (int) ($_POST['department_id'] ?? 0);
+        $courseId = (int) ($_POST['course_id'] ?? 0);
+        $title = trim($_POST['title'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $requirements = trim($_POST['requirements'] ?? '');
+        $positions = max(1, (int) ($_POST['number_of_positions'] ?? 1));
+        $status = $_POST['status'] ?? 'draft';
+
+        if ($periodId <= 0 || $schoolId <= 0 || $departmentId <= 0 || $courseId <= 0 || $title === '') {
+            redirectRecruitment('Η ανακοίνωση χρειάζεται πλήρη στοιχεία περίοδου, σχολής, τμήματος, μαθήματος και τίτλο.', 'danger', 'announcements');
+        }
+
+        if ($id > 0) {
+            $stmt = $pdo->prepare(
+                'UPDATE job_announcements
+                 SET period_id = :period_id,
+                     school_id = :school_id,
+                     department_id = :department_id,
+                     course_id = :course_id,
+                     title = :title,
+                     description = :description,
+                     requirements = :requirements,
+                     number_of_positions = :number_of_positions,
+                     status = :status,
+                     updated_at = NOW()
+                 WHERE id = :id'
+            );
+            $stmt->execute([
+                ':period_id' => $periodId,
+                ':school_id' => $schoolId,
+                ':department_id' => $departmentId,
+                ':course_id' => $courseId,
+                ':title' => $title,
+                ':description' => $description !== '' ? $description : null,
+                ':requirements' => $requirements !== '' ? $requirements : null,
+                ':number_of_positions' => $positions,
+                ':status' => $status,
+                ':id' => $id,
+            ]);
+            redirectRecruitment('Η ανακοίνωση ενημερώθηκε επιτυχώς.', 'success', 'announcements');
+        }
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO job_announcements (period_id, school_id, department_id, course_id, title, description, requirements, number_of_positions, status)
+             VALUES (:period_id, :school_id, :department_id, :course_id, :title, :description, :requirements, :number_of_positions, :status)'
+        );
+        $stmt->execute([
+            ':period_id' => $periodId,
+            ':school_id' => $schoolId,
+            ':department_id' => $departmentId,
+            ':course_id' => $courseId,
+            ':title' => $title,
+            ':description' => $description !== '' ? $description : null,
+            ':requirements' => $requirements !== '' ? $requirements : null,
+            ':number_of_positions' => $positions,
+            ':status' => $status,
+        ]);
+        redirectRecruitment('Η ανακοίνωση προστέθηκε επιτυχώς.', 'success', 'announcements');
+    }
+
+    if ($action === 'delete_announcement') {
+        safeDelete($pdo, 'DELETE FROM job_announcements WHERE id = :id', [':id' => (int) ($_POST['announcement_id'] ?? 0)], 'Η ανακοίνωση διαγράφηκε επιτυχώς.', 'announcements');
+    }
+
+    if ($action === 'save_assignment') {
+        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
+        $announcementId = (int) ($_POST['announcement_id'] ?? 0);
+        $evaluatorId = (int) ($_POST['evaluator_id'] ?? 0);
+
+        if ($announcementId <= 0 || $evaluatorId <= 0) {
+            redirectRecruitment('Η ανάθεση χρειάζεται ανακοίνωση και αξιολογητή.', 'danger', 'assignments');
+        }
+
+        try {
+            if ($assignmentId > 0) {
+                $stmt = $pdo->prepare(
+                    'UPDATE application_evaluators
+                     SET announcement_id = :announcement_id, evaluator_id = :evaluator_id
+                     WHERE id = :id'
+                );
+                $stmt->execute([
+                    ':announcement_id' => $announcementId,
+                    ':evaluator_id' => $evaluatorId,
+                    ':id' => $assignmentId,
+                ]);
+                redirectRecruitment('Η ανάθεση ενημερώθηκε επιτυχώς.', 'success', 'assignments');
+            }
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO application_evaluators (announcement_id, evaluator_id)
+                 VALUES (:announcement_id, :evaluator_id)'
+            );
+            $stmt->execute([
+                ':announcement_id' => $announcementId,
+                ':evaluator_id' => $evaluatorId,
+            ]);
+            redirectRecruitment('Η ανάθεση αξιολογητή αποθηκεύτηκε επιτυχώς.', 'success', 'assignments');
+        } catch (Throwable $e) {
+            redirectRecruitment('Η συγκεκριμένη ανάθεση υπάρχει ήδη ή δεν είναι έγκυρη.', 'danger', 'assignments');
+        }
+    }
+
+    if ($action === 'delete_assignment') {
+        safeDelete($pdo, 'DELETE FROM application_evaluators WHERE id = :id', [':id' => (int) ($_POST['assignment_id'] ?? 0)], 'Η ανάθεση διαγράφηκε επιτυχώς.', 'assignments');
+    }
+}
+
+$editType = $_GET['edit'] ?? '';
+$editId = (int) ($_GET['id'] ?? 0);
+
+$schools = $pdo->query('SELECT id, name, description, created_at FROM schools ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+$departments = $pdo->query(
+    'SELECT d.id, d.school_id, d.name, d.description, s.name AS school_name
+     FROM departments d
+     INNER JOIN schools s ON s.id = d.school_id
+     ORDER BY s.name, d.name'
+)->fetchAll(PDO::FETCH_ASSOC);
+$courses = $pdo->query(
+    'SELECT c.id, c.department_id, c.code, c.name, c.description, c.credits, c.semester, d.name AS department_name
+     FROM courses c
+     INNER JOIN departments d ON d.id = c.department_id
+     ORDER BY d.name, c.name'
+)->fetchAll(PDO::FETCH_ASSOC);
+$periods = $pdo->query('SELECT * FROM recruitment_periods ORDER BY start_date DESC')->fetchAll(PDO::FETCH_ASSOC);
+$announcements = $pdo->query(
+    'SELECT ja.id, ja.period_id, ja.school_id, ja.department_id, ja.course_id, ja.title, ja.description, ja.requirements,
+            ja.number_of_positions, ja.status, rp.name AS period_name, s.name AS school_name, d.name AS department_name,
+            c.name AS course_name, COUNT(ca.id) AS application_count
+     FROM job_announcements ja
+     INNER JOIN recruitment_periods rp ON rp.id = ja.period_id
+     INNER JOIN schools s ON s.id = ja.school_id
+     INNER JOIN departments d ON d.id = ja.department_id
+     INNER JOIN courses c ON c.id = ja.course_id
+     LEFT JOIN candidate_applications ca ON ca.announcement_id = ja.id
+     GROUP BY ja.id
+     ORDER BY ja.created_at DESC'
+)->fetchAll(PDO::FETCH_ASSOC);
+$evaluatorUsers = $pdo->query(
+    "SELECT id, username, first_name, last_name, email
+     FROM users
+     WHERE role = 'user'
+     ORDER BY first_name, last_name, username"
+)->fetchAll(PDO::FETCH_ASSOC);
+$assignments = $pdo->query(
+    'SELECT ae.id, ae.announcement_id, ae.evaluator_id, ae.created_at,
+            ja.title AS announcement_title,
+            u.username, u.first_name, u.last_name, u.email
+     FROM application_evaluators ae
+     INNER JOIN job_announcements ja ON ja.id = ae.announcement_id
+     INNER JOIN users u ON u.id = ae.evaluator_id
+     ORDER BY ae.created_at DESC'
+)->fetchAll(PDO::FETCH_ASSOC);
+
+$schoolForm = ['id' => 0, 'name' => '', 'description' => ''];
+$departmentForm = ['id' => 0, 'school_id' => 0, 'name' => '', 'description' => ''];
+$courseForm = ['id' => 0, 'department_id' => 0, 'code' => '', 'name' => '', 'description' => '', 'credits' => '', 'semester' => ''];
+$periodForm = ['id' => 0, 'name' => '', 'start_date' => '', 'end_date' => '', 'status' => 'planning', 'description' => ''];
+$announcementForm = ['id' => 0, 'period_id' => 0, 'school_id' => 0, 'department_id' => 0, 'course_id' => 0, 'title' => '', 'description' => '', 'requirements' => '', 'number_of_positions' => 1, 'status' => 'draft'];
+$assignmentForm = ['id' => 0, 'announcement_id' => 0, 'evaluator_id' => 0];
+
+if ($editType === 'school') {
+    foreach ($schools as $school) {
+        if ((int) $school['id'] === $editId) {
+            $schoolForm = ['id' => $school['id'], 'name' => $school['name'], 'description' => (string) ($school['description'] ?? '')];
+            break;
+        }
+    }
+}
+if ($editType === 'department') {
+    foreach ($departments as $department) {
+        if ((int) $department['id'] === $editId) {
+            $departmentForm = ['id' => $department['id'], 'school_id' => $department['school_id'], 'name' => $department['name'], 'description' => (string) ($department['description'] ?? '')];
+            break;
+        }
+    }
+}
+if ($editType === 'course') {
+    foreach ($courses as $course) {
+        if ((int) $course['id'] === $editId) {
+            $courseForm = [
+                'id' => $course['id'],
+                'department_id' => $course['department_id'],
+                'code' => $course['code'],
+                'name' => $course['name'],
+                'description' => (string) ($course['description'] ?? ''),
+                'credits' => (string) ($course['credits'] ?? ''),
+                'semester' => (string) ($course['semester'] ?? ''),
+            ];
+            break;
+        }
+    }
+}
+if ($editType === 'period') {
+    foreach ($periods as $period) {
+        if ((int) $period['id'] === $editId) {
+            $periodForm = [
+                'id' => $period['id'],
+                'name' => $period['name'],
+                'start_date' => $period['start_date'],
+                'end_date' => $period['end_date'],
+                'status' => $period['status'],
+                'description' => (string) ($period['description'] ?? ''),
+            ];
+            break;
+        }
+    }
+}
+if ($editType === 'announcement') {
+    foreach ($announcements as $announcement) {
+        if ((int) $announcement['id'] === $editId) {
+            $announcementForm = [
+                'id' => $announcement['id'],
+                'period_id' => $announcement['period_id'],
+                'school_id' => $announcement['school_id'],
+                'department_id' => $announcement['department_id'],
+                'course_id' => $announcement['course_id'],
+                'title' => $announcement['title'],
+                'description' => (string) ($announcement['description'] ?? ''),
+                'requirements' => (string) ($announcement['requirements'] ?? ''),
+                'number_of_positions' => (int) $announcement['number_of_positions'],
+                'status' => $announcement['status'],
+            ];
+            break;
+        }
+    }
+}
+if ($editType === 'assignment') {
+    foreach ($assignments as $assignment) {
+        if ((int) $assignment['id'] === $editId) {
+            $assignmentForm = [
+                'id' => $assignment['id'],
+                'announcement_id' => $assignment['announcement_id'],
+                'evaluator_id' => $assignment['evaluator_id'],
+            ];
+            break;
+        }
+    }
+}
+
+$msg = $_GET['msg'] ?? '';
+$msgType = $_GET['mtype'] ?? 'success';
+?>
 <!doctype html>
 <html lang="el">
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<head>
+    <meta charset="utf-8">
     <title>Admin | Manage Recruitment</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
-    <link rel="stylesheet" href="../../assets/css/adminlte.css" />
-    <link rel="stylesheet" href="../../assets/css/admin-pages.css" />
-    <link rel="stylesheet" href="../../assets/css/admin-ui.css" />
-  </head>
-  <body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
-    <div class="app-wrapper">
-
-      <!-- ===== NAVBAR ===== -->
-      <header class="app-header">
-        <nav class="navbar navbar-expand bg-body h-100" aria-label="Primary">
-          <div class="container-fluid">
-          <ul class="navbar-nav">
-            <li class="nav-item">
-              <a class="nav-link" href="#" onclick="toggleSidebar(event)"><i class="bi bi-list"></i></a>
-            </li>
-            <li class="nav-item d-none d-md-block">
-              <a href="index.php" class="nav-link"><i class="bi bi-house me-1"></i>Dashboard</a>
-            </li>
-            <li class="nav-item d-none d-md-block">
-              <span class="nav-link text-secondary"><i class="bi bi-chevron-right mx-1" style="font-size:.7rem"></i>Manage Recruitment</span>
-            </li>
-          </ul>
-          <ul class="navbar-nav ms-auto">
-            <li class="nav-item">
-              <a class="nav-link" href="#" data-lte-toggle="fullscreen">
-                <i data-lte-icon="maximize" class="bi bi-arrows-fullscreen"></i>
-                <i data-lte-icon="minimize" class="bi bi-fullscreen-exit" style="display:none"></i>
-              </a>
-            </li>
-            <li class="nav-item dropdown user-menu">
-              <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="Admin" />
-                <span class="d-none d-md-inline">Administrator</span>
-              </a>
-              <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-                <li class="user-header text-bg-primary">
-                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="Admin" />
-                  <p>Administrator<small>Διαχειριστής Συστήματος</small></p>
-                </li>
-                <li class="user-footer">
-                  <a href="my_profile.php" class="btn btn-default btn-flat"><i class="bi bi-person me-1"></i>Προφίλ</a>
-                  <a href="../../logout.php" class="btn btn-default btn-flat float-end"><i class="bi bi-box-arrow-right me-1"></i>Αποσύνδεση</a>
-                </li>
-              </ul>
-            </li>
-          </ul>
-          </div>
-        </nav>
-      </header>
-
-      <!-- ===== SIDEBAR ===== -->
-      <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
-        <div class="sidebar-brand">
-          <a href="index.php" class="brand-link">
-            <img src="../../assets/images/AdminLTELogo.png" alt="Logo" class="brand-image opacity-75 shadow" />
-            <span class="brand-text fw-light">Admin Panel</span>
-          </a>
-        </div>
-        <div class="sidebar-wrapper">
-          <nav class="mt-2">
-            <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" data-accordion="false">
-              <li class="nav-header">ΚΥΡΙΟ ΜΕΝΟΥ</li>
-              <li class="nav-item"><a href="index.php" class="nav-link"><i class="nav-icon bi bi-speedometer2"></i><p>Dashboard</p></a></li>
-              <li class="nav-header">ΔΙΑΧΕΙΡΙΣΗ</li>
-              <li class="nav-item"><a href="manage_users.php" class="nav-link"><i class="nav-icon bi bi-people"></i><p>Manage Users</p></a></li>
-              <li class="nav-item menu-open">
-                <a href="manage_recruitment.php" class="nav-link active">
-                  <i class="nav-icon bi bi-clipboard-check"></i>
-                  <p>Manage Recruitment<i class="nav-arrow bi bi-chevron-right"></i></p>
-                </a>
-                <ul class="nav nav-treeview">
-                  <li class="nav-item"><a href="#applications" class="nav-link" onclick="switchTab('applications')"><i class="nav-icon bi bi-circle"></i><p>Αιτήσεις</p></a></li>
-                  <li class="nav-item"><a href="#schools" class="nav-link" onclick="switchTab('schools')"><i class="nav-icon bi bi-circle"></i><p>Σχολές</p></a></li>
-                  <li class="nav-item"><a href="#departments" class="nav-link" onclick="switchTab('departments')"><i class="nav-icon bi bi-circle"></i><p>Τμήματα</p></a></li>
-                  <li class="nav-item"><a href="#courses" class="nav-link" onclick="switchTab('courses')"><i class="nav-icon bi bi-circle"></i><p>Μαθήματα</p></a></li>
-                  <li class="nav-item"><a href="#period" class="nav-link" onclick="switchTab('period')"><i class="nav-icon bi bi-circle"></i><p>Περίοδος Αιτήσεων</p></a></li>
-                </ul>
-              </li>
-              <li class="nav-item"><a href="configure_system.php" class="nav-link"><i class="nav-icon bi bi-gear"></i><p>Configure System</p></a></li>
-              <li class="nav-item"><a href="report.php" class="nav-link"><i class="nav-icon bi bi-bar-chart"></i><p>Reports</p></a></li>
-              <li class="nav-header">ΛΟΓΑΡΙΑΣΜΟΣ</li>
-              <li class="nav-item"><a href="my_profile.php" class="nav-link"><i class="nav-icon bi bi-person-circle"></i><p>My Profile</p></a></li>
-            </ul>
-          </nav>
-        </div>
-      </aside>
-
-      <!-- ===== MAIN ===== -->
-      <main class="app-main">
-        <div class="app-content-header">
-          <div class="container-fluid">
-            <div class="row align-items-center py-2">
-              <div class="col">
-                <h4 class="mb-0 fw-bold d-flex align-items-center gap-2">
-                  <span class="admin-page-title-icon" style="background:#dcfce7;color:#15803d;">
-                    <i class="bi bi-clipboard-check-fill"></i>
-                  </span>
-                  Manage Recruitment
-                </h4>
-              </div>
-              <div class="col-auto">
-                <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item"><a href="index.php">Dashboard</a></li>
-                  <li class="breadcrumb-item active">Manage Recruitment</li>
-                </ol>
-              </div>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="../../assets/css/adminlte.css">
+    <style>
+        body { background: #f5f7fb; font-family: Arial, sans-serif; }
+        .page-shell { max-width: 1280px; margin: 32px auto; padding: 0 16px; }
+        .topbar, .card { background: #fff; border: 1px solid #dbe3ee; border-radius: 14px; box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
+        .topbar { padding: 18px 22px; margin-bottom: 18px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+        .topbar a { text-decoration: none; font-weight: 700; color: #1d4ed8; margin-right: 14px; }
+        .quick-links { margin-bottom: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .quick-links a { text-decoration: none; padding: 10px 12px; background: #eff6ff; color: #1d4ed8; border-radius: 999px; font-weight: 700; }
+        .alert { padding: 14px 16px; border-radius: 10px; margin-bottom: 16px; }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
+        .stat { padding: 18px; }
+        .section { margin-bottom: 18px; }
+        .section-title { margin: 0 0 14px; }
+        .grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 18px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+        th { background: #eff6ff; }
+        .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .full { grid-column: 1 / -1; }
+        label { display: block; margin-bottom: 6px; font-weight: 700; }
+        input, textarea, select { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+        textarea { min-height: 96px; resize: vertical; }
+        .btn { display: inline-block; padding: 10px 14px; border: 0; border-radius: 8px; cursor: pointer; font-weight: 700; text-decoration: none; }
+        .btn-primary { background: #1d4ed8; color: #fff; }
+        .btn-danger { background: #dc2626; color: #fff; }
+        .btn-secondary { background: #e2e8f0; color: #0f172a; }
+        .inline-form { display: inline; }
+        .muted { color: #64748b; }
+        @media (max-width: 980px) {
+            .stats, .grid, .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <div class="topbar">
+            <div>
+                <a href="index.php">Dashboard</a>
+                <a href="manage_users.php">Manage Users</a>
+                <a href="manage_recruitment.php">Manage Recruitment</a>
+                <a href="configure_system.php">Configure System</a>
+                <a href="report.php">Reports</a>
             </div>
-          </div>
+            <div><a href="../../logout.php">Logout</a></div>
         </div>
 
-        <div class="app-content">
-          <div class="container-fluid">
+        <div class="quick-links">
+            <a href="#announcements">Announcements</a>
+            <a href="#schools">Schools</a>
+            <a href="#departments">Departments</a>
+            <a href="#courses">Courses</a>
+            <a href="#periods">Periods</a>
+            <a href="#assignments">Assignments</a>
+        </div>
 
-            <!-- Tabs Navigation -->
-            <ul class="nav admin-tabs" id="recruitTabs" role="tablist">
-              <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#applications" id="tab-applications">
-                  <i class="bi bi-file-earmark-text"></i>Αιτήσεις
-                </button>
-              </li>
-              <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#schools" id="tab-schools">
-                  <i class="bi bi-building"></i>Σχολές
-                </button>
-              </li>
-              <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#departments" id="tab-departments">
-                  <i class="bi bi-diagram-3"></i>Τμήματα
-                </button>
-              </li>
-              <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#courses" id="tab-courses">
-                  <i class="bi bi-book"></i>Μαθήματα
-                </button>
-              </li>
-              <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#period" id="tab-period">
-                  <i class="bi bi-calendar-range"></i>Περίοδος Αιτήσεων
-                </button>
-              </li>
-              <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#evaluators" id="tab-evaluators">
-                  <i class="bi bi-person-check"></i>Αξιολογητές
-                </button>
-              </li>
-            </ul>
+        <?php if ($msg !== ''): ?>
+            <div class="alert alert-<?= htmlspecialchars($msgType, ENT_QUOTES, 'UTF-8') === 'danger' ? 'danger' : 'success' ?>">
+                <?= htmlspecialchars($msg, ENT_QUOTES, 'UTF-8') ?>
+            </div>
+        <?php endif; ?>
 
-            <!-- Tab Content -->
-            <div class="tab-content">
+        <div class="stats">
+            <div class="card stat"><strong><?= count($schools) ?></strong><div class="muted">Schools</div></div>
+            <div class="card stat"><strong><?= count($departments) ?></strong><div class="muted">Departments</div></div>
+            <div class="card stat"><strong><?= count($courses) ?></strong><div class="muted">Courses</div></div>
+            <div class="card stat"><strong><?= count($announcements) ?></strong><div class="muted">Announcements</div></div>
+        </div>
 
-              <!-- ===== TAB: APPLICATIONS ===== -->
-              <div class="tab-pane fade show active" id="applications" role="tabpanel">
-                <div class="admin-table-card bg-body shadow-sm">
-                  <div class="admin-table-toolbar">
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                      <div class="admin-table-search">
-                        <i class="bi bi-search"></i>
-                        <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση αίτησης..." />
-                      </div>
-                      <select class="form-select form-select-sm" style="width:auto;">
-                        <option value="">Όλες οι καταστάσεις</option>
-                        <option>Ανοιχτή</option>
-                        <option>Υπό Αξιολόγηση</option>
-                        <option>Κλειστή</option>
-                      </select>
-                    </div>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#appModal">
-                      <i class="bi bi-plus-lg me-1"></i>Νέα Αίτηση
-                    </button>
-                  </div>
-                  <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                      <thead class="table-light">
-                        <tr>
-                          <th>#</th>
-                          <th>Τίτλος Αίτησης</th>
-                          <th>Σχολή</th>
-                          <th>Τμήμα</th>
-                          <th>Αξιολογητής</th>
-                          <th>Κατάσταση</th>
-                          <th class="text-end">Ενέργειες</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td class="text-secondary small">001</td>
-                          <td class="fw-semibold">Καθηγητής Μαθηματικών Α' Τάξης</td>
-                          <td>Σχολή Θετικών Επιστημών</td>
-                          <td>Τμήμα Μαθηματικών</td>
-                          <td>Μ. Παπαδοπούλου</td>
-                          <td><span class="badge bg-success rounded-pill px-3">Ανοιχτή</span></td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-secondary me-1" title="Ανάθεση"><i class="bi bi-person-plus"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td class="text-secondary small">002</td>
-                          <td class="fw-semibold">Εκπαιδευτικός Φυσικής Β' Γυμνασίου</td>
-                          <td>Σχολή Φυσικής</td>
-                          <td>Τμήμα Φυσικής</td>
-                          <td>Γ. Αντωνίου</td>
-                          <td><span class="badge bg-warning text-dark rounded-pill px-3">Υπό Αξιολόγηση</span></td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-secondary me-1" title="Ανάθεση"><i class="bi bi-person-plus"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td class="text-secondary small">003</td>
-                          <td class="fw-semibold">Καθηγητής Πληροφορικής Γ' Λυκείου</td>
-                          <td>Σχολή Πληροφορικής</td>
-                          <td>Τμήμα Πληροφορικής</td>
-                          <td>—</td>
-                          <td><span class="badge bg-secondary rounded-pill px-3">Κλειστή</span></td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-secondary me-1" title="Ανάθεση"><i class="bi bi-person-plus"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Διαγραφή"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                      </tbody>
+        <section class="section" id="announcements">
+            <div class="grid">
+                <div class="card">
+                    <h3 class="section-title">Job Announcements</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Period</th>
+                                <th>Course</th>
+                                <th>Status</th>
+                                <th>Applications</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($announcements as $announcement): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($announcement['title'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($announcement['period_name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($announcement['course_name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($announcement['status'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= (int) $announcement['application_count'] ?></td>
+                                    <td>
+                                        <a class="btn btn-secondary" href="manage_recruitment.php?edit=announcement&id=<?= (int) $announcement['id'] ?>#announcements">Edit</a>
+                                        <form class="inline-form" method="post">
+                                            <input type="hidden" name="action" value="delete_announcement">
+                                            <input type="hidden" name="announcement_id" value="<?= (int) $announcement['id'] ?>">
+                                            <button class="btn btn-danger" type="submit">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
                     </table>
-                  </div>
                 </div>
-              </div>
 
-              <!-- ===== TAB: SCHOOLS ===== -->
-              <div class="tab-pane fade" id="schools" role="tabpanel">
-                <div class="admin-table-card bg-body shadow-sm">
-                  <div class="admin-table-toolbar">
-                    <div class="admin-table-search">
-                      <i class="bi bi-search"></i>
-                      <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση σχολής..." />
-                    </div>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#schoolModal">
-                      <i class="bi bi-plus-lg me-1"></i>Νέα Σχολή
-                    </button>
-                  </div>
-                  <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                      <thead class="table-light">
-                        <tr>
-                          <th>#</th><th>Όνομα Σχολής</th><th>Κωδικός</th><th>Τμήματα</th><th class="text-end">Ενέργειες</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>1</td><td class="fw-semibold">Σχολή Θετικών Επιστημών</td><td><code>ΘΕ</code></td><td>3</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>2</td><td class="fw-semibold">Σχολή Πληροφορικής</td><td><code>ΠΛ</code></td><td>2</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>3</td><td class="fw-semibold">Σχολή Ανθρωπιστικών Σπουδών</td><td><code>ΑΝΘ</code></td><td>4</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <!-- ===== TAB: DEPARTMENTS ===== -->
-              <div class="tab-pane fade" id="departments" role="tabpanel">
-                <div class="admin-table-card bg-body shadow-sm">
-                  <div class="admin-table-toolbar">
-                    <div class="admin-table-search">
-                      <i class="bi bi-search"></i>
-                      <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση τμήματος..." />
-                    </div>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#deptModal">
-                      <i class="bi bi-plus-lg me-1"></i>Νέο Τμήμα
-                    </button>
-                  </div>
-                  <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                      <thead class="table-light">
-                        <tr><th>#</th><th>Τμήμα</th><th>Σχολή</th><th>Μαθήματα</th><th class="text-end">Ενέργειες</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>1</td><td class="fw-semibold">Τμήμα Μαθηματικών</td><td>Θετικών Επιστημών</td><td>8</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>2</td><td class="fw-semibold">Τμήμα Φυσικής</td><td>Θετικών Επιστημών</td><td>6</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>3</td><td class="fw-semibold">Τμήμα Πληροφορικής</td><td>Σχολή Πληροφορικής</td><td>10</td>
-                          <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <!-- ===== TAB: COURSES ===== -->
-              <div class="tab-pane fade" id="courses" role="tabpanel">
-                <div class="admin-table-card bg-body shadow-sm">
-                  <div class="admin-table-toolbar">
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                      <div class="admin-table-search">
-                        <i class="bi bi-search"></i>
-                        <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση μαθήματος..." />
-                      </div>
-                      <select class="form-select form-select-sm" style="width:auto;">
-                        <option value="">Όλα τα τμήματα</option>
-                        <option>Μαθηματικών</option>
-                        <option>Φυσικής</option>
-                        <option>Πληροφορικής</option>
-                      </select>
-                    </div>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#courseModal">
-                      <i class="bi bi-plus-lg me-1"></i>Νέο Μάθημα
-                    </button>
-                  </div>
-                  <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                      <thead class="table-light">
-                        <tr><th>Κωδικός</th><th>Μάθημα</th><th>Τμήμα</th><th>Εξάμηνο</th><th>ECTS</th><th class="text-end">Ενέργειες</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td><code>MAT101</code></td><td class="fw-semibold">Ανάλυση Ι</td><td>Μαθηματικών</td><td>1ο</td><td>6</td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
-                        </tr>
-                        <tr>
-                          <td><code>PHY101</code></td><td class="fw-semibold">Μηχανική</td><td>Φυσικής</td><td>1ο</td><td>7</td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
-                        </tr>
-                        <tr>
-                          <td><code>CS101</code></td><td class="fw-semibold">Εισαγωγή στον Προγραμματισμό</td><td>Πληροφορικής</td><td>1ο</td><td>6</td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <!-- ===== TAB: PERIOD ===== -->
-              <div class="tab-pane fade" id="period" role="tabpanel">
-                <div class="row g-4">
-                  <div class="col-12 col-lg-7">
-                    <div class="config-card bg-body shadow-sm">
-                      <div class="config-card-header">
-                        <i class="bi bi-calendar-range text-success"></i>
-                        Τρέχουσα Περίοδος Αιτήσεων
-                      </div>
-                      <div class="config-card-body">
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                          <span class="period-status-badge period-status-open">
-                            <i class="bi bi-circle-fill" style="font-size:.5rem;"></i> Ανοιχτή
-                          </span>
-                          <small class="text-secondary">Η περίοδος αιτήσεων είναι ενεργή</small>
+                <div class="card">
+                    <h3 class="section-title"><?= $announcementForm['id'] ? 'Edit Announcement' : 'New Announcement' ?></h3>
+                    <form method="post">
+                        <input type="hidden" name="action" value="save_announcement">
+                        <input type="hidden" name="announcement_id" value="<?= (int) $announcementForm['id'] ?>">
+                        <div class="form-grid">
+                            <div class="full">
+                                <label>Title</label>
+                                <input type="text" name="title" value="<?= htmlspecialchars($announcementForm['title'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div>
+                                <label>Period</label>
+                                <select name="period_id" required>
+                                    <option value="">Select period</option>
+                                    <?php foreach ($periods as $period): ?>
+                                        <option value="<?= (int) $period['id'] ?>" <?= (int) $announcementForm['period_id'] === (int) $period['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($period['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label>School</label>
+                                <select name="school_id" required>
+                                    <option value="">Select school</option>
+                                    <?php foreach ($schools as $school): ?>
+                                        <option value="<?= (int) $school['id'] ?>" <?= (int) $announcementForm['school_id'] === (int) $school['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($school['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Department</label>
+                                <select name="department_id" required>
+                                    <option value="">Select department</option>
+                                    <?php foreach ($departments as $department): ?>
+                                        <option value="<?= (int) $department['id'] ?>" <?= (int) $announcementForm['department_id'] === (int) $department['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($department['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Course</label>
+                                <select name="course_id" required>
+                                    <option value="">Select course</option>
+                                    <?php foreach ($courses as $course): ?>
+                                        <option value="<?= (int) $course['id'] ?>" <?= (int) $announcementForm['course_id'] === (int) $course['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($course['code'] . ' - ' . $course['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Positions</label>
+                                <input type="number" name="number_of_positions" min="1" value="<?= (int) $announcementForm['number_of_positions'] ?>">
+                            </div>
+                            <div class="full">
+                                <label>Description</label>
+                                <textarea name="description"><?= htmlspecialchars($announcementForm['description'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                            </div>
+                            <div class="full">
+                                <label>Requirements</label>
+                                <textarea name="requirements"><?= htmlspecialchars($announcementForm['requirements'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                            </div>
+                            <div>
+                                <label>Status</label>
+                                <select name="status">
+                                    <?php foreach (['draft', 'published', 'closed', 'cancelled'] as $status): ?>
+                                        <option value="<?= $status ?>" <?= $announcementForm['status'] === $status ? 'selected' : '' ?>><?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="full">
+                                <button class="btn btn-primary" type="submit">Save Announcement</button>
+                            </div>
                         </div>
-                        <form>
-                          <div class="row g-3">
-                            <div class="col-md-6">
-                              <label class="form-label fw-semibold">Έναρξη Περιόδου</label>
-                              <input type="date" class="form-control" value="2026-02-01" />
-                            </div>
-                            <div class="col-md-6">
-                              <label class="form-label fw-semibold">Λήξη Περιόδου</label>
-                              <input type="date" class="form-control" value="2026-04-30" />
-                            </div>
-                            <div class="col-12">
-                              <label class="form-label fw-semibold">Τίτλος Περιόδου</label>
-                              <input type="text" class="form-control" value="Εαρινό Εξάμηνο 2025–2026" />
-                            </div>
-                            <div class="col-12">
-                              <label class="form-label fw-semibold">Περιγραφή</label>
-                              <textarea class="form-control" rows="3" placeholder="Προαιρετική περιγραφή της περιόδου αιτήσεων...">Περίοδος υποβολής αιτήσεων για το εαρινό εξάμηνο του ακαδημαϊκού έτους 2025-2026.</textarea>
-                            </div>
-                            <div class="col-md-6">
-                              <label class="form-label fw-semibold">Κατάσταση</label>
-                              <select class="form-select">
-                                <option selected>Ανοιχτή</option>
-                                <option>Κλειστή</option>
-                                <option>Προσεχώς</option>
-                              </select>
-                            </div>
-                            <div class="col-12 pt-1">
-                              <button type="button" class="btn btn-primary">
-                                <i class="bi bi-floppy me-1"></i>Αποθήκευση Αλλαγών
-                              </button>
-                              <button type="button" class="btn btn-danger ms-2">
-                                <i class="bi bi-x-circle me-1"></i>Κλείσιμο Περιόδου
-                              </button>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-12 col-lg-5">
-                    <div class="config-card bg-body shadow-sm">
-                      <div class="config-card-header"><i class="bi bi-clock-history text-warning"></i>Ιστορικό Περιόδων</div>
-                      <div class="config-card-body p-0">
-                        <ul class="list-group list-group-flush">
-                          <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                              <div class="fw-semibold small">Εαρινό 2025–2026</div>
-                              <div class="text-secondary" style="font-size:.8rem;">01/02/2026 – 30/04/2026</div>
-                            </div>
-                            <span class="period-status-badge period-status-open">Ανοιχτή</span>
-                          </li>
-                          <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                              <div class="fw-semibold small">Χειμερινό 2025–2026</div>
-                              <div class="text-secondary" style="font-size:.8rem;">01/09/2025 – 30/11/2025</div>
-                            </div>
-                            <span class="period-status-badge period-status-closed">Κλειστή</span>
-                          </li>
-                          <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                              <div class="fw-semibold small">Εαρινό 2024–2025</div>
-                              <div class="text-secondary" style="font-size:.8rem;">01/02/2025 – 30/04/2025</div>
-                            </div>
-                            <span class="period-status-badge period-status-closed">Κλειστή</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
+                    </form>
                 </div>
-              </div>
+            </div>
+        </section>
 
-              <!-- ===== TAB: EVALUATORS ===== -->
-              <div class="tab-pane fade" id="evaluators" role="tabpanel">
-                <div class="admin-table-card bg-body shadow-sm">
-                  <div class="admin-table-toolbar">
-                    <h6 class="mb-0 fw-semibold">Ανάθεση Αξιολογητών σε Αιτήσεις</h6>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#evalModal">
-                      <i class="bi bi-person-plus me-1"></i>Νέα Ανάθεση
-                    </button>
-                  </div>
-                  <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                      <thead class="table-light">
-                        <tr><th>Αίτηση</th><th>Αξιολογητής</th><th>Ημ/νία Ανάθεσης</th><th>Κατάσταση Αξιολόγησης</th><th class="text-end">Ενέργειες</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>Καθηγητής Μαθηματικών Α'</td>
-                          <td><div class="d-flex align-items-center gap-2"><div class="table-avatar-placeholder" style="background:#dbeafe;color:#1d4ed8;">ΜΠ</div>Μαρία Παπαδοπούλου</div></td>
-                          <td class="text-secondary small">05/02/2026</td>
-                          <td><span class="badge bg-warning text-dark rounded-pill px-3">Σε εξέλιξη</span></td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-person-dash"></i></button></td>
-                        </tr>
-                        <tr>
-                          <td>Εκπαιδευτικός Φυσικής Β'</td>
-                          <td><div class="d-flex align-items-center gap-2"><div class="table-avatar-placeholder" style="background:#fee2e2;color:#b91c1c;">ΓΑ</div>Γιώργος Αντωνίου</div></td>
-                          <td class="text-secondary small">10/02/2026</td>
-                          <td><span class="badge bg-success rounded-pill px-3">Ολοκληρώθηκε</span></td>
-                          <td class="text-end"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-person-dash"></i></button></td>
-                        </tr>
-                      </tbody>
+        <section class="section" id="schools">
+            <div class="grid">
+                <div class="card">
+                    <h3 class="section-title">Schools</h3>
+                    <table>
+                        <thead><tr><th>Name</th><th>Description</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($schools as $school): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($school['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars((string) ($school['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td>
+                                        <a class="btn btn-secondary" href="manage_recruitment.php?edit=school&id=<?= (int) $school['id'] ?>#schools">Edit</a>
+                                        <form class="inline-form" method="post">
+                                            <input type="hidden" name="action" value="delete_school">
+                                            <input type="hidden" name="school_id" value="<?= (int) $school['id'] ?>">
+                                            <button class="btn btn-danger" type="submit">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
                     </table>
-                  </div>
                 </div>
-              </div>
-
+                <div class="card">
+                    <h3 class="section-title"><?= $schoolForm['id'] ? 'Edit School' : 'New School' ?></h3>
+                    <form method="post">
+                        <input type="hidden" name="action" value="save_school">
+                        <input type="hidden" name="school_id" value="<?= (int) $schoolForm['id'] ?>">
+                        <div class="form-grid">
+                            <div class="full">
+                                <label>Name</label>
+                                <input type="text" name="name" value="<?= htmlspecialchars($schoolForm['name'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div class="full">
+                                <label>Description</label>
+                                <textarea name="description"><?= htmlspecialchars($schoolForm['description'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                            </div>
+                            <div class="full"><button class="btn btn-primary" type="submit">Save School</button></div>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <!-- end tab-content -->
+        </section>
 
-          </div>
-        </div>
-      </main>
-
-      <!-- ===== FOOTER ===== -->
-      <footer class="app-footer">
-        <div class="float-end d-none d-sm-inline">BigBottleBOYS &copy; 2026</div>
-        <strong>Copyright &copy; 2026 <a href="#" class="text-decoration-none">TheBigBottleBoys</a>.</strong> All rights reserved.
-      </footer>
-
-    </div>
-
-    <!-- ===== MODALS ===== -->
-    <!-- Application Modal -->
-    <div class="modal fade" id="appModal" tabindex="-1" aria-labelledby="appModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="appModalLabel">Νέα Αίτηση</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label fw-semibold">Τίτλος Αίτησης <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" placeholder="π.χ. Καθηγητής Μαθηματικών Α' Τάξης" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Σχολή</label>
-                <select class="form-select">
-                  <option value="">Επιλέξτε σχολή...</option>
-                  <option>Σχολή Θετικών Επιστημών</option>
-                  <option>Σχολή Πληροφορικής</option>
-                  <option>Σχολή Ανθρωπιστικών Σπουδών</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Τμήμα</label>
-                <select class="form-select">
-                  <option value="">Επιλέξτε τμήμα...</option>
-                  <option>Τμήμα Μαθηματικών</option>
-                  <option>Τμήμα Φυσικής</option>
-                  <option>Τμήμα Πληροφορικής</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Μάθημα</label>
-                <select class="form-select">
-                  <option value="">Επιλέξτε μάθημα...</option>
-                  <option>Ανάλυση Ι</option>
-                  <option>Μηχανική</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Αξιολογητής</label>
-                <select class="form-select">
-                  <option value="">Ανάθεση αξιολογητή...</option>
-                  <option>Μαρία Παπαδοπούλου</option>
-                  <option>Γιώργος Αντωνίου</option>
-                </select>
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-semibold">Περιγραφή</label>
-                <textarea class="form-control" rows="3" placeholder="Περιγραφή της αίτησης..."></textarea>
-              </div>
+        <section class="section" id="departments">
+            <div class="grid">
+                <div class="card">
+                    <h3 class="section-title">Departments</h3>
+                    <table>
+                        <thead><tr><th>Name</th><th>School</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($departments as $department): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($department['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($department['school_name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td>
+                                        <a class="btn btn-secondary" href="manage_recruitment.php?edit=department&id=<?= (int) $department['id'] ?>#departments">Edit</a>
+                                        <form class="inline-form" method="post">
+                                            <input type="hidden" name="action" value="delete_department">
+                                            <input type="hidden" name="department_id" value="<?= (int) $department['id'] ?>">
+                                            <button class="btn btn-danger" type="submit">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card">
+                    <h3 class="section-title"><?= $departmentForm['id'] ? 'Edit Department' : 'New Department' ?></h3>
+                    <form method="post">
+                        <input type="hidden" name="action" value="save_department">
+                        <input type="hidden" name="department_id" value="<?= (int) $departmentForm['id'] ?>">
+                        <div class="form-grid">
+                            <div class="full">
+                                <label>School</label>
+                                <select name="school_id" required>
+                                    <option value="">Select school</option>
+                                    <?php foreach ($schools as $school): ?>
+                                        <option value="<?= (int) $school['id'] ?>" <?= (int) $departmentForm['school_id'] === (int) $school['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($school['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="full">
+                                <label>Name</label>
+                                <input type="text" name="name" value="<?= htmlspecialchars($departmentForm['name'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div class="full">
+                                <label>Description</label>
+                                <textarea name="description"><?= htmlspecialchars($departmentForm['description'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                            </div>
+                            <div class="full"><button class="btn btn-primary" type="submit">Save Department</button></div>
+                        </div>
+                    </form>
+                </div>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
-            <button type="button" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button>
-          </div>
-        </div>
-      </div>
+        </section>
+
+        <section class="section" id="courses">
+            <div class="grid">
+                <div class="card">
+                    <h3 class="section-title">Courses</h3>
+                    <table>
+                        <thead><tr><th>Code</th><th>Name</th><th>Department</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($courses as $course): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($course['code'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($course['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($course['department_name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td>
+                                        <a class="btn btn-secondary" href="manage_recruitment.php?edit=course&id=<?= (int) $course['id'] ?>#courses">Edit</a>
+                                        <form class="inline-form" method="post">
+                                            <input type="hidden" name="action" value="delete_course">
+                                            <input type="hidden" name="course_id" value="<?= (int) $course['id'] ?>">
+                                            <button class="btn btn-danger" type="submit">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card">
+                    <h3 class="section-title"><?= $courseForm['id'] ? 'Edit Course' : 'New Course' ?></h3>
+                    <form method="post">
+                        <input type="hidden" name="action" value="save_course">
+                        <input type="hidden" name="course_id" value="<?= (int) $courseForm['id'] ?>">
+                        <div class="form-grid">
+                            <div>
+                                <label>Department</label>
+                                <select name="department_id" required>
+                                    <option value="">Select department</option>
+                                    <?php foreach ($departments as $department): ?>
+                                        <option value="<?= (int) $department['id'] ?>" <?= (int) $courseForm['department_id'] === (int) $department['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($department['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Code</label>
+                                <input type="text" name="code" value="<?= htmlspecialchars($courseForm['code'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div class="full">
+                                <label>Name</label>
+                                <input type="text" name="name" value="<?= htmlspecialchars($courseForm['name'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div>
+                                <label>Credits</label>
+                                <input type="number" name="credits" min="0" value="<?= htmlspecialchars($courseForm['credits'], ENT_QUOTES, 'UTF-8') ?>">
+                            </div>
+                            <div>
+                                <label>Semester</label>
+                                <input type="number" name="semester" min="0" value="<?= htmlspecialchars($courseForm['semester'], ENT_QUOTES, 'UTF-8') ?>">
+                            </div>
+                            <div class="full">
+                                <label>Description</label>
+                                <textarea name="description"><?= htmlspecialchars($courseForm['description'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                            </div>
+                            <div class="full"><button class="btn btn-primary" type="submit">Save Course</button></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="periods">
+            <div class="grid">
+                <div class="card">
+                    <h3 class="section-title">Recruitment Periods</h3>
+                    <table>
+                        <thead><tr><th>Name</th><th>Dates</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($periods as $period): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($period['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($period['start_date'] . ' έως ' . $period['end_date'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars($period['status'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td>
+                                        <a class="btn btn-secondary" href="manage_recruitment.php?edit=period&id=<?= (int) $period['id'] ?>#periods">Edit</a>
+                                        <form class="inline-form" method="post">
+                                            <input type="hidden" name="action" value="delete_period">
+                                            <input type="hidden" name="period_id" value="<?= (int) $period['id'] ?>">
+                                            <button class="btn btn-danger" type="submit">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card">
+                    <h3 class="section-title"><?= $periodForm['id'] ? 'Edit Period' : 'New Period' ?></h3>
+                    <form method="post">
+                        <input type="hidden" name="action" value="save_period">
+                        <input type="hidden" name="period_id" value="<?= (int) $periodForm['id'] ?>">
+                        <div class="form-grid">
+                            <div class="full">
+                                <label>Name</label>
+                                <input type="text" name="name" value="<?= htmlspecialchars($periodForm['name'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div>
+                                <label>Start Date</label>
+                                <input type="date" name="start_date" value="<?= htmlspecialchars($periodForm['start_date'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div>
+                                <label>End Date</label>
+                                <input type="date" name="end_date" value="<?= htmlspecialchars($periodForm['end_date'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+                            <div>
+                                <label>Status</label>
+                                <select name="status">
+                                    <?php foreach (['planning', 'active', 'closed', 'archived'] as $status): ?>
+                                        <option value="<?= $status ?>" <?= $periodForm['status'] === $status ? 'selected' : '' ?>><?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="full">
+                                <label>Description</label>
+                                <textarea name="description"><?= htmlspecialchars($periodForm['description'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                            </div>
+                            <div class="full"><button class="btn btn-primary" type="submit">Save Period</button></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="assignments">
+            <div class="grid">
+                <div class="card">
+                    <h3 class="section-title">Evaluator Assignments</h3>
+                    <table>
+                        <thead><tr><th>Announcement</th><th>Evaluator</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($assignments as $assignment): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($assignment['announcement_title'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= htmlspecialchars(trim($assignment['first_name'] . ' ' . $assignment['last_name']) . ' (' . $assignment['username'] . ')', ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td>
+                                        <a class="btn btn-secondary" href="manage_recruitment.php?edit=assignment&id=<?= (int) $assignment['id'] ?>#assignments">Edit</a>
+                                        <form class="inline-form" method="post">
+                                            <input type="hidden" name="action" value="delete_assignment">
+                                            <input type="hidden" name="assignment_id" value="<?= (int) $assignment['id'] ?>">
+                                            <button class="btn btn-danger" type="submit">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card">
+                    <h3 class="section-title"><?= $assignmentForm['id'] ? 'Edit Assignment' : 'New Assignment' ?></h3>
+                    <form method="post">
+                        <input type="hidden" name="action" value="save_assignment">
+                        <input type="hidden" name="assignment_id" value="<?= (int) $assignmentForm['id'] ?>">
+                        <div class="form-grid">
+                            <div class="full">
+                                <label>Announcement</label>
+                                <select name="announcement_id" required>
+                                    <option value="">Select announcement</option>
+                                    <?php foreach ($announcements as $announcement): ?>
+                                        <option value="<?= (int) $announcement['id'] ?>" <?= (int) $assignmentForm['announcement_id'] === (int) $announcement['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($announcement['title'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="full">
+                                <label>Evaluator</label>
+                                <select name="evaluator_id" required>
+                                    <option value="">Select evaluator</option>
+                                    <?php foreach ($evaluatorUsers as $user): ?>
+                                        <option value="<?= (int) $user['id'] ?>" <?= (int) $assignmentForm['evaluator_id'] === (int) $user['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars(trim($user['first_name'] . ' ' . $user['last_name']) . ' (' . $user['username'] . ')', ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="full"><button class="btn btn-primary" type="submit">Save Assignment</button></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
     </div>
-
-    <!-- Generic small modal for School/Dept/Course -->
-    <div class="modal fade" id="schoolModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Νέα Σχολή</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="mb-3"><label class="form-label fw-semibold">Όνομα Σχολής</label><input type="text" class="form-control" placeholder="π.χ. Σχολή Θετικών Επιστημών" /></div>
-          <div class="mb-3"><label class="form-label fw-semibold">Κωδικός</label><input type="text" class="form-control" placeholder="π.χ. ΘΕ" maxlength="10" /></div>
-        </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
-      </div></div>
-    </div>
-
-    <div class="modal fade" id="deptModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Νέο Τμήμα</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="mb-3"><label class="form-label fw-semibold">Όνομα Τμήματος</label><input type="text" class="form-control" placeholder="π.χ. Τμήμα Μαθηματικών" /></div>
-          <div class="mb-3"><label class="form-label fw-semibold">Σχολή</label>
-            <select class="form-select"><option value="">Επιλέξτε σχολή...</option><option>Σχολή Θετικών Επιστημών</option><option>Σχολή Πληροφορικής</option></select>
-          </div>
-        </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
-      </div></div>
-    </div>
-
-    <div class="modal fade" id="courseModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Νέο Μάθημα</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-md-4"><label class="form-label fw-semibold">Κωδικός</label><input type="text" class="form-control" placeholder="π.χ. MAT101" /></div>
-            <div class="col-md-8"><label class="form-label fw-semibold">Τίτλος Μαθήματος</label><input type="text" class="form-control" placeholder="π.χ. Ανάλυση Ι" /></div>
-            <div class="col-md-6"><label class="form-label fw-semibold">Τμήμα</label><select class="form-select"><option value="">Επιλέξτε...</option><option>Μαθηματικών</option><option>Φυσικής</option><option>Πληροφορικής</option></select></div>
-            <div class="col-md-3"><label class="form-label fw-semibold">Εξάμηνο</label><input type="number" class="form-control" min="1" max="10" placeholder="1" /></div>
-            <div class="col-md-3"><label class="form-label fw-semibold">ECTS</label><input type="number" class="form-control" min="1" max="12" placeholder="6" /></div>
-          </div>
-        </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Αποθήκευση</button></div>
-      </div></div>
-    </div>
-
-    <div class="modal fade" id="evalModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Ανάθεση Αξιολογητή</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="mb-3"><label class="form-label fw-semibold">Αίτηση</label><select class="form-select"><option value="">Επιλέξτε αίτηση...</option><option>Καθηγητής Μαθηματικών Α'</option><option>Εκπαιδευτικός Φυσικής Β'</option></select></div>
-          <div class="mb-3"><label class="form-label fw-semibold">Αξιολογητής</label><select class="form-select"><option value="">Επιλέξτε αξιολογητή...</option><option>Μαρία Παπαδοπούλου</option><option>Γιώργος Αντωνίου</option></select></div>
-        </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button><button class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Ανάθεση</button></div>
-      </div></div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
-    <script src="../../assets/js/adminlte.js" defer></script>
-    <script src="../../assets/js/changes.js" defer></script>
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        const sw = document.querySelector('.sidebar-wrapper');
-        if (sw && OverlayScrollbarsGlobal?.OverlayScrollbars) {
-          OverlayScrollbarsGlobal.OverlayScrollbars(sw, {
-            scrollbars: { theme: 'os-theme-light', autoHide: 'leave', clickScroll: true }
-          });
-        }
-
-        // Handle anchor-based tab switching from sidebar links
-        const hash = window.location.hash;
-        if (hash) {
-          const tabBtn = document.querySelector('[data-bs-target="' + hash + '"]');
-          if (tabBtn) new bootstrap.Tab(tabBtn).show();
-        }
-      });
-
-      function switchTab(tabId) {
-        const tabBtn = document.querySelector('[data-bs-target="#' + tabId + '"]');
-        if (tabBtn) {
-          new bootstrap.Tab(tabBtn).show();
-          window.location.hash = '#' + tabId;
-        }
-      }
-    </script>
-  </body>
+</body>
 </html>

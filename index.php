@@ -2,59 +2,72 @@
 declare(strict_types=1);
 ?>
 <!doctype html>
-<html lang="en">
+<html lang="el">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BigBottleBOYS | Role Landing</title>
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #eef2ff, #f8fafc);
-      color: #0f172a;
-    }
-    .wrap {
-      width: min(760px, 92vw);
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 14px;
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-      padding: 28px;
-    }
-    h1 { margin: 0 0 8px; font-size: 2rem; }
-    p { margin: 0 0 18px; color: #334155; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
-    a {
-      text-decoration: none;
-      font-weight: 600;
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid #cbd5e1;
-      color: #0f172a;
-      background: #f8fafc;
-    }
-    a.primary {
-      background: #2563eb;
-      color: #fff;
-      border-color: #2563eb;
-    }
-  </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BigBottleBOYS | Specialist Management System</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #eef2ff, #f8fafc);
+            color: #0f172a;
+        }
+
+        .wrap {
+            width: min(820px, 92vw);
+            background: #ffffff;
+            border: 1px solid #dbe3ee;
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+            padding: 32px;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        a {
+            text-decoration: none;
+            font-weight: 700;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            color: #0f172a;
+            background: #f8fafc;
+        }
+
+        a.primary {
+            background: #1d4ed8;
+            color: #ffffff;
+            border-color: #1d4ed8;
+        }
+    </style>
 </head>
 <body>
-  <main class="wrap">
-    <header>
-      <h1>Welcome to BigBottleBOYS</h1>
-      <p>Select the UI you want to open based on your role.</p>
-    </header>
-    <div class="actions">
-      <a class="primary" href="login.php?admin=1&amp;redirect=modules/admin/index.php">Open Admin UI</a>
-      <a href="modules/recruitmentModule/index.php">Open User UI</a>
-      <a href="register.php">Register</a>
-    </div>
-  </main>
+    <main class="wrap">
+        <h1>Specialist Management System</h1>
+        <p>Landing page για το γενικό concept της εφαρμογής διαχείρισης ειδικών επιστημόνων, με κοινή βάση δεδομένων και πρόσβαση στα βασικά modules.</p>
+
+        <div class="actions">
+            <a class="primary" href="auth/register.php">Register</a>
+            <a href="auth/login.php">Login</a>
+            <a href="modules/admin/index.php">Admin Module</a>
+            <a href="modules/recruitmentModule/index.php">Recruitment Module</a>
+            <a href="modules/dashboard.php">M2 Dashboard</a>
+            <a href="modules/list.php">M2 List with Search</a>
+        </div>
+    </main>
 </body>
 </html>
