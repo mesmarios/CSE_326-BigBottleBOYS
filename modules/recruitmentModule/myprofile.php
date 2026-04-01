@@ -17,7 +17,7 @@ $profileData = [
     'degree'         => $user['degree']         ?? '',
     'institution'    => $user['institution']    ?? '',
     'specialization' => $user['specialization'] ?? '',
-    'experience'     => $user['experience'] !== null ? (string)$user['experience'] : '',
+    'experience'     => isset($user['experience']) && $user['experience'] !== null ? (string)$user['experience'] : '',
     'summary'        => $user['summary']        ?? '',
 ];
 ?>
