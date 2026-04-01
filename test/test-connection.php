@@ -148,7 +148,7 @@ require_once 'includes/database-helper.php';
     <div class="container">
         <div class="header">
             <h1>🔧 Database Connection Test</h1>
-            <p>Specialist Management System - TEPAK</p>
+            <p>CareerTrack Database Verification</p>
         </div>
         
         <div class="content">
@@ -193,7 +193,8 @@ require_once 'includes/database-helper.php';
                 
                 try {
                     $pdo = getDBConnection();
-                    $stmt = $pdo->query("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'specialist_management_system'");
+                    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?");
+                    $stmt->execute([DB_NAME]);
                     $result = $stmt->fetch();
                     $table_count = $result['count'];
                     
@@ -202,13 +203,14 @@ require_once 'includes/database-helper.php';
                     echo '<div class="status-text">';
                     echo '<strong>Tables Found: ' . $table_count . '/21</strong>';
                     if ($table_count < 21) {
-                        echo '<p>Warning: Not all tables have been created yet. Run: mysql -u root < database.sql</p>';
+                        echo '<p>Warning: Not all tables have been created yet in schema <strong>' . htmlspecialchars(DB_NAME) . '</strong>.</p>';
                         $all_passed = false;
                     }
                     echo '</div></div>';
                     
                     // List all tables
-                    $stmt = $pdo->query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'specialist_management_system' ORDER BY table_name");
+                    $stmt = $pdo->prepare("SELECT table_name FROM information_schema.tables WHERE table_schema = ? ORDER BY table_name");
+                    $stmt->execute([DB_NAME]);
                     $tables = $stmt->fetchAll();
                     
                     if (!empty($tables)) {
@@ -259,7 +261,7 @@ require_once 'includes/database-helper.php';
                     echo '<span class="status-icon">' . ($user_count >= 15 ? '✓' : '⚠') . '</span>';
                     echo '<div class="status-text">';
                     echo '<strong>Users Found: ' . $user_count . '/15</strong>';
-                    echo '<p>If count is 0, run: mysql -u root specialist_management_system < seed.sql</p>';
+                    echo '<p>If count is 0, import the seed data into schema <strong>' . htmlspecialchars(DB_NAME) . '</strong>.</p>';
                     echo '</div></div>';
                     
                     echo '<div class="status-box info">';
@@ -271,13 +273,13 @@ require_once 'includes/database-helper.php';
                     
                     // Show sample users
                     echo '<h3 style="margin-top: 20px; margin-bottom: 10px;">Sample User Accounts:</h3>';
-                    $stmt = $pdo->query("SELECT id, email, first_name, last_name, status FROM users LIMIT 10");
+                    $stmt = $pdo->query("SELECT id, email, first_name, last_name, role FROM users LIMIT 10");
                     $users = $stmt->fetchAll();
                     
                     if (!empty($users)) {
-                        echo '<table><thead><tr><th>Email</th><th>Name</th><th>Status</th></tr></thead><tbody>';
+                        echo '<table><thead><tr><th>Email</th><th>Name</th><th>Role</th></tr></thead><tbody>';
                         foreach ($users as $user) {
-                            echo '<tr><td><code>' . htmlspecialchars($user['email']) . '</code></td><td>' . htmlspecialchars($user['first_name']) . ' ' . htmlspecialchars($user['last_name']) . '</td><td>' . htmlspecialchars($user['status']) . '</td></tr>';
+                            echo '<tr><td><code>' . htmlspecialchars($user['email']) . '</code></td><td>' . htmlspecialchars($user['first_name']) . ' ' . htmlspecialchars($user['last_name']) . '</td><td>' . htmlspecialchars($user['role']) . '</td></tr>';
                         }
                         echo '</tbody></table>';
                         echo '<p style="margin-top: 10px; color: #666; font-size: 0.9em;">✓ All sample users have password: <strong>password123</strong></p>';
@@ -394,7 +396,7 @@ require_once 'includes/database-helper.php';
                     echo '<li>✗ Import database schema: mysql -u root < database.sql</li>';
                 }
                 if (!$test_results['sample_data']) {
-                    echo '<li>✗ Import sample data: mysql -u root specialist_management_system < seed.sql</li>';
+                    echo '<li>✗ Import sample data into schema <strong>' . htmlspecialchars(DB_NAME) . '</strong>.</li>';
                 }
                 echo '</ol>';
             }
@@ -404,7 +406,7 @@ require_once 'includes/database-helper.php';
         </div>
         
         <div class="footer">
-            <p>Specialist Management System - Database Verification Test</p>
+            <p>CareerTrack Database Verification Test</p>
             <p style="font-size: 0.9em; margin-top: 10px;">Generated: <?php echo date('Y-m-d H:i:s'); ?></p>
         </div>
     </div>

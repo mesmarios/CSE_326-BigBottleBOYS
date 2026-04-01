@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
+  const BOOTSTRAP = window.RECRUITMENT_INDEX_BOOTSTRAP || {};
 
   /* ── Helpers ──────────────────────────────────────────────── */
   function getSafe(key, fallback) {
@@ -30,7 +31,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   /* ── Welcome Name ─────────────────────────────────────────── */
-  const profile = getSafe('userProfileData', {});
+  const profile = (BOOTSTRAP.user && Object.keys(BOOTSTRAP.user).length)
+    ? BOOTSTRAP.user
+    : getSafe('userProfileData', {});
   const firstName = profile.name || 'Candidate';
   document.getElementById('dashWelcomeName').textContent = firstName;
 
@@ -41,52 +44,27 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   /* ── Load data ────────────────────────────────────────────── */
-  const submissions   = getSafe('submittedApplications', []);   // matches myapplication.php
-  const draftsData    = getSafe('applicationDrafts', {});       // object: { callId: draftObj, … }
+  const submissions   = Array.isArray(BOOTSTRAP.submissions) ? BOOTSTRAP.submissions : getSafe('submittedApplications', []);
+  const draftsData    = getSafe('applicationDrafts', {});       // legacy local fallback only
   const activityLog   = getSafe('activityLog', []);
   const notifications = getSafe('notificationsData', []);
-
-  // Static open calls (mirrors myapplication.php source)
-  const OPEN_CALLS = [
-    {
-      id: 'CALL-2024-001',
-      title: 'Assistant Professor – Computer Science',
-      department: 'Dept. of Computer Science & Engineering',
-      deadline: '2026-03-20',
-    },
-    {
-      id: 'CALL-2024-002',
-      title: 'Associate Professor – Mathematics',
-      department: 'Dept. of Mathematics',
-      deadline: '2026-03-28',
-    },
-    {
-      id: 'CALL-2024-003',
-      title: 'Lecturer – Electrical Engineering',
-      department: 'Dept. of Electrical Engineering',
-      deadline: '2026-04-10',
-    },
-    {
-      id: 'CALL-2024-004',
-      title: 'Research Fellow – Biomedical Engineering',
-      department: 'Dept. of Biomedical Engineering',
-      deadline: '2026-04-25',
-    },
-  ];
+  const OPEN_CALLS = Array.isArray(BOOTSTRAP.openCalls) ? BOOTSTRAP.openCalls : [];
 
   /* ── Summary Counts ───────────────────────────────────────── */
-  const draftCount = Object.keys(draftsData).length;
-  const total   = submissions.length + draftCount;
+  const draftCount = typeof BOOTSTRAP.stats?.drafts === 'number' ? BOOTSTRAP.stats.drafts : Object.keys(draftsData).length;
+  const total   = typeof BOOTSTRAP.stats?.total === 'number' ? BOOTSTRAP.stats.total : (submissions.length + draftCount);
   const drafts  = draftCount;
-  const review  = submissions.filter(s =>
-    ['submitted','reviewing','evaluated'].includes((s.status||'').toLowerCase())
-  ).length;
+  const review  = typeof BOOTSTRAP.stats?.underReview === 'number'
+    ? BOOTSTRAP.stats.underReview
+    : submissions.filter(s => ['under review', 'submitted'].includes((s.status || '').toLowerCase())).length;
 
-  const submittedCallIds = submissions.map(s => s.callId);
-  const upcoming = OPEN_CALLS.filter(c => {
-    const days = daysUntil(c.deadline);
-    return days !== null && days >= 0 && days <= 7 && !submittedCallIds.includes(c.id);
-  }).length;
+  const submittedCallIds = submissions.map(s => String(s.callId));
+  const upcoming = typeof BOOTSTRAP.stats?.upcomingDeadlines === 'number'
+    ? BOOTSTRAP.stats.upcomingDeadlines
+    : OPEN_CALLS.filter(c => {
+        const days = daysUntil(c.deadline);
+        return days !== null && days >= 0 && days <= 7 && !submittedCallIds.includes(String(c.id));
+      }).length;
 
   document.getElementById('statTotal').textContent     = total;
   document.getElementById('statDraft').textContent     = drafts;
@@ -111,22 +89,23 @@ document.addEventListener('DOMContentLoaded', function () {
   let activity = activityLog.length ? activityLog : [];
 
   if (!activity.length && (submissions.length || draftCount)) {
-    // Add draft activities from applicationDrafts
-    Object.entries(draftsData).slice(0, 3).reverse().forEach(([callId, draft]) => {
-      activity.push({
-        icon: 'bi-pencil-fill',
-        color: 'secondary',
-        text: `Draft saved – <strong>${callId}</strong>`,
-        date: draft.savedAt || draft.lastModified || null,
+    if (!BOOTSTRAP.stats) {
+      Object.entries(draftsData).slice(0, 3).reverse().forEach(([callId, draft]) => {
+        activity.push({
+          icon: 'bi-pencil-fill',
+          color: 'secondary',
+          text: `Draft saved – <strong>${callId}</strong>`,
+          date: draft.savedAt || draft.lastModified || null,
+        });
       });
-    });
+    }
     // Add submission activities
     submissions.slice().reverse().slice(0, 5).forEach(sub => {
       activity.push({
         icon: 'bi-send-fill',
         color: 'primary',
-        text: `Application submitted – <strong>${sub.callId || 'Application'}</strong>`,
-        date: sub.submittedDate,
+        text: `Application ${String(sub.status || '').toLowerCase() === 'draft' ? 'saved' : 'updated'} – <strong>${sub.title || sub.callId || 'Application'}</strong>`,
+        date: sub.submittedDate || sub.updatedDate,
       });
     });
   }
@@ -209,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const days = daysUntil(c.deadline);
       const badgeCls  = days <= 7 ? 'deadline-soon' : 'deadline-ok';
       const badgeIcon = days <= 7 ? 'bi-exclamation-circle-fill' : 'bi-calendar-check-fill';
-      const alreadyApplied = submittedCallIds.includes(c.id);
+      const alreadyApplied = submittedCallIds.includes(String(c.id));
       return `
         <div class="open-call-item">
           <div class="flex-grow-1" style="min-width:0;">

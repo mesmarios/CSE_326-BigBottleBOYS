@@ -5,7 +5,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <!--begin::Sidebar-->
 <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
   <div class="sidebar-brand">
-    <a href="./index.html" class="brand-link">
+    <a href="./index.php" class="brand-link">
       <img src="../../recruitment/assets/images/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image opacity-75 shadow"/>
       <span class="brand-text fw-light">CareerTrack</span>
     </a>
@@ -18,7 +18,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
           <ul class="nav nav-treeview">
             <li class="nav-item">
               <a href="./index.php" class="nav-link <?php echo $currentPage === 'index.php' ? 'active' : ''; ?>">
-                <i class="nav-icon bi bi-speedometer2"></i>
+                <i class="nav-icon bi bi-house-fill"></i>
                 <p>Home</p>
               </a>
             </li>

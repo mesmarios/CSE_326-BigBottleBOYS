@@ -1,9 +1,24 @@
-const AVAILABLE_CALLS = [
+const BOOTSTRAP = window.APPLICATIONSTATUS_BOOTSTRAP || {};
+
+const DEFAULT_CALLS = [
   { id:'CALL-2026-001', title:'Lecturer in Computer Science', department:'Department of Computer Science', school:'School of Engineering & Applied Sciences', courses:['CS101 – Introduction to Programming','CS201 – Data Structures','CS305 – Algorithms'], startDate:'2026-01-15', endDate:'2026-03-31' },
   { id:'CALL-2026-002', title:'Assistant Professor in Mathematics', department:'Department of Mathematics', school:'School of Natural Sciences', courses:['MATH101 – Calculus I','MATH201 – Linear Algebra','MATH302 – Probability & Statistics'], startDate:'2026-02-01', endDate:'2026-04-15' },
   { id:'CALL-2026-003', title:'Adjunct Instructor – Business Administration', department:'Department of Business & Management', school:'School of Economics & Business', courses:['BUS101 – Principles of Management','BUS210 – Marketing Fundamentals'], startDate:'2026-01-20', endDate:'2026-02-28' },
   { id:'CALL-2026-004', title:'Research Associate – Environmental Studies', department:'Department of Environmental Sciences', school:'School of Natural Sciences', courses:['ENV201 – Environmental Policy','ENV303 – Climate Change & Society'], startDate:'2026-03-01', endDate:'2026-05-30' },
 ];
+
+const AVAILABLE_CALLS = Array.isArray(BOOTSTRAP.calls) && BOOTSTRAP.calls.length
+  ? BOOTSTRAP.calls.map(call => ({
+      ...call,
+      id: String(call.id),
+      courses: Array.isArray(call.courses) ? call.courses : [call.courses || '—'],
+    }))
+  : DEFAULT_CALLS;
+
+const SERVER_USER = BOOTSTRAP.user && Object.keys(BOOTSTRAP.user).length ? BOOTSTRAP.user : null;
+let serverSubmissions = Array.isArray(BOOTSTRAP.submissions)
+  ? BOOTSTRAP.submissions.map(sub => ({ ...sub, callId: String(sub.callId) }))
+  : null;
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -18,8 +33,18 @@ function formatDateTime(iso) {
   return `${mn[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 function getSubmissions() {
+  if (Array.isArray(serverSubmissions)) return serverSubmissions;
   const s = localStorage.getItem('submittedApplications');
   return s ? JSON.parse(s) : [];
+}
+
+function getUserData() {
+  if (SERVER_USER) return SERVER_USER;
+  try {
+    return JSON.parse(localStorage.getItem('userProfileData')) || {};
+  } catch (e) {
+    return {};
+  }
 }
 function escHtml(s) {
   if (!s) return '';
@@ -76,20 +101,20 @@ function buildTimeline(sub) {
   const events = [
     { dot:'dot-secondary', icon:'bi-file-earmark-plus', title:'Application Created',
       date: d.savedAt ? formatDateTime(d.savedAt) : formatDate(sub.submittedDate),
-      desc:'Application draft was started.' },
+      desc:'Application record was created.' },
     { dot:'dot-primary', icon:'bi-send-fill', title:'Application Submitted',
       date: formatDate(sub.submittedDate),
       desc:'Your application was successfully submitted.' },
   ];
   const idx = stageIndex(status);
   if (idx >= 2 || status === 'Rejected')
-    events.push({ dot:'dot-warning', icon:'bi-search', title:'Review Started', date:'—', desc:'Your application is currently under review by the committee.' });
+    events.push({ dot:'dot-warning', icon:'bi-search', title:'Review Started', date: sub.reviewedDate ? formatDateTime(sub.reviewedDate) : '—', desc:'Your application is currently under review by the committee.' });
   if (idx >= 3 || status === 'Rejected')
-    events.push({ dot:'dot-purple', icon:'bi-clipboard-check', title:'Evaluation Completed', date:'—', desc:'The evaluation committee has completed their assessment.' });
+    events.push({ dot:'dot-purple', icon:'bi-clipboard-check', title:'Evaluation Completed', date: sub.updatedDate ? formatDateTime(sub.updatedDate) : '—', desc:'The evaluation committee has completed their assessment.' });
   if (status === 'Approved')
-    events.push({ dot:'dot-success', icon:'bi-patch-check-fill', title:'Application Approved', date:'—', desc:'Congratulations! Your application has been approved.' });
+    events.push({ dot:'dot-success', icon:'bi-patch-check-fill', title:'Application Approved', date: sub.updatedDate ? formatDateTime(sub.updatedDate) : '—', desc:'Congratulations! Your application has been approved.' });
   if (status === 'Rejected')
-    events.push({ dot:'dot-danger', icon:'bi-x-circle-fill', title:'Application Rejected', date:'—', desc:'Unfortunately your application was not selected at this time.' });
+    events.push({ dot:'dot-danger', icon:'bi-x-circle-fill', title:'Application Rejected', date: sub.updatedDate ? formatDateTime(sub.updatedDate) : '—', desc:'Unfortunately your application was not selected at this time.' });
 
   return events.map(ev => `
     <li class="timeline-item">
@@ -114,9 +139,9 @@ function openFile(encodedUrl) {
 
 function buildDataPanel(sub) {
   const d    = sub.data || {};
-  const call = AVAILABLE_CALLS.find(c => c.id === sub.callId) || {};
-  const user = (() => { try { return JSON.parse(localStorage.getItem('userProfileData')) || {}; } catch { return {}; } })();
-  const fullName = [user.name, user.surname].filter(Boolean).join(' ') || '—';
+  const call = AVAILABLE_CALLS.find(c => String(c.id) === String(sub.callId)) || {};
+  const user = getUserData();
+  const fullName = d.fullName || [user.name, user.surname].filter(Boolean).join(' ') || '—';
 
   const row = (label, value) =>
     `<div class="data-row d-flex gap-2 flex-wrap">
@@ -141,14 +166,15 @@ function buildDataPanel(sub) {
   let html = `
     <div class="data-section-title"><i class="bi bi-person me-1"></i>Personal &amp; Position</div>
     ${row('Full Name',   fullName)}
-    ${row('Email',       user.email || '')}
+    ${row('Email',       d.email || user.email || '')}
     ${row('Phone',       d.phone || '')}
-    ${row('Position',    call.title || sub.callId)}
-    ${row('Department',  call.department || '')}
-    ${row('School',      call.school     || '')}
-    ${call.courses ? row('Courses', call.courses.join(', ')) : ''}
+    ${row('Address',     d.address || '')}
+    ${row('Position',    sub.title || call.title || sub.callId)}
+    ${row('Department',  sub.department || call.department || '')}
+    ${row('School',      sub.school || call.school || '')}
+    ${(sub.courses || call.courses) ? row('Courses', (sub.courses || call.courses).join(', ')) : ''}
     <div class="data-section-title mt-3"><i class="bi bi-mortarboard me-1"></i>Academic &amp; Professional</div>
-    ${row('Highest Degree',            d.degree || '')}
+    ${row('Highest Degree',            d.degree || d.education || '')}
     ${row('Institution',               d.institution || '')}
     ${row('Field of Specialization',   d.specialization || '')}
     ${row('Years of Experience',       (d.experience !== undefined && d.experience !== '') ? d.experience + ' yr(s)' : '')}`;
@@ -160,7 +186,7 @@ function buildDataPanel(sub) {
 
   html += `<div class="data-section-title mt-3"><i class="bi bi-paperclip me-1"></i>Documents</div>`;
   if (d.cvFileName) {
-    html += fileItem(d.cvFileName, d.cvFileData || null, 'Curriculum Vitae (CV)');
+    html += fileItem(d.cvFileName, d.cvFileData || d.cvFilePath || null, 'Curriculum Vitae (CV)');
   } else {
     html += `<p class="text-muted" style="font-size:.85rem;">No documents recorded.</p>`;
   }
@@ -174,16 +200,16 @@ function buildDataPanel(sub) {
 }
 
 function renderApplication(sub) {
-  const call   = AVAILABLE_CALLS.find(c => c.id === sub.callId) || {};
+  const call   = AVAILABLE_CALLS.find(c => String(c.id) === String(sub.callId)) || {};
   const status = sub.status || 'Submitted';
 
-  document.getElementById('contentTitle').textContent     = call.title || sub.callId;
-  document.getElementById('contentSubtitle').textContent  = [call.department, call.school].filter(Boolean).join(' · ');
+  document.getElementById('contentTitle').textContent     = sub.title || call.title || sub.callId;
+  document.getElementById('contentSubtitle').textContent  = [sub.department || call.department, sub.school || call.school].filter(Boolean).join(' · ');
   document.getElementById('currentBadge').innerHTML       = statusBadge(status);
   document.getElementById('statusStepper').innerHTML      = buildStepper(status);
   document.getElementById('sumStatus').innerHTML          = statusBadge(status);
   document.getElementById('sumSubmitDate').textContent    = formatDate(sub.submittedDate);
-  document.getElementById('sumLastUpdate').textContent    = sub.data && sub.data.savedAt ? formatDateTime(sub.data.savedAt) : formatDate(sub.submittedDate);
+  document.getElementById('sumLastUpdate').textContent    = sub.updatedDate ? formatDateTime(sub.updatedDate) : (sub.data && sub.data.savedAt ? formatDateTime(sub.data.savedAt) : formatDate(sub.submittedDate));
   document.getElementById('statusTimeline').innerHTML     = buildTimeline(sub);
   document.getElementById('submittedDataPanel').innerHTML = buildDataPanel(sub);
 
@@ -205,8 +231,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   subs.forEach((sub, i) => {
-    const call  = AVAILABLE_CALLS.find(c => c.id === sub.callId);
-    const label = call ? call.title : sub.callId;
+    const call  = AVAILABLE_CALLS.find(c => String(c.id) === String(sub.callId));
+    const label = sub.title || (call ? call.title : sub.callId);
     const opt   = document.createElement('option');
     opt.value   = i;
     opt.textContent = `${label} — ${formatDate(sub.submittedDate)}`;
@@ -225,10 +251,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // Sync navbar username
-  try {
-    const u = JSON.parse(localStorage.getItem('userProfileData')) || {};
-    const el = document.getElementById('navbarUserName');
-    if (el && u.name) el.textContent = `${u.name} ${u.surname || ''}`.trim();
-  } catch(e) {}
+  const u = getUserData();
+  const el = document.getElementById('navbarUserName');
+  if (el && u.name) el.textContent = `${u.name} ${u.surname || ''}`.trim();
 });

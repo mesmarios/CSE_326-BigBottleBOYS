@@ -1,4 +1,122 @@
-<?php include('../../includes/layout.php'); include('../../includes/header.php'); include('../../includes/nav.php'); ?>
+<?php
+include('../../includes/layout.php');
+include('../../includes/header.php');
+include('../../includes/nav.php');
+
+$dashboardUser = [];
+$dashboardStats = [
+  'total' => 0,
+  'drafts' => 0,
+  'underReview' => 0,
+  'upcomingDeadlines' => 0,
+];
+$dashboardSubmissions = [];
+$dashboardOpenCalls = [];
+
+if (!empty($_SESSION['user_id']) && isset($pdo)) {
+  $candidateId = (int)$_SESSION['user_id'];
+
+  try {
+    $userStmt = $pdo->prepare('SELECT first_name, last_name, email FROM users WHERE id = :id LIMIT 1');
+    $userStmt->execute([':id' => $candidateId]);
+    $userRow = $userStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $dashboardUser = [
+      'name' => $userRow['first_name'] ?? '',
+      'surname' => $userRow['last_name'] ?? '',
+      'email' => $userRow['email'] ?? '',
+    ];
+
+    $statsStmt = $pdo->prepare(
+      "SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS drafts,
+         SUM(CASE WHEN status = 'under_review' THEN 1 ELSE 0 END) AS under_review
+       FROM candidate_applications
+       WHERE candidate_id = :candidate_id"
+    );
+    $statsStmt->execute([':candidate_id' => $candidateId]);
+    $statsRow = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $dashboardStats['total'] = (int)($statsRow['total'] ?? 0);
+    $dashboardStats['drafts'] = (int)($statsRow['drafts'] ?? 0);
+    $dashboardStats['underReview'] = (int)($statsRow['under_review'] ?? 0);
+
+    $submissionsStmt = $pdo->prepare(
+      "SELECT
+         ca.announcement_id,
+         ca.status,
+         ca.submitted_at,
+         ca.updated_at,
+         ja.title
+       FROM candidate_applications ca
+       INNER JOIN job_announcements ja ON ja.id = ca.announcement_id
+       WHERE ca.candidate_id = :candidate_id
+       ORDER BY COALESCE(ca.submitted_at, ca.updated_at, ca.created_at) DESC"
+    );
+    $submissionsStmt->execute([':candidate_id' => $candidateId]);
+    foreach ($submissionsStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+      $statusMap = [
+        'draft' => 'Draft',
+        'submitted' => 'Submitted',
+        'under_review' => 'Under Review',
+        'accepted' => 'Approved',
+        'rejected' => 'Rejected',
+        'withdrawn' => 'Rejected',
+      ];
+
+      $dashboardSubmissions[] = [
+        'callId' => (string)$row['announcement_id'],
+        'title' => $row['title'],
+        'status' => $statusMap[$row['status']] ?? 'Submitted',
+        'submittedDate' => $row['submitted_at'] ? date('c', strtotime($row['submitted_at'])) : null,
+        'updatedDate' => $row['updated_at'] ? date('c', strtotime($row['updated_at'])) : null,
+      ];
+    }
+
+    $callsStmt = $pdo->query(
+      "SELECT
+         ja.id,
+         ja.title,
+         COALESCE(d.name, '—') AS department,
+         rp.end_date
+       FROM job_announcements ja
+       INNER JOIN recruitment_periods rp ON rp.id = ja.period_id
+       LEFT JOIN departments d ON d.id = ja.department_id
+       WHERE ja.status = 'published'
+       ORDER BY rp.end_date ASC, ja.id DESC"
+    );
+
+    $today = new DateTimeImmutable('today');
+    foreach ($callsStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+      $dashboardOpenCalls[] = [
+        'id' => (string)$row['id'],
+        'title' => $row['title'],
+        'department' => $row['department'],
+        'deadline' => $row['end_date'],
+      ];
+
+      if (!empty($row['end_date'])) {
+        $deadline = new DateTimeImmutable($row['end_date']);
+        $diffDays = (int)$today->diff($deadline)->format('%r%a');
+        if ($diffDays >= 0 && $diffDays <= 7) {
+          $dashboardStats['upcomingDeadlines']++;
+        }
+      }
+    }
+  } catch (Throwable $e) {
+    $dashboardUser = [];
+    $dashboardStats = [
+      'total' => 0,
+      'drafts' => 0,
+      'underReview' => 0,
+      'upcomingDeadlines' => 0,
+    ];
+    $dashboardSubmissions = [];
+    $dashboardOpenCalls = [];
+  }
+}
+?>
 <link rel="stylesheet" href="../../recruitment/assets/css/index.css">
 <link rel="stylesheet" href="../../assets/css/user-ui.css">
 
@@ -260,6 +378,14 @@
         </div>
       </div>
 
+<script>
+  window.RECRUITMENT_INDEX_BOOTSTRAP = {
+    user: <?= json_encode($dashboardUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    stats: <?= json_encode($dashboardStats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    submissions: <?= json_encode($dashboardSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    openCalls: <?= json_encode($dashboardOpenCalls, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
+  };
+</script>
 <script src="../../recruitment/assets/js/index.js"></script>
 
 <?php include('../../includes/footer.php'); ?>

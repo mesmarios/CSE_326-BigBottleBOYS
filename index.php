@@ -1,5 +1,19 @@
 <?php
 declare(strict_types=1);
+
+$projectBasePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+if ($projectBasePath === '') {
+  $projectBasePath = '/';
+}
+
+$buildProjectUrl = static function (string $path) use ($projectBasePath): string {
+  $normalizedPath = ltrim($path, '/');
+  if ($projectBasePath === '/') {
+    return '/' . $normalizedPath;
+  }
+
+  return $projectBasePath . '/' . $normalizedPath;
+};
 ?>
 <!doctype html>
 <html lang="en">
@@ -49,9 +63,9 @@ declare(strict_types=1);
     <h1>Welcome to BigBottleBOYS</h1>
     <p>Select the UI you want to open based on your role.</p>
     <div class="actions">
-      <a class="primary" href="modules/admin/index.php">Open Admin UI</a>
-      <a href="modules/recruitmentModule/index.php">Open User UI</a>
-      <a href="register.php">Register</a>
+      <a class="primary" href="<?= htmlspecialchars($buildProjectUrl('modules/admin/index.php')) ?>">Open Admin UI</a>
+      <a href="<?= htmlspecialchars($buildProjectUrl('modules/recruitmentModule/index.php')) ?>">Open User UI</a>
+      <a href="<?= htmlspecialchars($buildProjectUrl('register.php')) ?>">Register</a>
     </div>
   </main>
 </body>

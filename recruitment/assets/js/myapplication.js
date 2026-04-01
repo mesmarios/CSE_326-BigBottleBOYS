@@ -1,45 +1,20 @@
 /* ================================================================
-   Data – Available Application Calls (sample data)
-   In production these would come from a PHP/database query.
+  Bootstrap data from PHP (DB-backed). Falls back to local sample
+  data when bootstrap is not provided.
 ================================================================= */
-const AVAILABLE_CALLS = [
-  {
-    id: 'CALL-2026-001',
-    title: 'Lecturer in Computer Science',
-    department: 'Department of Computer Science',
-    school: 'School of Engineering & Applied Sciences',
-    courses: ['CS101 – Introduction to Programming', 'CS201 – Data Structures', 'CS305 – Algorithms'],
-    startDate: '2026-01-15',
-    endDate: '2026-03-31',
-  },
-  {
-    id: 'CALL-2026-002',
-    title: 'Assistant Professor in Mathematics',
-    department: 'Department of Mathematics',
-    school: 'School of Natural Sciences',
-    courses: ['MATH101 – Calculus I', 'MATH201 – Linear Algebra', 'MATH302 – Probability & Statistics'],
-    startDate: '2026-02-01',
-    endDate: '2026-04-15',
-  },
-  {
-    id: 'CALL-2026-003',
-    title: 'Adjunct Instructor – Business Administration',
-    department: 'Department of Business & Management',
-    school: 'School of Economics & Business',
-    courses: ['BUS101 – Principles of Management', 'BUS210 – Marketing Fundamentals'],
-    startDate: '2026-01-20',
-    endDate: '2026-02-28',
-  },
-  {
-    id: 'CALL-2026-004',
-    title: 'Research Associate – Environmental Studies',
-    department: 'Department of Environmental Sciences',
-    school: 'School of Natural Sciences',
-    courses: ['ENV201 – Environmental Policy', 'ENV303 – Climate Change & Society'],
-    startDate: '2026-03-01',
-    endDate: '2026-05-30',
-  },
-];
+const BOOTSTRAP = window.MYAPPLICATION_BOOTSTRAP || {};
+
+const AVAILABLE_CALLS = Array.isArray(BOOTSTRAP.calls)
+  ? BOOTSTRAP.calls.map(call => ({
+      ...call,
+      id: String(call.id),
+      courses: Array.isArray(call.courses) ? call.courses : [call.courses || '—'],
+    }))
+  : [];
+
+let serverSubmissions = Array.isArray(BOOTSTRAP.submissions)
+  ? BOOTSTRAP.submissions.map(sub => ({ ...sub, callId: String(sub.callId) }))
+  : null;
 
 /* ================================================================
    Helpers
@@ -59,6 +34,20 @@ function isCallOpen(call) {
 }
 
 function getUserData() {
+  if (BOOTSTRAP.user && Object.keys(BOOTSTRAP.user).length) {
+    return {
+      name: BOOTSTRAP.user.name || '',
+      surname: BOOTSTRAP.user.surname || '',
+      email: BOOTSTRAP.user.email || '',
+      phone: BOOTSTRAP.user.phone || '',
+      degree: BOOTSTRAP.user.degree || '',
+      institution: BOOTSTRAP.user.institution || '',
+      specialization: BOOTSTRAP.user.specialization || '',
+      experience: BOOTSTRAP.user.experience || '',
+      summary: BOOTSTRAP.user.summary || '',
+    };
+  }
+
   const s = localStorage.getItem('userProfileData');
   if (s) return JSON.parse(s);
   return {
@@ -69,8 +58,17 @@ function getUserData() {
 
 function getDrafts()            { const s = localStorage.getItem('applicationDrafts');       return s ? JSON.parse(s) : {}; }
 function saveDraftsLS(d)        { localStorage.setItem('applicationDrafts', JSON.stringify(d)); }
-function getSubmissions()       { const s = localStorage.getItem('submittedApplications');   return s ? JSON.parse(s) : []; }
-function saveSubmissionsLS(a)   { localStorage.setItem('submittedApplications', JSON.stringify(a)); }
+function getSubmissions()       {
+  if (Array.isArray(serverSubmissions)) return serverSubmissions;
+  const s = localStorage.getItem('submittedApplications');
+  return s ? JSON.parse(s) : [];
+}
+function saveSubmissionsLS(a)   {
+  if (Array.isArray(serverSubmissions)) {
+    serverSubmissions = a.map(sub => ({ ...sub, callId: String(sub.callId) }));
+  }
+  localStorage.setItem('submittedApplications', JSON.stringify(a));
+}
 
 function showToast(msg, type = 'primary') {
   const el  = document.getElementById('appToast');
@@ -101,6 +99,21 @@ function renderCalls() {
   const submissions = getSubmissions();
   const submittedIds = submissions.map(s => s.callId);
   container.innerHTML = '';
+
+  if (!AVAILABLE_CALLS.length) {
+    container.innerHTML = `
+      <div class="col-12">
+        <div class="card call-card">
+          <div class="card-body text-center text-muted py-5">
+            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+            <h6 class="mb-2">No application calls available</h6>
+            <p class="mb-0">There are currently no recruitment announcements in the database.</p>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
 
   AVAILABLE_CALLS.forEach(call => {
     const open             = isCallOpen(call);
@@ -173,15 +186,15 @@ function renderMyApplications() {
   const rows     = [];
 
   subs.forEach(sub => {
-    const call = AVAILABLE_CALLS.find(c => c.id === sub.callId) || {};
-    rows.push({ callId: sub.callId, title: call.title || sub.callId,
-                department: call.department || '—',
+    const call = AVAILABLE_CALLS.find(c => String(c.id) === String(sub.callId)) || {};
+    rows.push({ callId: String(sub.callId), title: sub.title || call.title || String(sub.callId),
+                department: sub.department || call.department || '—',
                 submittedDate: sub.submittedDate, status: sub.status || 'Submitted', isDraft: false });
   });
 
   Object.keys(drafts).forEach(callId => {
-    if (!subs.find(s => s.callId === callId)) {
-      const call = AVAILABLE_CALLS.find(c => c.id === callId) || {};
+    if (!subs.find(s => String(s.callId) === String(callId))) {
+      const call = AVAILABLE_CALLS.find(c => String(c.id) === String(callId)) || {};
       rows.push({ callId, title: call.title || callId, department: call.department || '—',
                   submittedDate: null, status: 'Draft', isDraft: true });
     }
@@ -246,22 +259,23 @@ let uploadedFilesData = { cv: null, cl: null, supporting: [] }; // base64 data U
 let isReadonly        = false;
 
 function openWizard(callId, viewOnly = false) {
+  const normalizedCallId = String(callId);
   const subs   = getSubmissions();
-  isReadonly   = viewOnly || subs.some(s => s.callId === callId);
-  currentCallId = callId;
+  isReadonly   = viewOnly || subs.some(s => String(s.callId) === normalizedCallId);
+  currentCallId = normalizedCallId;
   currentStep   = 1;
   uploadedFiles     = { cv: null, cl: null, supporting: [] };
   uploadedFilesData = { cv: null, cl: null, supporting: [] };
 
-  const call = AVAILABLE_CALLS.find(c => c.id === callId);
+  const call = AVAILABLE_CALLS.find(c => String(c.id) === normalizedCallId);
   if (!call) return;
 
   document.getElementById('modalCallSubtitle').textContent = `${call.title} — ${call.department}`;
 
   const user  = getUserData();
-  const draft = (getDrafts())[callId] || {};
+  const draft = (getDrafts())[normalizedCallId] || {};
   // For submitted applications the draft was deleted; fall back to the saved submission data
-  const submissionRecord = subs.find(s => s.callId === callId);
+  const submissionRecord = subs.find(s => String(s.callId) === normalizedCallId);
   const saved = (submissionRecord && submissionRecord.data) ? submissionRecord.data : draft;
 
   // Step 1 – static fields

@@ -1,4 +1,107 @@
-﻿<?php include('../../includes/layout.php'); include('../../includes/header.php'); include('../../includes/nav.php'); ?>
+﻿<?php
+include('../../includes/layout.php');
+include('../../includes/header.php');
+include('../../includes/nav.php');
+
+$bootCalls = [];
+$bootSubmissions = [];
+$bootUser = [];
+
+if (!empty($_SESSION['user_id']) && isset($pdo)) {
+  $candidateId = (int)$_SESSION['user_id'];
+
+  try {
+    $callsSql = "
+      SELECT
+        ja.id,
+        ja.title,
+        COALESCE(d.name, '—') AS department,
+        COALESCE(s.name, '—') AS school,
+        COALESCE(c.name, '—') AS course_name,
+        rp.start_date,
+        rp.end_date
+      FROM job_announcements ja
+      INNER JOIN recruitment_periods rp ON rp.id = ja.period_id
+      LEFT JOIN departments d ON d.id = ja.department_id
+      LEFT JOIN schools s ON s.id = ja.school_id
+      LEFT JOIN courses c ON c.id = ja.course_id
+      WHERE ja.status IN ('published', 'closed')
+      ORDER BY rp.start_date DESC, ja.id DESC
+    ";
+    $callsStmt = $pdo->query($callsSql);
+    $callsRows = $callsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($callsRows as $row) {
+      $bootCalls[] = [
+        'id' => (string)$row['id'],
+        'title' => $row['title'],
+        'department' => $row['department'],
+        'school' => $row['school'],
+        'courses' => [$row['course_name']],
+        'startDate' => $row['start_date'],
+        'endDate' => $row['end_date'],
+      ];
+    }
+
+    $appsSql = "
+      SELECT
+        ca.announcement_id,
+        ca.status,
+        ca.submitted_at,
+        ja.title,
+        COALESCE(d.name, '—') AS department
+      FROM candidate_applications ca
+      INNER JOIN job_announcements ja ON ja.id = ca.announcement_id
+      LEFT JOIN departments d ON d.id = ja.department_id
+      WHERE ca.candidate_id = :candidate_id
+      ORDER BY ca.created_at DESC
+    ";
+    $appsStmt = $pdo->prepare($appsSql);
+    $appsStmt->execute([':candidate_id' => $candidateId]);
+    $appRows = $appsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($appRows as $row) {
+      $statusMap = [
+        'draft' => 'Draft',
+        'submitted' => 'Submitted',
+        'under_review' => 'Under Review',
+        'accepted' => 'Approved',
+        'rejected' => 'Rejected',
+        'withdrawn' => 'Rejected',
+      ];
+
+      $bootSubmissions[] = [
+        'callId' => (string)$row['announcement_id'],
+        'title' => $row['title'],
+        'department' => $row['department'],
+        'submittedDate' => $row['submitted_at'] ? date('Y-m-d', strtotime($row['submitted_at'])) : null,
+        'status' => $statusMap[$row['status']] ?? 'Submitted',
+      ];
+    }
+
+    $userStmt = $pdo->prepare('SELECT first_name, last_name, email, phone FROM users WHERE id = :id LIMIT 1');
+    $userStmt->execute([':id' => $candidateId]);
+    $userRow = $userStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $bootUser = [
+      'name' => $userRow['first_name'] ?? '',
+      'surname' => $userRow['last_name'] ?? '',
+      'email' => $userRow['email'] ?? '',
+      'phone' => $userRow['phone'] ?? '',
+      'degree' => '',
+      'institution' => '',
+      'specialization' => '',
+      'experience' => '',
+      'summary' => '',
+    ];
+  } catch (Throwable $e) {
+    // Keep frontend working with local fallback if DB bootstrap fails.
+    $bootCalls = [];
+    $bootSubmissions = [];
+    $bootUser = [];
+  }
+}
+?>
 <link rel="stylesheet" href="../../recruitment/assets/css/myapplication.css">
 <link rel="stylesheet" href="../../assets/css/user-ui.css">
 
@@ -348,6 +451,13 @@
       </div>
     </div>
 
+<script>
+  window.MYAPPLICATION_BOOTSTRAP = {
+    calls: <?= json_encode($bootCalls, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    submissions: <?= json_encode($bootSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    user: <?= json_encode($bootUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
+  };
+</script>
 <script src="../../recruitment/assets/js/myapplication.js"></script>
 
 <?php include('../../includes/footer.php'); ?>

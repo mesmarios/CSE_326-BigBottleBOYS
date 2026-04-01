@@ -9,8 +9,14 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 if (!isset($_SESSION['user_id'])) {
-    $depth    = substr_count(str_replace('\\', '/', $_SERVER['PHP_SELF']), '/') - 2;
-    $loginUrl = str_repeat('../', max(0, $depth)) . 'login.php';
+  $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+  if (strpos($scriptName, '/modules/') !== false) {
+    $basePath = strstr($scriptName, '/modules/', true);
+    $loginUrl = rtrim($basePath, '/') . '/login.php';
+  } else {
+    $basePath = rtrim(dirname($scriptName), '/');
+    $loginUrl = ($basePath === '' ? '' : $basePath) . '/login.php';
+  }
     header('Location: ' . $loginUrl);
     exit;
 }
