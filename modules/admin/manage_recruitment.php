@@ -903,7 +903,7 @@ $statusMap = [
           'name' => $dep['name'],
           'school_id' => (int)$dep['school_id'],
         ];
-      }, $departments), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+      }, $departments), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
       const coursesData = <?= json_encode(array_map(static function ($course) {
         return [
@@ -911,7 +911,7 @@ $statusMap = [
           'name' => $course['name'],
           'department_id' => (int)$course['department_id'],
         ];
-      }, $courses), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+      }, $courses), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
       function populateSelect(selectEl, items, placeholder, valueKey, labelKey, selectedValue, filterKey, filterValue) {
         const normalizedSelected = selectedValue ? String(selectedValue) : '';

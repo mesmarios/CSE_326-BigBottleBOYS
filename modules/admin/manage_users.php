@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: manage_users.php?msg=' . urlencode('Ο χρήστης διαγράφηκε επιτυχώς.') . '&mtype=success');
             exit;
         } catch (Throwable $e) {
-            header('Location: manage_users.php?msg=' . urlencode('Αποτυχία διαγραφής χρήστη: ' . $e->getMessage()) . '&mtype=danger');
+            header('Location: manage_users.php?msg=' . urlencode('Αποτυχία διαγραφής χρήστη. Δοκιμάστε ξανά.') . '&mtype=danger');
             exit;
         }
 
@@ -65,8 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$flashMsg  = isset($_GET['msg'])   ? htmlspecialchars($_GET['msg'])   : null;
-$flashType = isset($_GET['mtype']) ? htmlspecialchars($_GET['mtype']) : 'success';
+$flashMsg  = isset($_GET['msg'])   ? htmlspecialchars($_GET['msg']) : null;
+$flashType = isset($_GET['mtype']) && in_array($_GET['mtype'], ['success', 'danger'], true)
+    ? $_GET['mtype']
+    : 'success';
 
 $stmt = $pdo->query(
     "SELECT id, first_name, last_name, email, phone, role, created_at
@@ -305,7 +307,7 @@ function avatarInitials(string $f, string $l): string {
                         $dateFmt   = date('d/m/Y', strtotime($u['created_at']));
                     ?>
                     <tr data-role="<?= escape($u['role']) ?>">
-                      <td><div class="table-avatar-placeholder" style="background:<?= $avBg ?>;color:<?= $avColor ?>;"><?= $initials ?></div></td>
+                      <td><div class="table-avatar-placeholder" style="background:<?= $avBg ?>;color:<?= $avColor ?>;"><?= escape($initials) ?></div></td>
                       <td class="fw-semibold"><?= $fullName ?></td>
                       <td class="text-secondary"><?= escape($u['email']) ?></td>
                       <td><span class="badge <?= $badgeCls ?> rounded-pill px-3 py-1"><?= $roleLabel ?></span></td>
@@ -407,7 +409,7 @@ function avatarInitials(string $f, string $l): string {
     <script src="../../assets/js/changes.js" defer></script>
     <script>
       // Embed DB users for edit modal population
-      const USERS_DATA = <?= json_encode(array_column($users, null, 'id'), JSON_UNESCAPED_UNICODE) ?>;
+      const USERS_DATA = <?= json_encode(array_column($users, null, 'id'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
       document.addEventListener('DOMContentLoaded', function () {
         // OverlayScrollbars

@@ -130,7 +130,7 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
           <div class="container-fluid">
 
             <!-- ── Available Application Calls ─────────────────── -->
-            <div class="mb-4">
+            <div class="mb-4" id="drafts">
               <p class="section-heading mb-3">
                 <i class="bi bi-megaphone-fill me-2 text-primary"></i>Available Application Calls
               </p>
@@ -219,20 +219,22 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         <div class="step-pane active" id="step1">
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Full Name</label>
-              <div class="form-control-readonly" id="s1FullName">—</div>
-              <div class="form-text">Auto-filled from your profile.</div>
+              <label class="form-label fw-semibold" for="s1FullName">
+                Full Name <span class="text-danger">*</span>
+              </label>
+              <input type="text" class="form-control form-control-locked" id="s1FullName" placeholder="Enter your full name" readonly aria-readonly="true" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Email Address</label>
-              <div class="form-control-readonly" id="s1Email">—</div>
-              <div class="form-text">Auto-filled from your profile.</div>
+              <label class="form-label fw-semibold" for="s1Email">
+                Email Address <span class="text-danger">*</span>
+              </label>
+              <input type="email" class="form-control form-control-locked" id="s1Email" placeholder="Enter your email address" readonly aria-readonly="true" />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold" for="s1Phone">
                 Phone Number <span class="text-danger">*</span>
               </label>
-              <input type="tel" class="form-control" id="s1Phone" placeholder="+1 555 123 4567" />
+              <input type="tel" class="form-control form-control-locked" id="s1Phone" placeholder="+1 555 123 4567" readonly aria-readonly="true" />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Applied Position</label>
@@ -455,9 +457,9 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
 
 <script>
   window.MYAPPLICATION_BOOTSTRAP = {
-    calls: <?= json_encode($bootCalls, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-    submissions: <?= json_encode($bootSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-    user: <?= json_encode($bootUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
+    calls: <?= json_encode($bootCalls, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    submissions: <?= json_encode($bootSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    user: <?= json_encode($bootUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
   };
 </script>
 <script src="../../recruitment/assets/js/myapplication.js"></script>

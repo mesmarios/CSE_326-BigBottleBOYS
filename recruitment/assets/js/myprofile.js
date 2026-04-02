@@ -50,6 +50,12 @@ function getProfileData() {
   return (window.CareerTrack && window.CareerTrack.profileData) || {};
 }
 
+function escapeHtml(value) {
+  const span = document.createElement('span');
+  span.textContent = String(value ?? '');
+  return span.innerHTML;
+}
+
 /* ── Show a simple inline save-feedback message ───────────────── */
 function showSaveFeedback(btn, success) {
   const original = btn.textContent;
@@ -107,7 +113,7 @@ editBtn.addEventListener('click', async function () {
       } else {
         const currentText = field.textContent === '\u2014' ? '' : field.textContent;
         const inputType   = fieldName === 'phone' ? 'tel' : 'text';
-        field.innerHTML = `<input type="${inputType}" class="form-control form-control-sm" value="${currentText}" style="max-width:300px;">`;
+        field.innerHTML = `<input type="${inputType}" class="form-control form-control-sm" value="${escapeHtml(currentText)}" style="max-width:300px;">`;
       }
     });
     editBtn.textContent = 'Save';
@@ -162,7 +168,22 @@ editBtn.addEventListener('click', async function () {
       const data = await resp.json();
       if (data.success) {
         // Update cached profileData so subsequent edits use the new DOB
-        if (window.CareerTrack) window.CareerTrack.profileData = { ...existingPd, dob: newDob };
+        if (window.CareerTrack) {
+          window.CareerTrack.profileData = { ...existingPd, dob: newDob };
+          window.CareerTrack.firstName = newFirstName;
+          window.CareerTrack.fullName = `${newFirstName} ${newLastName}`.trim();
+        }
+        try {
+          localStorage.setItem('userProfileData', JSON.stringify({
+            name: newFirstName,
+            surname: newLastName,
+            email: document.getElementById('emailCell')?.textContent.trim() || '',
+            phone: newPhone,
+            address: newAddress,
+          }));
+        } catch (storageError) {
+          // Ignore storage sync failures and keep the server update as source of truth.
+        }
         // Update banner name
         const bannerFullName = document.getElementById('bannerFullName');
         if (bannerFullName) bannerFullName.textContent = `${newFirstName} ${newLastName}`.trim();
@@ -202,11 +223,11 @@ editAcademicBtn.addEventListener('click', async function () {
         ).join('');
         field.innerHTML = `<select class="form-select form-select-sm" style="max-width:300px;" id="degreeSelect">${opts}</select>`;
       } else if (f === 'experience') {
-        field.innerHTML = `<input type="number" id="experienceInput" min="0" max="60" class="form-control form-control-sm" style="max-width:120px;" value="${pd.experience || ''}" placeholder="0">`;
+        field.innerHTML = `<input type="number" id="experienceInput" min="0" max="60" class="form-control form-control-sm" style="max-width:120px;" value="${escapeHtml(pd.experience || '')}" placeholder="0">`;
       } else if (f === 'summary') {
-        field.innerHTML = `<textarea id="summaryInput" class="form-control form-control-sm" rows="4" style="max-width:500px;" placeholder="Write a short professional bio…">${pd.summary || ''}</textarea>`;
+        field.innerHTML = `<textarea id="summaryInput" class="form-control form-control-sm" rows="4" style="max-width:500px;" placeholder="Write a short professional bio…">${escapeHtml(pd.summary || '')}</textarea>`;
       } else {
-        field.innerHTML = `<input type="text" class="form-control form-control-sm" value="${pd[f] || ''}" style="max-width:300px;" placeholder="Enter ${f}">`;
+        field.innerHTML = `<input type="text" class="form-control form-control-sm" value="${escapeHtml(pd[f] || '')}" style="max-width:300px;" placeholder="Enter ${f}">`;
       }
     });
     editAcademicBtn.textContent = 'Save';
