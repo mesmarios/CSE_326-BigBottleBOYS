@@ -452,11 +452,7 @@
         </div>
       </main>
 
-      <!-- ===== FOOTER ===== -->
-      <footer class="app-footer">
-        <div class="float-end d-none d-sm-inline">BigBottleBOYS &copy; 2026</div>
-        <strong>Copyright &copy; 2026 <a href="#" class="text-decoration-none">TheBigBottleBoys</a>.</strong> All rights reserved.
-      </footer>
+      <?php require_once __DIR__ . '/../../includes/admin-footer.php'; ?>
 
     </div>
 

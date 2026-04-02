@@ -1,4 +1,202 @@
-<?php require_once __DIR__ . '/../../includes/admin-guard.php'; ?>
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/../../includes/admin-guard.php';
+require_once __DIR__ . '/../../database/db.php';
+
+function h(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
+function respondJson(array $payload, int $statusCode = 200): void
+{
+    http_response_code($statusCode);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function isValidStrongPassword(string $password): bool
+{
+    return strlen($password) >= 8
+        && preg_match('/[A-Z]/', $password) === 1
+        && preg_match('/[a-z]/', $password) === 1
+        && preg_match('/[0-9]/', $password) === 1
+        && preg_match('/[!@#$%^&*()_+\-=]/', $password) === 1;
+}
+
+function formatDateDisplay(?string $value): string
+{
+    if (!$value) {
+        return '—';
+    }
+
+    try {
+        return (new DateTimeImmutable($value))->format('d/m/Y');
+    } catch (Throwable $e) {
+        return '—';
+    }
+}
+
+$adminId = (int)($_SESSION['user_id'] ?? 0);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    if ($adminId <= 0) {
+        respondJson(['success' => false, 'error' => 'Μη έγκυρη συνεδρία χρήστη.'], 401);
+    }
+
+    try {
+        if ($action === 'update_profile') {
+            $firstName = trim($_POST['first_name'] ?? '');
+            $lastName = trim($_POST['last_name'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $phone = trim($_POST['phone'] ?? '') ?: null;
+
+            if ($firstName === '' || $lastName === '' || $email === '') {
+                respondJson(['success' => false, 'error' => 'Συμπληρώστε όλα τα υποχρεωτικά πεδία.'], 422);
+            }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                respondJson(['success' => false, 'error' => 'Το email δεν είναι έγκυρο.'], 422);
+            }
+
+            $existingEmailStmt = $pdo->prepare('SELECT id FROM users WHERE email = :email AND id <> :id LIMIT 1');
+            $existingEmailStmt->execute([
+                ':email' => $email,
+                ':id' => $adminId,
+            ]);
+
+            if ($existingEmailStmt->fetch()) {
+                respondJson(['success' => false, 'error' => 'Το email χρησιμοποιείται ήδη από άλλον χρήστη.'], 409);
+            }
+
+            $updateProfileStmt = $pdo->prepare(
+                '
+                UPDATE users
+                SET first_name = :first_name,
+                    last_name = :last_name,
+                    email = :email,
+                    phone = :phone,
+                    updated_at = NOW()
+                WHERE id = :id
+                '
+            );
+            $updateProfileStmt->execute([
+                ':first_name' => $firstName,
+                ':last_name' => $lastName,
+                ':email' => $email,
+                ':phone' => $phone,
+                ':id' => $adminId,
+            ]);
+
+            $_SESSION['first_name'] = $firstName;
+            $_SESSION['last_name'] = $lastName;
+            $_SESSION['email'] = $email;
+
+            respondJson([
+                'success' => true,
+                'message' => 'Τα στοιχεία του προφίλ αποθηκεύτηκαν επιτυχώς.',
+                'profile' => [
+                    'full_name' => trim($firstName . ' ' . $lastName),
+                    'email' => $email,
+                    'phone' => $phone ?? '',
+                ],
+            ]);
+        }
+
+        if ($action === 'change_password') {
+            $currentPassword = (string)($_POST['current_password'] ?? '');
+            $newPassword = (string)($_POST['new_password'] ?? '');
+            $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+
+            if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+                respondJson(['success' => false, 'error' => 'Συμπληρώστε όλα τα πεδία κωδικού.'], 422);
+            }
+
+            if ($newPassword !== $confirmPassword) {
+                respondJson(['success' => false, 'error' => 'Ο νέος κωδικός και η επιβεβαίωση δεν ταιριάζουν.'], 422);
+            }
+
+            if (!isValidStrongPassword($newPassword)) {
+                respondJson(['success' => false, 'error' => 'Ο νέος κωδικός δεν καλύπτει όλες τις απαιτήσεις ασφαλείας.'], 422);
+            }
+
+            $passwordStmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = :id LIMIT 1');
+            $passwordStmt->execute([':id' => $adminId]);
+            $passwordRow = $passwordStmt->fetch();
+
+            if (!$passwordRow || !password_verify($currentPassword, (string)$passwordRow['password_hash'])) {
+                respondJson(['success' => false, 'error' => 'Ο τρέχων κωδικός δεν είναι σωστός.'], 403);
+            }
+
+            if (password_verify($newPassword, (string)$passwordRow['password_hash'])) {
+                respondJson(['success' => false, 'error' => 'Ο νέος κωδικός πρέπει να είναι διαφορετικός από τον τρέχοντα.'], 422);
+            }
+
+            $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+
+            $updatePasswordStmt = $pdo->prepare(
+                '
+                UPDATE users
+                SET password_hash = :password_hash,
+                    updated_at = NOW()
+                WHERE id = :id
+                '
+            );
+            $updatePasswordStmt->execute([
+                ':password_hash' => $newHash,
+                ':id' => $adminId,
+            ]);
+
+            respondJson([
+                'success' => true,
+                'message' => 'Ο κωδικός πρόσβασης άλλαξε επιτυχώς.',
+            ]);
+        }
+
+        respondJson(['success' => false, 'error' => 'Μη υποστηριζόμενη ενέργεια.'], 400);
+    } catch (Throwable $e) {
+        respondJson(['success' => false, 'error' => 'Παρουσιάστηκε σφάλμα κατά την αποθήκευση.'], 500);
+    }
+}
+
+$adminStmt = $pdo->prepare(
+    '
+    SELECT id, first_name, last_name, email, phone, role, created_at
+    FROM users
+    WHERE id = :id
+    LIMIT 1
+    '
+);
+$adminStmt->execute([':id' => $adminId]);
+$adminUser = $adminStmt->fetch() ?: [];
+
+if ($adminUser === []) {
+    $_SESSION['auth_error'] = 'Ο λογαριασμός διαχειριστή δεν βρέθηκε.';
+    header('Location: ../../logout.php');
+    exit;
+}
+
+$statsRow = $pdo->query(
+    "
+    SELECT
+        (SELECT COUNT(*) FROM users) AS total_users,
+        (SELECT COUNT(*) FROM candidate_applications WHERE status <> 'draft') AS total_applications,
+        (SELECT COUNT(*) FROM departments) AS total_departments
+    "
+)->fetch() ?: [];
+
+$adminFullName = trim((string)$adminUser['first_name'] . ' ' . (string)$adminUser['last_name']);
+$adminEmail = (string)($adminUser['email'] ?? '');
+$adminPhone = (string)($adminUser['phone'] ?? '');
+$memberSince = formatDateDisplay((string)($adminUser['created_at'] ?? ''));
+$totalUsers = (int)($statsRow['total_users'] ?? 0);
+$totalApplications = (int)($statsRow['total_applications'] ?? 0);
+$totalDepartments = (int)($statsRow['total_departments'] ?? 0);
+?>
 <!doctype html>
 <html lang="el">
   <head>
@@ -14,7 +212,6 @@
   <body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
     <div class="app-wrapper">
 
-      <!-- ===== NAVBAR ===== -->
       <header class="app-header">
         <nav class="navbar navbar-expand bg-body h-100" aria-label="Primary">
           <div class="container-fluid">
@@ -38,13 +235,13 @@
             </li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="Admin" id="navAvatar" />
-                <span class="d-none d-md-inline">Administrator</span>
+                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="<?= h($adminFullName) ?>" id="navAvatar" />
+                <span class="d-none d-md-inline" id="navUserName"><?= h($adminFullName) ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
-                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="Admin" />
-                  <p>Administrator<small>Διαχειριστής Συστήματος</small></p>
+                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="<?= h($adminFullName) ?>" />
+                  <p><?= h($adminFullName) ?><small>Διαχειριστής Συστήματος</small></p>
                 </li>
                 <li class="user-footer">
                   <a href="my_profile.php" class="btn btn-default btn-flat"><i class="bi bi-person me-1"></i>Προφίλ</a>
@@ -57,7 +254,6 @@
         </nav>
       </header>
 
-      <!-- ===== SIDEBAR ===== -->
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
           <a href="index.php" class="brand-link">
@@ -94,7 +290,6 @@
         </div>
       </aside>
 
-      <!-- ===== MAIN ===== -->
       <main class="app-main">
         <div class="app-content-header">
           <div class="container-fluid">
@@ -120,19 +315,16 @@
         <div class="app-content">
           <div class="container-fluid">
 
-            <!-- Success alert -->
             <div class="alert alert-success alert-dismissible fade d-none mb-3" id="profileAlert" role="alert">
-              <i class="bi bi-check-circle me-2"></i>Οι αλλαγές αποθηκεύτηκαν επιτυχώς.
+              <span id="profileAlertMessage"><i class="bi bi-check-circle me-2"></i>Οι αλλαγές αποθηκεύτηκαν επιτυχώς.</span>
               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
 
             <div class="row g-4">
 
-              <!-- Left: Avatar + Role info card -->
               <div class="col-12 col-lg-4 col-xl-3">
                 <div class="config-card bg-body shadow-sm text-center">
                   <div class="config-card-body py-4">
-                    <!-- Avatar Upload -->
                     <div class="profile-avatar-upload mx-auto">
                       <img src="../../assets/images/avatar.png" alt="Avatar" id="profileAvatarImg" />
                       <label class="avatar-edit-btn" title="Αλλαγή φωτογραφίας">
@@ -141,7 +333,7 @@
                       </label>
                     </div>
 
-                    <h5 class="fw-bold mb-0" id="profileDisplayName">Administrator</h5>
+                    <h5 class="fw-bold mb-0" id="profileDisplayName"><?= h($adminFullName) ?></h5>
                     <p class="text-secondary small mb-3">Διαχειριστής Συστήματος</p>
 
                     <span class="badge badge-role-admin rounded-pill px-3 py-2 mb-3">
@@ -150,18 +342,17 @@
 
                     <hr />
 
-                    <!-- Quick stats -->
                     <div class="row text-center g-0">
                       <div class="col-4 border-end">
-                        <div class="fw-bold">124</div>
+                        <div class="fw-bold"><?= h((string)$totalUsers) ?></div>
                         <div class="text-secondary" style="font-size:.75rem;">Χρήστες</div>
                       </div>
                       <div class="col-4 border-end">
-                        <div class="fw-bold">47</div>
+                        <div class="fw-bold"><?= h((string)$totalApplications) ?></div>
                         <div class="text-secondary" style="font-size:.75rem;">Αιτήσεις</div>
                       </div>
                       <div class="col-4">
-                        <div class="fw-bold">12</div>
+                        <div class="fw-bold"><?= h((string)$totalDepartments) ?></div>
                         <div class="text-secondary" style="font-size:.75rem;">Τμήματα</div>
                       </div>
                     </div>
@@ -171,25 +362,23 @@
                     <div class="text-start">
                       <div class="d-flex align-items-center gap-2 mb-2">
                         <i class="bi bi-envelope text-secondary" style="width:18px;"></i>
-                        <span class="small" id="profileEmailDisplay">admin@university.gr</span>
+                        <span class="small" id="profileEmailDisplay"><?= h($adminEmail) ?></span>
                       </div>
                       <div class="d-flex align-items-center gap-2 mb-2">
                         <i class="bi bi-telephone text-secondary" style="width:18px;"></i>
-                        <span class="small">+30 210 1234567</span>
+                        <span class="small" id="profilePhoneDisplay"><?= h($adminPhone !== '' ? $adminPhone : 'Δεν έχει οριστεί') ?></span>
                       </div>
                       <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-calendar-check text-secondary" style="width:18px;"></i>
-                        <span class="small">Μέλος από 01/01/2026</span>
+                        <span class="small">Μέλος από <?= h($memberSince) ?></span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Right: Edit forms -->
               <div class="col-12 col-lg-8 col-xl-9">
 
-                <!-- Personal Info -->
                 <div class="config-card bg-body shadow-sm">
                   <div class="config-card-header">
                     <i class="bi bi-person-lines-fill text-primary"></i>
@@ -200,19 +389,19 @@
                       <div class="row g-3">
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Όνομα <span class="text-danger">*</span></label>
-                          <input type="text" class="form-control" id="firstName" value="Admin" required />
+                          <input type="text" class="form-control" id="firstName" value="<?= h((string)$adminUser['first_name']) ?>" required />
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Επώνυμο <span class="text-danger">*</span></label>
-                          <input type="text" class="form-control" id="lastName" value="istrator" required />
+                          <input type="text" class="form-control" id="lastName" value="<?= h((string)$adminUser['last_name']) ?>" required />
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
-                          <input type="email" class="form-control" id="profileEmail" value="admin@university.gr" required />
+                          <input type="email" class="form-control" id="profileEmail" value="<?= h($adminEmail) ?>" required />
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Τηλέφωνο</label>
-                          <input type="tel" class="form-control" value="+30 210 1234567" />
+                          <input type="tel" class="form-control" id="profilePhone" value="<?= h($adminPhone) ?>" />
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Ρόλος</label>
@@ -236,7 +425,6 @@
                   </div>
                 </div>
 
-                <!-- Change Password -->
                 <div class="config-card bg-body shadow-sm">
                   <div class="config-card-header">
                     <i class="bi bi-lock-fill text-warning"></i>
@@ -262,7 +450,6 @@
                               <i class="bi bi-eye"></i>
                             </button>
                           </div>
-                          <!-- Password strength -->
                           <div class="mt-1" id="pwdStrengthWrap" style="display:none;">
                             <div class="progress" style="height:4px;">
                               <div class="progress-bar" id="pwdStrengthBar" style="width:0%"></div>
@@ -280,7 +467,6 @@
                           </div>
                         </div>
 
-                        <!-- Password requirements -->
                         <div class="col-12">
                           <div class="border rounded p-3 bg-body-tertiary">
                             <p class="small fw-semibold mb-2 text-secondary">Απαιτήσεις κωδικού:</p>
@@ -304,7 +490,6 @@
                   </div>
                 </div>
 
-                <!-- Two-Factor Auth -->
                 <div class="config-card bg-body shadow-sm">
                   <div class="config-card-header">
                     <i class="bi bi-shield-check text-success"></i>
@@ -333,7 +518,6 @@
                       </div>
                     </div>
                     <hr />
-                    <!-- Activity log -->
                     <div class="fw-semibold mb-2">Πρόσφατη Δραστηριότητα</div>
                     <ul class="list-group list-group-flush">
                       <li class="list-group-item px-0 py-2">
@@ -378,21 +562,15 @@
 
               </div>
             </div>
-            <!-- end row -->
 
           </div>
         </div>
       </main>
 
-      <!-- ===== FOOTER ===== -->
-      <footer class="app-footer">
-        <div class="float-end d-none d-sm-inline">BigBottleBOYS &copy; 2026</div>
-        <strong>Copyright &copy; 2026 <a href="#" class="text-decoration-none">TheBigBottleBoys</a>.</strong> All rights reserved.
-      </footer>
+      <?php require_once __DIR__ . '/../../includes/admin-footer.php'; ?>
 
     </div>
 
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
@@ -423,31 +601,101 @@
         }
       }
 
-      function saveProfile() {
+      async function saveProfile() {
         var firstName = document.getElementById('firstName').value.trim();
         var lastName  = document.getElementById('lastName').value.trim();
         var email     = document.getElementById('profileEmail').value.trim();
+        var phone     = document.getElementById('profilePhone').value.trim();
+
         if (!firstName || !lastName || !email) {
-          alert('Παρακαλώ συμπληρώστε όλα τα υποχρεωτικά πεδία.');
+          showAlert('Παρακαλώ συμπληρώστε όλα τα υποχρεωτικά πεδία.', 'danger');
           return;
         }
-        document.getElementById('profileDisplayName').textContent = firstName + ' ' + lastName;
-        document.getElementById('profileEmailDisplay').textContent = email;
-        showAlert('profileAlert');
+
+        var payload = new URLSearchParams();
+        payload.append('action', 'update_profile');
+        payload.append('first_name', firstName);
+        payload.append('last_name', lastName);
+        payload.append('email', email);
+        payload.append('phone', phone);
+
+        try {
+          var response = await fetch('my_profile.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: payload.toString()
+          });
+
+          var result = await response.json();
+
+          if (!response.ok || !result.success) {
+            showAlert(result.error || 'Αποτυχία αποθήκευσης στοιχείων.', 'danger');
+            return;
+          }
+
+          document.getElementById('profileDisplayName').textContent = result.profile.full_name;
+          document.getElementById('navUserName').textContent = result.profile.full_name;
+          document.getElementById('profileEmailDisplay').textContent = result.profile.email;
+          document.getElementById('profilePhoneDisplay').textContent = result.profile.phone || 'Δεν έχει οριστεί';
+          showAlert(result.message || 'Οι αλλαγές αποθηκεύτηκαν επιτυχώς.', 'success');
+        } catch (error) {
+          showAlert('Παρουσιάστηκε σφάλμα κατά την αποθήκευση.', 'danger');
+        }
       }
 
-      function changePassword() {
+      async function changePassword() {
         var curr = document.getElementById('currentPassword').value;
         var nw   = document.getElementById('newPassword').value;
         var conf = document.getElementById('confirmPassword').value;
-        if (!curr || !nw || !conf) { alert('Συμπληρώστε όλα τα πεδία κωδικού.'); return; }
-        if (nw !== conf) { alert('Ο νέος κωδικός και η επιβεβαίωση δεν ταιριάζουν.'); return; }
-        if (nw.length < 8) { alert('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.'); return; }
-        document.getElementById('currentPassword').value = '';
-        document.getElementById('newPassword').value = '';
-        document.getElementById('confirmPassword').value = '';
-        document.getElementById('pwdStrengthWrap').style.display = 'none';
-        showAlert('profileAlert');
+
+        if (!curr || !nw || !conf) {
+          showAlert('Συμπληρώστε όλα τα πεδία κωδικού.', 'danger');
+          return;
+        }
+
+        if (nw !== conf) {
+          showAlert('Ο νέος κωδικός και η επιβεβαίωση δεν ταιριάζουν.', 'danger');
+          return;
+        }
+
+        if (nw.length < 8) {
+          showAlert('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.', 'danger');
+          return;
+        }
+
+        var payload = new URLSearchParams();
+        payload.append('action', 'change_password');
+        payload.append('current_password', curr);
+        payload.append('new_password', nw);
+        payload.append('confirm_password', conf);
+
+        try {
+          var response = await fetch('my_profile.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: payload.toString()
+          });
+
+          var result = await response.json();
+
+          if (!response.ok || !result.success) {
+            showAlert(result.error || 'Αποτυχία αλλαγής κωδικού.', 'danger');
+            return;
+          }
+
+          document.getElementById('passwordForm').reset();
+          document.getElementById('pwdStrengthWrap').style.display = 'none';
+          resetPwdRequirements();
+          showAlert(result.message || 'Ο κωδικός άλλαξε επιτυχώς.', 'success');
+        } catch (error) {
+          showAlert('Παρουσιάστηκε σφάλμα κατά την αλλαγή κωδικού.', 'danger');
+        }
       }
 
       function togglePwd(fieldId, btn) {
@@ -466,7 +714,11 @@
         var wrap = document.getElementById('pwdStrengthWrap');
         var bar  = document.getElementById('pwdStrengthBar');
         var txt  = document.getElementById('pwdStrengthText');
-        if (!val) { wrap.style.display = 'none'; return; }
+        if (!val) {
+          wrap.style.display = 'none';
+          resetPwdRequirements();
+          return;
+        }
         wrap.style.display = 'block';
 
         var score = 0;
@@ -493,11 +745,25 @@
         txt.style.color = colors[score - 1] || '';
       }
 
-      function showAlert(id) {
-        var el = document.getElementById(id);
-        el.classList.remove('d-none');
+      function resetPwdRequirements() {
+        ['req-length', 'req-upper', 'req-lower', 'req-number', 'req-special'].forEach(function (id) {
+          var el = document.getElementById(id);
+          el.querySelector('i').className = 'bi bi-circle me-2';
+          el.className = '';
+        });
+      }
+
+      function showAlert(message, type) {
+        var el = document.getElementById('profileAlert');
+        var msg = document.getElementById('profileAlertMessage');
+        var icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
+
+        el.classList.remove('d-none', 'alert-success', 'alert-danger');
+        el.classList.add(type === 'success' ? 'alert-success' : 'alert-danger');
+        msg.innerHTML = '<i class="bi bi-' + icon + ' me-2"></i>' + message;
         el.classList.add('show');
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
         setTimeout(function () {
           el.classList.remove('show');
           setTimeout(function () { el.classList.add('d-none'); }, 200);
