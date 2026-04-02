@@ -11,7 +11,9 @@ $user = $stmt->fetch();
 $profilePicSrc = (!empty($user['profilepic']))
     ? 'data:image/jpeg;base64,' . base64_encode($user['profilepic'])
     : '../../recruitment/assets/images/user2-160x160.jpg';
-$fullName    = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
+$profilePicSrcAttr = htmlspecialchars($profilePicSrc, ENT_QUOTES, 'UTF-8');
+$rawFullName = trim((string)($user['first_name'] ?? '') . ' ' . (string)($user['last_name'] ?? ''));
+$fullName    = htmlspecialchars($rawFullName, ENT_QUOTES, 'UTF-8');
 $profileData = [
     'dob'            => $user['dob']            ?? '',
     'degree'         => $user['degree']         ?? '',
@@ -53,7 +55,7 @@ $profileData = [
                   <div class="profile-avatar-wrap">
                     <img
                       id="profilePicSmallBox"
-                      src="<?= $profilePicSrc ?>"
+                      src="<?= $profilePicSrcAttr ?>"
                       alt="User Profile"
                     />
                   </div>
@@ -142,11 +144,11 @@ $profileData = [
 
     <script>
       window.CareerTrack = window.CareerTrack || {};
-      window.CareerTrack.fullName    = <?= json_encode($fullName) ?>;
-      window.CareerTrack.firstName   = <?= json_encode(htmlspecialchars($user['first_name'])) ?>;
-      window.CareerTrack.email       = <?= json_encode(htmlspecialchars($user['email'])) ?>;
-      window.CareerTrack.profilePic  = <?= json_encode($profilePicSrc) ?>;
-      window.CareerTrack.profileData = <?= json_encode($profileData ?: new stdClass()) ?>;
+      window.CareerTrack.fullName    = <?= json_encode($rawFullName, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      window.CareerTrack.firstName   = <?= json_encode((string)($user['first_name'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      window.CareerTrack.email       = <?= json_encode((string)($user['email'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      window.CareerTrack.profilePic  = <?= json_encode($profilePicSrc, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      window.CareerTrack.profileData = <?= json_encode($profileData ?: new stdClass(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     </script>
     <script src="../../recruitment/assets/js/myprofile.js"></script>
 

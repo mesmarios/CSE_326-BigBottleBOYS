@@ -1,6 +1,5 @@
 /* ================================================================
-  Bootstrap data from PHP (DB-backed). Falls back to local sample
-  data when bootstrap is not provided.
+  Bootstrap data from PHP (DB-backed).
 ================================================================= */
 const BOOTSTRAP = window.MYAPPLICATION_BOOTSTRAP || {};
 
@@ -16,6 +15,10 @@ let serverSubmissions = Array.isArray(BOOTSTRAP.submissions)
   ? BOOTSTRAP.submissions.map(sub => ({ ...sub, callId: String(sub.callId) }))
   : null;
 
+const APPLICATIONS_API_URL = '../../api/applications.php';
+const PROFILE_API_URL = '../../api/profile.php';
+let currentUserData = normalizeApplicationUserData(BOOTSTRAP.user);
+
 /* ================================================================
    Helpers
 ================================================================= */
@@ -28,6 +31,10 @@ function formatDate(iso) {
 
 function today() { return new Date().toISOString(); }
 
+function isDraftStatus(status) {
+  return String(status || '').toLowerCase() === 'draft';
+}
+
 function isCallOpen(call) {
   if (call.status === 'closed' || call.status === 'cancelled' || call.status === 'draft') return false;
   if (call.status === 'published') return true;
@@ -35,27 +42,40 @@ function isCallOpen(call) {
   return t >= call.startDate && t <= call.endDate;
 }
 
-function getUserData() {
-  if (BOOTSTRAP.user && Object.keys(BOOTSTRAP.user).length) {
-    return {
-      name: BOOTSTRAP.user.name || '',
-      surname: BOOTSTRAP.user.surname || '',
-      email: BOOTSTRAP.user.email || '',
-      phone: BOOTSTRAP.user.phone || '',
-      degree: BOOTSTRAP.user.degree || '',
-      institution: BOOTSTRAP.user.institution || '',
-      specialization: BOOTSTRAP.user.specialization || '',
-      experience: BOOTSTRAP.user.experience || '',
-      summary: BOOTSTRAP.user.summary || '',
-    };
-  }
-
-  const s = localStorage.getItem('userProfileData');
-  if (s) return JSON.parse(s);
+function normalizeApplicationUserData(source = {}) {
+  const profileData = source.profile_data || source.profileData || {};
   return {
-    name: 'Alexander', surname: 'Pierce', email: 'alexander@example.com',
-    phone: '', degree: '', institution: '', specialization: '', experience: '', summary: ''
+    name: source.name || source.first_name || '',
+    surname: source.surname || source.last_name || '',
+    email: source.email || '',
+    phone: source.phone || '',
+    degree: source.degree || profileData.degree || '',
+    institution: source.institution || profileData.institution || '',
+    specialization: source.specialization || profileData.specialization || '',
+    experience: source.experience || profileData.experience || '',
+    summary: source.summary || profileData.summary || '',
   };
+}
+
+function getApplicationUserData() {
+  return currentUserData;
+}
+
+async function refreshApplicationUserFromServer() {
+  try {
+    const response = await fetch(PROFILE_API_URL, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      return false;
+    }
+
+    currentUserData = normalizeApplicationUserData(result);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 function getDrafts()            { const s = localStorage.getItem('applicationDrafts');       return s ? JSON.parse(s) : {}; }
@@ -70,6 +90,58 @@ function saveSubmissionsLS(a)   {
     serverSubmissions = a.map(sub => ({ ...sub, callId: String(sub.callId) }));
   }
   localStorage.setItem('submittedApplications', JSON.stringify(a));
+}
+
+async function refreshApplicationsFromServer() {
+  try {
+    const response = await fetch(APPLICATIONS_API_URL, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success || !Array.isArray(result.applications)) {
+      return false;
+    }
+
+    serverSubmissions = result.applications.map(app => {
+      const callInfo = app.callInfo || {};
+      return {
+        ...app,
+        callId: String(app.callId ?? callInfo.id ?? ''),
+        title: app.title || callInfo.title || '',
+        department: app.department || callInfo.department || '',
+        school: app.school || callInfo.school || '',
+        courses: Array.isArray(app.courses)
+          ? app.courses
+          : (Array.isArray(callInfo.courses) ? callInfo.courses : []),
+      };
+    });
+
+    saveSubmissionsLS(serverSubmissions);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function dataUrlToFile(dataUrl, filename) {
+  if (!dataUrl || !dataUrl.startsWith('data:')) return null;
+
+  try {
+    const [header, body] = dataUrl.split(',');
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    const binary = atob(body);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    return new File([bytes], filename, { type: mime });
+  } catch (error) {
+    return null;
+  }
 }
 
 function showToast(msg, type = 'primary') {
@@ -99,7 +171,13 @@ function renderCalls() {
   const container   = document.getElementById('callsContainer');
   const drafts      = getDrafts();
   const submissions = getSubmissions();
-  const submittedIds = submissions.map(s => s.callId);
+  const submittedIds = submissions
+    .filter(sub => !isDraftStatus(sub.status))
+    .map(sub => String(sub.callId));
+  const draftIds = new Set([
+    ...Object.keys(drafts).map(String),
+    ...submissions.filter(sub => isDraftStatus(sub.status)).map(sub => String(sub.callId))
+  ]);
   container.innerHTML = '';
 
   if (!AVAILABLE_CALLS.length) {
@@ -120,7 +198,7 @@ function renderCalls() {
   AVAILABLE_CALLS.forEach(call => {
     const open             = isCallOpen(call);
     const alreadySubmitted = submittedIds.includes(call.id);
-    const hasDraft         = drafts[call.id] != null;
+    const hasDraft         = draftIds.has(call.id);
 
     let actionBtn = '';
     if (alreadySubmitted) {
@@ -186,19 +264,37 @@ function renderMyApplications() {
   const drafts   = getDrafts();
   const subs     = getSubmissions();
   const rows     = [];
+  const serverDrafts = new Map();
 
-  subs.forEach(sub => {
+  subs.filter(sub => !isDraftStatus(sub.status)).forEach(sub => {
     const call = AVAILABLE_CALLS.find(c => String(c.id) === String(sub.callId)) || {};
     rows.push({ callId: String(sub.callId), title: sub.title || call.title || String(sub.callId),
                 department: sub.department || call.department || '—',
                 submittedDate: sub.submittedDate, status: sub.status || 'Submitted', isDraft: false });
   });
 
-  Object.keys(drafts).forEach(callId => {
-    if (!subs.find(s => String(s.callId) === String(callId))) {
+  subs.filter(sub => isDraftStatus(sub.status)).forEach(sub => {
+    serverDrafts.set(String(sub.callId), sub);
+  });
+
+  const draftCallIds = new Set([
+    ...Object.keys(drafts).map(String),
+    ...serverDrafts.keys(),
+  ]);
+
+  draftCallIds.forEach(callId => {
+    if (!subs.find(s => !isDraftStatus(s.status) && String(s.callId) === String(callId))) {
       const call = AVAILABLE_CALLS.find(c => String(c.id) === String(callId)) || {};
-      rows.push({ callId, title: call.title || callId, department: call.department || '—',
-                  submittedDate: null, status: 'Draft', isDraft: true });
+      const draftData = drafts[callId] || serverDrafts.get(String(callId))?.data || {};
+      rows.push({
+        callId,
+        title: call.title || serverDrafts.get(String(callId))?.title || callId,
+        department: call.department || serverDrafts.get(String(callId))?.department || '—',
+        submittedDate: null,
+        status: 'Draft',
+        isDraft: true,
+        savedAt: draftData.savedAt || serverDrafts.get(String(callId))?.savedAt || null
+      });
     }
   });
 
@@ -241,11 +337,27 @@ function renderMyApplications() {
 /* ================================================================
    Delete Draft
 ================================================================= */
-function deleteDraft(callId) {
+async function deleteDraft(callId) {
   if (!confirm(`Delete the draft for "${callId}"? This cannot be undone.`)) return;
+
   const drafts = getDrafts();
   delete drafts[callId];
   saveDraftsLS(drafts);
+
+  try {
+    await fetch(`${APPLICATIONS_API_URL}?action=delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({ announcement_id: callId })
+    });
+    await refreshApplicationsFromServer();
+  } catch (error) {
+    // Keep local cleanup even if server cleanup fails.
+  }
+
   renderMyApplications();
   renderCalls();
 }
@@ -263,7 +375,9 @@ let isReadonly        = false;
 function openWizard(callId, viewOnly = false) {
   const normalizedCallId = String(callId);
   const subs   = getSubmissions();
-  isReadonly   = viewOnly || subs.some(s => String(s.callId) === normalizedCallId);
+  const submittedRecord = subs.find(s => !isDraftStatus(s.status) && String(s.callId) === normalizedCallId);
+  const draftRecord = subs.find(s => isDraftStatus(s.status) && String(s.callId) === normalizedCallId);
+  isReadonly   = viewOnly || Boolean(submittedRecord);
   currentCallId = normalizedCallId;
   currentStep   = 1;
   uploadedFiles     = { cv: null, cl: null, supporting: [] };
@@ -274,43 +388,51 @@ function openWizard(callId, viewOnly = false) {
 
   document.getElementById('modalCallSubtitle').textContent = `${call.title} — ${call.department}`;
 
-  const user  = getUserData();
+  const user  = getApplicationUserData();
   const draft = (getDrafts())[normalizedCallId] || {};
-  // For submitted applications the draft was deleted; fall back to the saved submission data
-  const submissionRecord = subs.find(s => String(s.callId) === normalizedCallId);
-  const saved = (submissionRecord && submissionRecord.data) ? submissionRecord.data : draft;
+  // Prefer local draft cache, then server draft data, then submitted application data.
+  const saved = draftRecord?.data ? { ...draftRecord.data, ...draft } : (draft || {});
+  const readonlyData = (submittedRecord && submittedRecord.data) ? submittedRecord.data : {};
+  const effectiveData = isReadonly ? readonlyData : saved;
 
-  // Step 1 – static fields
-  document.getElementById('s1FullName').textContent   = `${user.name} ${user.surname}`;
-  document.getElementById('s1Email').textContent      = user.email;
+  const profileFullName = `${user.name || ''} ${user.surname || ''}`.trim();
+
+  // Step 1 – profile-locked fields
+  document.getElementById('s1FullName').value         = profileFullName;
+  document.getElementById('s1Email').value            = user.email || '';
   document.getElementById('s1Position').textContent   = call.title;
   document.getElementById('s1Department').textContent = call.department;
   document.getElementById('s1School').textContent     = call.school;
   document.getElementById('s1Courses').textContent    = call.courses.join(', ');
-  document.getElementById('s1Phone').value            = saved.phone || user.phone || '';
+  document.getElementById('s1Phone').value            = isReadonly ? (readonlyData.phone || user.phone || '') : (user.phone || effectiveData.phone || '');
+
+  ['s1FullName', 's1Email', 's1Phone'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.readOnly = true;
+  });
 
   // Step 2 – pre-fill from saved/submission data, fall back to profile
-  document.getElementById('s2Degree').value         = saved.degree         || user.degree         || '';
-  document.getElementById('s2Institution').value    = saved.institution    || user.institution    || '';
-  document.getElementById('s2Specialization').value = saved.specialization || user.specialization || '';
-  document.getElementById('s2Experience').value     = saved.experience     || user.experience     || '';
-  document.getElementById('s2Summary').value        = saved.summary        || user.summary        || '';
+  document.getElementById('s2Degree').value         = effectiveData.degree         || user.degree         || '';
+  document.getElementById('s2Institution').value    = effectiveData.institution    || user.institution    || '';
+  document.getElementById('s2Specialization').value = effectiveData.specialization || user.specialization || '';
+  document.getElementById('s2Experience').value     = effectiveData.experience     || user.experience     || '';
+  document.getElementById('s2Summary').value        = effectiveData.summary        || user.summary        || '';
   updateSummaryCount();
 
   // Step 3 – file preview names (File objects can't be persisted)
   resetFilePreviews();
-  if (saved.cvFileName)  addFilePreviewItem('cvPreview',  saved.cvFileName, 'cv',  saved.cvFileData  || null);
-  if (saved.clFileName)  addFilePreviewItem('clPreview',  saved.clFileName, 'cl',  saved.clFileData  || null);
-  (saved.supFileNames || []).forEach((n, i) => addFilePreviewItem('supPreview', n, 'sup', (saved.supFilesData && saved.supFilesData[i]) || null));
+  if (effectiveData.cvFileName)  addFilePreviewItem('cvPreview',  effectiveData.cvFileName, 'cv',  effectiveData.cvFileData  || null);
+  if (effectiveData.clFileName)  addFilePreviewItem('clPreview',  effectiveData.clFileName, 'cl',  effectiveData.clFileData  || null);
+  (effectiveData.supFileNames || []).forEach((n, i) => addFilePreviewItem('supPreview', n, 'sup', (effectiveData.supFilesData && effectiveData.supFilesData[i]) || null));
 
   // Restore persisted base64 data back into uploadedFilesData so that
   // collectFormData() / submitApplication() can carry it into the submission record
-  if (saved.cvFileData)  uploadedFilesData.cv = saved.cvFileData;
-  if (saved.clFileData)  uploadedFilesData.cl = saved.clFileData;
-  if (saved.supFilesData && saved.supFilesData.length) uploadedFilesData.supporting = [...saved.supFilesData];
+  if (effectiveData.cvFileData)  uploadedFilesData.cv = effectiveData.cvFileData;
+  if (effectiveData.clFileData)  uploadedFilesData.cl = effectiveData.clFileData;
+  if (effectiveData.supFilesData && effectiveData.supFilesData.length) uploadedFilesData.supporting = [...effectiveData.supFilesData];
 
   // Step 4 – declaration
-  document.getElementById('declarationCheck').checked = saved.declared || false;
+  document.getElementById('declarationCheck').checked = effectiveData.declared || false;
   document.getElementById('declarationError').classList.add('d-none');
   document.getElementById('cvError').classList.add('d-none');
 
@@ -336,8 +458,15 @@ function openWizard(callId, viewOnly = false) {
 }
 
 function setFormReadonly(ro) {
-  ['s1Phone','s2Degree','s2Institution','s2Specialization','s2Experience','s2Summary','declarationCheck']
+  ['s2Degree','s2Institution','s2Specialization','s2Experience','s2Summary','declarationCheck']
     .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = ro; });
+  ['s1FullName', 's1Email', 's1Phone'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.disabled = false;
+      el.readOnly = true;
+    }
+  });
   ['cvFile','clFile','supFiles'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = ro;
@@ -399,10 +528,29 @@ function validateStep(step) {
   let ok = true;
 
   if (step === 1) {
+    const fullName = document.getElementById('s1FullName');
+    const email = document.getElementById('s1Email');
     const phone = document.getElementById('s1Phone');
+    const fullNameVal = fullName.value.trim();
+    const emailVal = email.value.trim();
     const pVal  = phone.value.trim();
     const hasLetters = /[a-zA-Z]/.test(pVal);
     const hasDigits  = /\d/.test(pVal);
+
+    if (!fullNameVal) {
+      setFieldInvalid(fullName, true);
+      ok = false;
+    } else {
+      setFieldInvalid(fullName, false);
+    }
+
+    if (!emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+      setFieldInvalid(email, true);
+      ok = false;
+    } else {
+      setFieldInvalid(email, false);
+    }
+
     if (!pVal || hasLetters || !hasDigits) {
       setFieldInvalid(phone, true);
       // Update the feedback message dynamically
@@ -452,9 +600,13 @@ document.getElementById('btnPrev').addEventListener('click', () => {
   if (currentStep > 1) goToStep(currentStep - 1);
 });
 
-document.getElementById('btnSaveDraft').addEventListener('click', () => {
-  persistDraft();
-  showToast('Draft saved. You can continue your application at any time.', 'primary');
+document.getElementById('btnSaveDraft').addEventListener('click', async () => {
+  const saved = await persistDraft();
+  if (saved) {
+    showToast('Draft saved. You can continue your application at any time.', 'primary');
+  } else {
+    showToast('Draft saved locally, but server sync failed. Try again later.', 'warning');
+  }
 });
 
 document.getElementById('btnSubmit').addEventListener('click', () => {
@@ -484,6 +636,8 @@ function collectFormData() {
   const clPreview  = document.getElementById('clPreview');
   const supPreview = document.getElementById('supPreview');
   return {
+    fullName:       document.getElementById('s1FullName').value,
+    email:          document.getElementById('s1Email').value,
     phone:          document.getElementById('s1Phone').value,
     degree:         document.getElementById('s2Degree').value,
     institution:    document.getElementById('s2Institution').value,
@@ -503,46 +657,121 @@ function collectFormData() {
   };
 }
 
-function persistDraft() {
+async function persistDraft() {
+  const formData = collectFormData();
   const drafts = getDrafts();
-  drafts[currentCallId] = collectFormData();
+  drafts[currentCallId] = formData;
   saveDraftsLS(drafts);
+
+  let serverSaved = false;
+  try {
+    const response = await fetch(`${APPLICATIONS_API_URL}?action=save_draft`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({
+        announcement_id: currentCallId,
+        phone: formData.phone || '',
+        degree: formData.degree || '',
+        institution: formData.institution || '',
+        specialization: formData.specialization || '',
+        experience: formData.experience || '',
+        summary: formData.summary || ''
+      })
+    });
+
+    const result = await response.json();
+    if (response.ok && result.success) {
+      serverSaved = true;
+      await refreshApplicationsFromServer();
+    }
+  } catch (error) {
+    serverSaved = false;
+  }
+
   renderCalls();
   renderMyApplications();
+  return serverSaved;
 }
 
 /* ================================================================
    Submit application
 ================================================================= */
-function submitApplication() {
-  // Remove draft
-  const drafts = getDrafts();
-  delete drafts[currentCallId];
-  saveDraftsLS(drafts);
+async function submitApplication() {
+  const formDataValues = collectFormData();
+  const formData = new FormData();
 
-  // Store submission
-  const subs = getSubmissions();
-  if (!subs.find(s => s.callId === currentCallId)) {
-    subs.push({ callId: currentCallId, submittedDate: today(), status: 'Submitted', data: collectFormData() });
-    saveSubmissionsLS(subs);
+  formData.append('announcement_id', currentCallId);
+  formData.append('phone', formDataValues.phone || '');
+  formData.append('degree', formDataValues.degree || '');
+  formData.append('institution', formDataValues.institution || '');
+  formData.append('specialization', formDataValues.specialization || '');
+  formData.append('experience', formDataValues.experience || '');
+  formData.append('summary', formDataValues.summary || '');
+
+  const cvFile = uploadedFiles.cv || dataUrlToFile(formDataValues.cvFileData, formDataValues.cvFileName || 'cv');
+  if (cvFile) {
+    formData.append('cv', cvFile);
   }
 
-  // Show locked state in modal
-  document.getElementById('submittedOverlay').classList.remove('d-none');
-  document.getElementById('declarationSection').classList.add('d-none');
-  document.getElementById('btnSubmit').classList.add('d-none');
-  document.getElementById('btnSaveDraft').style.display = 'none';
-  isReadonly = true;
-  setFormReadonly(true);
+  const clFile = uploadedFiles.cl || dataUrlToFile(formDataValues.clFileData, formDataValues.clFileName || 'cover-letter');
+  if (clFile) {
+    formData.append('cl', clFile);
+  }
 
-  showToast('Application submitted successfully!', 'success');
+  const supportingFiles = uploadedFiles.supporting.length
+    ? uploadedFiles.supporting
+    : (formDataValues.supFileNames || []).map((name, index) => dataUrlToFile(
+        (formDataValues.supFilesData || [])[index],
+        name || `supporting-${index + 1}`
+      )).filter(Boolean);
 
-  const modalEl = document.getElementById('applicationModal');
-  modalEl.addEventListener('hidden.bs.modal', function handler() {
+  supportingFiles.forEach(file => {
+    formData.append('sup[]', file);
+  });
+
+  try {
+    const response = await fetch(`${APPLICATIONS_API_URL}?action=submit`, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: formData
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      showToast(result.error || 'Application submission failed.', 'danger');
+      return;
+    }
+
+    const drafts = getDrafts();
+    delete drafts[currentCallId];
+    saveDraftsLS(drafts);
+
+    await refreshApplicationsFromServer();
+
+    document.getElementById('submittedOverlay').classList.remove('d-none');
+    document.getElementById('declarationSection').classList.add('d-none');
+    document.getElementById('btnSubmit').classList.add('d-none');
+    document.getElementById('btnSaveDraft').style.display = 'none';
+    isReadonly = true;
+    setFormReadonly(true);
+
+    showToast('Application submitted successfully!', 'success');
+
     renderCalls();
     renderMyApplications();
-    modalEl.removeEventListener('hidden.bs.modal', handler);
-  });
+
+    const modalEl = document.getElementById('applicationModal');
+    modalEl.addEventListener('hidden.bs.modal', function handler() {
+      renderCalls();
+      renderMyApplications();
+      modalEl.removeEventListener('hidden.bs.modal', handler);
+    });
+  } catch (error) {
+    showToast('Application submission failed.', 'danger');
+  }
 }
 
 /* ================================================================
@@ -696,6 +925,18 @@ bindMultiFile ('supFiles', 'supPreview');
 ================================================================= */
 (function bindLiveValidation() {
   // Phone: clear when valid content present
+  document.getElementById('s1FullName').addEventListener('input', function () {
+    if (this.value.trim()) {
+      setFieldInvalid(this, false);
+    }
+  });
+
+  document.getElementById('s1Email').addEventListener('input', function () {
+    if (this.value.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value.trim())) {
+      setFieldInvalid(this, false);
+    }
+  });
+
   document.getElementById('s1Phone').addEventListener('input', function () {
     if (this.value.trim() && /\d/.test(this.value) && !/[a-zA-Z]/.test(this.value)) {
       setFieldInvalid(this, false);
@@ -758,21 +999,61 @@ document.getElementById('s2Summary').addEventListener('input', updateSummaryCoun
 /* ================================================================
    Navbar user name sync
 ================================================================= */
-(function syncNavbar() {
-  const u = getUserData();
+function syncNavbar() {
+  const u = getApplicationUserData();
+  const fullName = `${u.name || ''} ${u.surname || ''}`.trim();
+  if (!fullName) return;
   const navName = document.getElementById('navbarUserName');
-  if (navName) navName.textContent = `${u.name} ${u.surname}`;
+  if (navName) navName.textContent = fullName;
   const uhp = document.querySelector('.user-header p');
   if (uhp) {
     const small = uhp.querySelector('small');
-    uhp.innerHTML = `${u.name} ${u.surname} - Web Developer${small ? `<small>${small.textContent}</small>` : ''}`;
+    const subtitleText = small ? small.textContent : '';
+    uhp.textContent = `${fullName} - Web Developer`;
+    if (subtitleText) {
+      const smallEl = document.createElement('small');
+      smallEl.textContent = subtitleText;
+      uhp.appendChild(smallEl);
+    }
   }
-})();
+}
+
+function openRequestedDraftFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedDraftId = params.get('draft');
+
+  if (!requestedDraftId) {
+    return;
+  }
+
+  const normalizedCallId = String(requestedDraftId);
+  const submissions = getSubmissions();
+  const drafts = getDrafts();
+  const hasServerDraft = submissions.some(submission => {
+    return isDraftStatus(submission.status) && String(submission.callId) === normalizedCallId;
+  });
+  const hasLocalDraft = Object.prototype.hasOwnProperty.call(drafts, normalizedCallId);
+
+  params.delete('draft');
+  const nextQuery = params.toString();
+  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+  window.history.replaceState({}, document.title, nextUrl);
+
+  if (!hasServerDraft && !hasLocalDraft) {
+    return;
+  }
+
+  openWizard(normalizedCallId);
+}
 
 /* ================================================================
    Bootstrap-ready initialisation
 ================================================================= */
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+  await refreshApplicationUserFromServer();
+  await refreshApplicationsFromServer();
+  syncNavbar();
   renderCalls();
   renderMyApplications();
+  openRequestedDraftFromUrl();
 });

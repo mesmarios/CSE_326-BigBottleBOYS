@@ -295,9 +295,9 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
 
 <script>
   window.APPLICATIONSTATUS_BOOTSTRAP = {
-    calls: <?= json_encode($bootCalls, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-    submissions: <?= json_encode($bootSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-    user: <?= json_encode($bootUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
+    calls: <?= json_encode($bootCalls, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    submissions: <?= json_encode($bootSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    user: <?= json_encode($bootUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
   };
 </script>
 <script src="../../recruitment/assets/js/applicationstatus.js"></script>

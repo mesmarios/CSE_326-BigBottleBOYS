@@ -11,8 +11,6 @@ $dashboardStats = [
   'upcomingDeadlines' => 0,
 ];
 $dashboardSubmissions = [];
-$dashboardOpenCalls = [];
-
 if (!empty($_SESSION['user_id']) && isset($pdo)) {
   $candidateId = (int)$_SESSION['user_id'];
 
@@ -74,7 +72,7 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
       ];
     }
 
-    $callsStmt = $pdo->query(
+    $callsStmt = $pdo->prepare(
       "SELECT
          ja.id,
          ja.title,
@@ -84,18 +82,22 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
        INNER JOIN recruitment_periods rp ON rp.id = ja.period_id
        LEFT JOIN departments d ON d.id = ja.department_id
        WHERE ja.status = 'published'
+         AND rp.status = 'active'
+         AND rp.start_date <= CURRENT_DATE()
+         AND rp.end_date >= CURRENT_DATE()
+         AND NOT EXISTS (
+           SELECT 1
+           FROM candidate_applications ca
+           WHERE ca.announcement_id = ja.id
+             AND ca.candidate_id = ?
+             AND ca.status <> 'draft'
+         )
        ORDER BY rp.end_date ASC, ja.id DESC"
     );
+    $callsStmt->execute([$candidateId]);
 
     $today = new DateTimeImmutable('today');
     foreach ($callsStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-      $dashboardOpenCalls[] = [
-        'id' => (string)$row['id'],
-        'title' => $row['title'],
-        'department' => $row['department'],
-        'deadline' => $row['end_date'],
-      ];
-
       if (!empty($row['end_date'])) {
         $deadline = new DateTimeImmutable($row['end_date']);
         $diffDays = (int)$today->diff($deadline)->format('%r%a');
@@ -113,7 +115,6 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
       'upcomingDeadlines' => 0,
     ];
     $dashboardSubmissions = [];
-    $dashboardOpenCalls = [];
   }
 }
 ?>
@@ -305,85 +306,17 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
 
             </div><!-- /row quick actions + activity -->
 
-            <!-- ── Notifications + Open Calls ─────────────────────── -->
-            <div class="row g-3 mb-4">
-
-              <!-- Notifications -->
-              <div class="col-lg-5">
-                <div class="card info-card h-100">
-                  <div class="card-header d-flex align-items-center justify-content-between">
-                    <h6><i class="bi bi-bell-fill me-2 text-primary"></i>Notifications</h6>
-                    <a href="#" id="viewAllNotifBtn" class="text-primary" style="font-size:.78rem; font-weight:600; text-decoration:none;" data-bs-toggle="modal" data-bs-target="#allNotifsModal">
-                      View all <i class="bi bi-arrow-right"></i>
-                    </a>
-                  </div>
-                  <div class="card-body p-3">
-                    <div id="notifList">
-                      <!-- populated by JS -->
-                    </div>
-                    <p id="notifEmpty" class="text-center text-muted py-3 mb-0 d-none" style="font-size:.84rem;">
-                      No new notifications.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Open Calls -->
-              <div class="col-lg-7">
-                <div class="card info-card h-100">
-                  <div class="card-header d-flex align-items-center justify-content-between">
-                    <h6><i class="bi bi-megaphone-fill me-2 text-success"></i>Open Application Calls</h6>
-                    <a href="./myapplication.php" class="text-primary"
-                       style="font-size:.78rem; font-weight:600; text-decoration:none;">
-                      View all <i class="bi bi-arrow-right"></i>
-                    </a>
-                  </div>
-                  <div class="card-body p-3">
-                    <div id="openCallsList">
-                      <!-- populated by JS -->
-                    </div>
-                    <p id="openCallsEmpty" class="text-center text-muted py-3 mb-0 d-none" style="font-size:.84rem;">
-                      No open calls at the moment.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-            </div><!-- /row notifications + open calls -->
-
           </div><!-- /container-fluid -->
         </div>
         <!--end::App Content-->
       </main>
       <!--end::App Main-->
 
-      <!-- ── All Notifications Modal ──────────────────────────── -->
-      <div class="modal fade" id="allNotifsModal" tabindex="-1" aria-labelledby="allNotifsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-          <div class="modal-content" style="border-radius:.85rem; border:none; min-height:520px;">
-            <div class="modal-header px-4 py-3" style="border-bottom:1px solid #e9ecef;">
-              <h5 class="modal-title fw-bold" id="allNotifsModalLabel">
-                <i class="bi bi-bell-fill me-2 text-warning"></i>All Notifications
-                <span id="allNotifsCount" class="badge bg-warning text-dark ms-2" style="font-size:.78rem;"></span>
-              </h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body px-4 py-3" id="allNotifsBody" style="overflow-y:auto; max-height:65vh;">
-              <!-- populated by JS -->
-            </div>
-            <div class="modal-footer px-4" style="border-top:1px solid #e9ecef;">
-              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
 <script>
   window.RECRUITMENT_INDEX_BOOTSTRAP = {
-    user: <?= json_encode($dashboardUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-    stats: <?= json_encode($dashboardStats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-    submissions: <?= json_encode($dashboardSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-    openCalls: <?= json_encode($dashboardOpenCalls, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
+    user: <?= json_encode($dashboardUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    stats: <?= json_encode($dashboardStats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    submissions: <?= json_encode($dashboardSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
   };
 </script>
 <script src="../../recruitment/assets/js/index.js"></script>

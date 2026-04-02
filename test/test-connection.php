@@ -19,6 +19,11 @@ ini_set('display_errors', 1);
 require_once dirname(__DIR__) . '/includes/config.php';
 require_once dirname(__DIR__) . '/includes/database-helper.php';
 
+function renderSafeTestError(string $message): void
+{
+    echo '<p>' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . '</p>';
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="el">
@@ -179,7 +184,7 @@ require_once dirname(__DIR__) . '/includes/database-helper.php';
                 echo '<span class="status-icon">✗</span>';
                 echo '<div class="status-text">';
                 echo '<strong>Database Connection Failed</strong>';
-                echo '<p>' . htmlspecialchars($e->getMessage()) . '</p>';
+                renderSafeTestError('Unable to connect to the database. Check the configuration and database service status.');
                 echo '</div></div>';
                 $test_results['connection'] = false;
             }
@@ -217,9 +222,14 @@ require_once dirname(__DIR__) . '/includes/database-helper.php';
                         echo '<table><thead><tr><th>Table Name</th><th>Record Count</th></tr></thead><tbody>';
                         foreach ($tables as $table) {
                             $table_name = $table['table_name'];
-                            $count_stmt = $pdo->query("SELECT COUNT(*) as count FROM `" . $table_name . "`");
-                            $count = $count_stmt->fetch()['count'];
-                            echo '<tr><td>' . htmlspecialchars($table_name) . '</td><td>' . $count . ' records</td></tr>';
+                            $count_stmt = $pdo->prepare(
+                                "SELECT TABLE_ROWS AS count
+                                 FROM information_schema.tables
+                                 WHERE table_schema = ? AND table_name = ?"
+                            );
+                            $count_stmt->execute([DB_NAME, $table_name]);
+                            $count = (int)($count_stmt->fetch()['count'] ?? 0);
+                            echo '<tr><td>' . htmlspecialchars($table_name) . '</td><td>' . $count . ' estimated records</td></tr>';
                         }
                         echo '</tbody></table>';
                     }
@@ -231,7 +241,7 @@ require_once dirname(__DIR__) . '/includes/database-helper.php';
                     echo '<span class="status-icon">✗</span>';
                     echo '<div class="status-text">';
                     echo '<strong>Failed to retrieve tables</strong>';
-                    echo '<p>' . htmlspecialchars($e->getMessage()) . '</p>';
+                    renderSafeTestError('Unable to inspect the database tables.');
                     echo '</div></div>';
                     $test_results['tables'] = false;
                 }
@@ -291,7 +301,7 @@ require_once dirname(__DIR__) . '/includes/database-helper.php';
                     echo '<span class="status-icon">✗</span>';
                     echo '<div class="status-text">';
                     echo '<strong>Failed to verify sample data</strong>';
-                    echo '<p>' . htmlspecialchars($e->getMessage()) . '</p>';
+                    renderSafeTestError('Unable to verify the sample data.');
                     echo '</div></div>';
                     $test_results['sample_data'] = false;
                 }
@@ -325,7 +335,8 @@ require_once dirname(__DIR__) . '/includes/database-helper.php';
                     echo '<span class="status-icon">✓</span>';
                     echo '<div class="status-text">';
                     echo '<strong>DatabaseHelper::getRecruitmentStats()</strong> - Working ';
-                    echo $stats['total_announcements'] . ' announcements, ' . $stats['total_applications'] . ' applications';
+                    echo htmlspecialchars((string)$stats['total_announcements'], ENT_QUOTES, 'UTF-8') . ' announcements, '
+                        . htmlspecialchars((string)$stats['total_applications'], ENT_QUOTES, 'UTF-8') . ' applications';
                     echo '</div></div>';
                     
                     $test_results['helper_functions'] = true;
@@ -335,7 +346,7 @@ require_once dirname(__DIR__) . '/includes/database-helper.php';
                     echo '<span class="status-icon">✗</span>';
                     echo '<div class="status-text">';
                     echo '<strong>DatabaseHelper Functions Failed</strong>';
-                    echo '<p>' . htmlspecialchars($e->getMessage()) . '</p>';
+                    renderSafeTestError('DatabaseHelper functions could not be executed.');
                     echo '</div></div>';
                     $test_results['helper_functions'] = false;
                 }

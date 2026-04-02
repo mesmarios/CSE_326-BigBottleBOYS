@@ -20,6 +20,7 @@ $_nav_role  = htmlspecialchars(ucfirst($_SESSION['role'] ?? 'user'));
 $_nav_pic   = (!empty($_nav_user['profilepic']))
     ? 'data:image/jpeg;base64,' . base64_encode($_nav_user['profilepic'])
     : '../../recruitment/assets/images/user2-160x160.jpg';
+$_nav_pic_attr = htmlspecialchars($_nav_pic, ENT_QUOTES, 'UTF-8');
 // ─────────────────────────────────────────────────────────────────────────────
 ?>
     <!--begin::Header-->
@@ -42,7 +43,7 @@ $_nav_pic   = (!empty($_nav_user['profilepic']))
           <li class="nav-item dropdown user-menu">
             <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
               <img
-                src="<?= $_nav_pic ?>"
+                src="<?= $_nav_pic_attr ?>"
                 class="user-image rounded-circle shadow"
                 alt="User Image"
               />
@@ -52,7 +53,7 @@ $_nav_pic   = (!empty($_nav_user['profilepic']))
               <!--begin::User Image-->
               <li class="user-header text-bg-primary">
                 <img
-                  src="<?= $_nav_pic ?>"
+                  src="<?= $_nav_pic_attr ?>"
                   class="rounded-circle shadow"
                   alt="User Image"
                 />

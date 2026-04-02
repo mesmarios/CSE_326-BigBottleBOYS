@@ -121,6 +121,27 @@
   min-height: 38px; display: flex; align-items: center;
 }
 
+.form-control-locked {
+  background: #f8f9fa !important;
+  border: 1px solid #dee2e6 !important;
+  color: #495057 !important;
+  cursor: not-allowed;
+}
+
+.form-control-locked:focus {
+  background: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+  box-shadow: none !important;
+}
+
+.form-control-locked[readonly] {
+  pointer-events: none;
+}
+
+.form-control-locked.is-invalid {
+  background: #f8f9fa !important;
+}
+
 /* ---- File upload zone ------------------------------------------ */
 .upload-zone {
   border: 2px dashed #ced4da; border-radius: .5rem;
