@@ -33,10 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password']      ?? '';
     $isAdmin  = isset($_POST['go_admin']) || $requireAdmin;
 
-    if ($email === '' || $password === '') {
-        $errors[] = 'Συμπληρώστε email και κωδικό.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Μη έγκυρο email.';
+    if ($email === '' || $password === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Λανθασμένα στοιχεία σύνδεσης.';
     } else {
         $stmt = $pdo->prepare('SELECT * FROM users WHERE email = :e');
         $stmt->execute([':e' => $email]);
@@ -66,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
         } else {
-            $errors[] = 'Λάθος email ή κωδικός.';
+            $errors[] = 'Λανθασμένα στοιχεία σύνδεσης.';
         }
     }
 }
