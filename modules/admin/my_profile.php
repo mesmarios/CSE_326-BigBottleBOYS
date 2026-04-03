@@ -26,6 +26,29 @@ function isValidStrongPassword(string $password): bool
         && preg_match('/[!@#$%^&*()_+\-=]/', $password) === 1;
 }
 
+    function buildAvatarSrc(?string $binary, ?string $mimeType, int $userId = 0): string
+    {
+      if ($binary) {
+        $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $safeMimeType = in_array((string)$mimeType, $allowedMimeTypes, true)
+          ? (string)$mimeType
+          : 'image/jpeg';
+
+        return 'data:' . $safeMimeType . ';base64,' . base64_encode($binary);
+      }
+
+      if ($userId > 0) {
+        $fileMatches = glob(__DIR__ . '/../../uploads/profile_pics/user_' . $userId . '.*');
+        if (is_array($fileMatches) && $fileMatches !== []) {
+          $filePath = $fileMatches[0];
+          $fileVersion = (int)@filemtime($filePath) ?: time();
+          return '../../uploads/profile_pics/' . rawurlencode(basename($filePath)) . '?v=' . $fileVersion;
+        }
+      }
+
+      return '../../assets/images/avatar.png';
+    }
+
 function formatDateDisplay(?string $value): string
 {
     if (!$value) {
@@ -38,6 +61,19 @@ function formatDateDisplay(?string $value): string
         return '—';
     }
 }
+
+  function uploadErrorMessage(int $uploadError): string
+  {
+    return match ($uploadError) {
+      UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Το αρχείο είναι πολύ μεγάλο και υπερβαίνει τα όρια μεταφόρτωσης του server ή της φόρμας.',
+      UPLOAD_ERR_PARTIAL => 'Η μεταφόρτωση διακόπηκε πριν ολοκληρωθεί. Προσπαθήστε ξανά.',
+      UPLOAD_ERR_NO_FILE => 'Δεν επιλέχθηκε αρχείο εικόνας.',
+      UPLOAD_ERR_NO_TMP_DIR => 'Σφάλμα server: λείπει ο προσωρινός φάκελος μεταφόρτωσης.',
+      UPLOAD_ERR_CANT_WRITE => 'Σφάλμα server: δεν ήταν δυνατή η εγγραφή του αρχείου στον δίσκο.',
+      UPLOAD_ERR_EXTENSION => 'Η μεταφόρτωση μπλοκαρίστηκε από επέκταση του server.',
+      default => 'Η μεταφόρτωση απέτυχε. Προσπαθήστε ξανά.',
+    };
+  }
 
 $adminId = (int)($_SESSION['user_id'] ?? 0);
 
@@ -54,6 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $lastName = trim($_POST['last_name'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $phone = trim($_POST['phone'] ?? '') ?: null;
+          $dobRaw = trim($_POST['dob'] ?? '');
+          $dob = $dobRaw !== '' ? $dobRaw : null;
 
             if ($firstName === '' || $lastName === '' || $email === '') {
                 respondJson(['success' => false, 'error' => 'Συμπληρώστε όλα τα υποχρεωτικά πεδία.'], 422);
@@ -62,6 +100,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 respondJson(['success' => false, 'error' => 'Το email δεν είναι έγκυρο.'], 422);
             }
+
+          if ($dob !== null) {
+            $parsedDob = DateTimeImmutable::createFromFormat('Y-m-d', $dob);
+            $dobErrors = DateTimeImmutable::getLastErrors();
+            $hasDobErrors = is_array($dobErrors)
+              ? (($dobErrors['warning_count'] ?? 0) > 0 || ($dobErrors['error_count'] ?? 0) > 0)
+              : false;
+
+            if (!$parsedDob || $hasDobErrors || $parsedDob->format('Y-m-d') !== $dob) {
+              respondJson(['success' => false, 'error' => 'Η ημερομηνία γέννησης δεν είναι έγκυρη.'], 422);
+            }
+          }
 
             $existingEmailStmt = $pdo->prepare('SELECT id FROM users WHERE email = :email AND id <> :id LIMIT 1');
             $existingEmailStmt->execute([
@@ -80,6 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     last_name = :last_name,
                     email = :email,
                     phone = :phone,
+                  dob = :dob,
                     updated_at = NOW()
                 WHERE id = :id
                 '
@@ -89,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':last_name' => $lastName,
                 ':email' => $email,
                 ':phone' => $phone,
+                ':dob' => $dob,
                 ':id' => $adminId,
             ]);
 
@@ -103,6 +155,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'full_name' => trim($firstName . ' ' . $lastName),
                     'email' => $email,
                     'phone' => $phone ?? '',
+                  'dob' => $dob ?? '',
+                  'dob_display' => formatDateDisplay($dob),
                 ],
             ]);
         }
@@ -157,6 +211,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
+          if ($action === 'update_avatar') {
+            if (!isset($_FILES['avatar']) || !is_array($_FILES['avatar'])) {
+              respondJson(['success' => false, 'error' => 'Δεν επιλέχθηκε αρχείο εικόνας.'], 422);
+            }
+
+            $avatarFile = $_FILES['avatar'];
+            $uploadError = (int)($avatarFile['error'] ?? UPLOAD_ERR_NO_FILE);
+
+            if ($uploadError !== UPLOAD_ERR_OK) {
+              respondJson(['success' => false, 'error' => uploadErrorMessage($uploadError)], 422);
+            }
+
+            $tmpPath = (string)($avatarFile['tmp_name'] ?? '');
+            if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+              respondJson(['success' => false, 'error' => 'Μη έγκυρο αρχείο μεταφόρτωσης.'], 422);
+            }
+
+            $maxBytes = 8 * 1024 * 1024;
+            $fileSize = (int)($avatarFile['size'] ?? 0);
+            if ($fileSize <= 0 || $fileSize > $maxBytes) {
+              respondJson(['success' => false, 'error' => 'Η εικόνα πρέπει να είναι έως 8MB.'], 422);
+            }
+
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $detectedMimeType = $finfo ? finfo_file($finfo, $tmpPath) : false;
+            if ($finfo) {
+              finfo_close($finfo);
+            }
+
+            $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!in_array((string)$detectedMimeType, $allowedMimeTypes, true)) {
+              respondJson(['success' => false, 'error' => 'Επιτρέπονται μόνο εικόνες JPG, PNG, GIF ή WEBP.'], 422);
+            }
+
+            $extByMime = [
+              'image/jpeg' => 'jpg',
+              'image/png' => 'png',
+              'image/gif' => 'gif',
+              'image/webp' => 'webp',
+            ];
+            $extension = $extByMime[(string)$detectedMimeType] ?? 'jpg';
+
+            $avatarDir = __DIR__ . '/../../uploads/profile_pics';
+            if (!is_dir($avatarDir) && !mkdir($avatarDir, 0775, true) && !is_dir($avatarDir)) {
+              respondJson(['success' => false, 'error' => 'Αδυναμία δημιουργίας φακέλου αποθήκευσης εικόνας.'], 500);
+            }
+
+            $existingFiles = glob($avatarDir . '/user_' . $adminId . '.*');
+            if (is_array($existingFiles)) {
+              foreach ($existingFiles as $existingFile) {
+                @unlink($existingFile);
+              }
+            }
+
+            $targetPath = $avatarDir . '/user_' . $adminId . '.' . $extension;
+            $savedToFile = move_uploaded_file($tmpPath, $targetPath);
+            if (!$savedToFile) {
+              $savedToFile = @copy($tmpPath, $targetPath);
+            }
+
+            $binarySourcePath = $savedToFile ? $targetPath : $tmpPath;
+            $binaryData = file_get_contents($binarySourcePath);
+            if ($binaryData === false || $binaryData === '') {
+              respondJson(['success' => false, 'error' => 'Δεν ήταν δυνατή η ανάγνωση της εικόνας.'], 500);
+            }
+
+            $updateAvatarStmt = $pdo->prepare(
+              '
+              UPDATE users
+              SET profilepic = :profilepic,
+                profilepic_mime = :profilepic_mime,
+                updated_at = NOW()
+              WHERE id = :id
+              '
+            );
+            $updateAvatarStmt->bindValue(':profilepic', $binaryData, PDO::PARAM_LOB);
+            $updateAvatarStmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
+            $updateAvatarStmt->bindValue(':id', $adminId, PDO::PARAM_INT);
+            $updateAvatarStmt->execute();
+
+            respondJson([
+              'success' => true,
+              'message' => 'Η φωτογραφία προφίλ ενημερώθηκε επιτυχώς.',
+              'avatar_src' => buildAvatarSrc($binaryData, (string)$detectedMimeType, $adminId),
+            ]);
+          }
+
         respondJson(['success' => false, 'error' => 'Μη υποστηριζόμενη ενέργεια.'], 400);
     } catch (Throwable $e) {
         respondJson(['success' => false, 'error' => 'Παρουσιάστηκε σφάλμα κατά την αποθήκευση.'], 500);
@@ -165,7 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $adminStmt = $pdo->prepare(
     '
-    SELECT id, first_name, last_name, email, phone, role, created_at
+  SELECT id, first_name, last_name, email, phone, dob, role, created_at, profilepic, profilepic_mime
     FROM users
     WHERE id = :id
     LIMIT 1
@@ -192,6 +333,13 @@ $statsRow = $pdo->query(
 $adminFullName = trim((string)$adminUser['first_name'] . ' ' . (string)$adminUser['last_name']);
 $adminEmail = (string)($adminUser['email'] ?? '');
 $adminPhone = (string)($adminUser['phone'] ?? '');
+$adminDob = (string)($adminUser['dob'] ?? '');
+$adminDobDisplay = formatDateDisplay($adminDob !== '' ? $adminDob : null);
+$adminAvatarSrc = buildAvatarSrc(
+  isset($adminUser['profilepic']) ? (string)$adminUser['profilepic'] : null,
+  isset($adminUser['profilepic_mime']) ? (string)$adminUser['profilepic_mime'] : null,
+  $adminId
+);
 $memberSince = formatDateDisplay((string)($adminUser['created_at'] ?? ''));
 $totalUsers = (int)($statsRow['total_users'] ?? 0);
 $totalApplications = (int)($statsRow['total_applications'] ?? 0);
@@ -235,12 +383,12 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
             </li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="<?= h($adminFullName) ?>" id="navAvatar" />
+                <img src="<?= h($adminAvatarSrc) ?>" class="user-image rounded-circle shadow" alt="<?= h($adminFullName) ?>" id="navAvatar" />
                 <span class="d-none d-md-inline" id="navUserName"><?= h($adminFullName) ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
-                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="<?= h($adminFullName) ?>" />
+                  <img src="<?= h($adminAvatarSrc) ?>" class="rounded-circle shadow" alt="<?= h($adminFullName) ?>" />
                   <p><?= h($adminFullName) ?><small>Διαχειριστής Συστήματος</small></p>
                 </li>
                 <li class="user-footer">
@@ -326,10 +474,10 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
                 <div class="config-card bg-body shadow-sm text-center">
                   <div class="config-card-body py-4">
                     <div class="profile-avatar-upload mx-auto">
-                      <img src="../../assets/images/avatar.png" alt="Avatar" id="profileAvatarImg" />
+                      <img src="<?= h($adminAvatarSrc) ?>" alt="Avatar" id="profileAvatarImg" />
                       <label class="avatar-edit-btn" title="Αλλαγή φωτογραφίας">
                         <i class="bi bi-camera-fill"></i>
-                        <input type="file" accept="image/*" class="d-none" onchange="previewAvatar(this)" />
+                        <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="d-none" id="avatarFileInput" onchange="handleAvatarChange(this)" />
                       </label>
                     </div>
 
@@ -368,6 +516,10 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
                         <i class="bi bi-telephone text-secondary" style="width:18px;"></i>
                         <span class="small" id="profilePhoneDisplay"><?= h($adminPhone !== '' ? $adminPhone : 'Δεν έχει οριστεί') ?></span>
                       </div>
+                      <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="bi bi-calendar-event text-secondary" style="width:18px;"></i>
+                        <span class="small" id="profileDobDisplay"><?= h($adminDobDisplay) ?></span>
+                      </div>
                       <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-calendar-check text-secondary" style="width:18px;"></i>
                         <span class="small">Μέλος από <?= h($memberSince) ?></span>
@@ -402,6 +554,10 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Τηλέφωνο</label>
                           <input type="tel" class="form-control" id="profilePhone" value="<?= h($adminPhone) ?>" />
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label fw-semibold">Ημερομηνία Γέννησης</label>
+                          <input type="date" class="form-control" id="profileDob" value="<?= h($adminDob) ?>" max="<?= h(date('Y-m-d')) ?>" />
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Ρόλος</label>
@@ -590,14 +746,70 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
         });
       });
 
-      function previewAvatar(input) {
-        if (input.files && input.files[0]) {
-          var reader = new FileReader();
-          reader.onload = function (e) {
-            document.getElementById('profileAvatarImg').src = e.target.result;
-            document.getElementById('navAvatar').src = e.target.result;
-          };
-          reader.readAsDataURL(input.files[0]);
+      function updateAvatarElements(src) {
+        document.getElementById('profileAvatarImg').src = src;
+        document.getElementById('navAvatar').src = src;
+      }
+
+      function handleAvatarChange(input) {
+        if (!input.files || !input.files[0]) {
+          return;
+        }
+
+        var file = input.files[0];
+        var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowed.indexOf(file.type) === -1) {
+          showAlert('Επιτρέπονται μόνο εικόνες JPG, PNG, GIF ή WEBP.', 'danger');
+          input.value = '';
+          return;
+        }
+
+        if (file.size > (8 * 1024 * 1024)) {
+          showAlert('Η εικόνα πρέπει να είναι έως 8MB.', 'danger');
+          input.value = '';
+          return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          updateAvatarElements(e.target.result);
+        };
+        reader.readAsDataURL(file);
+
+        uploadAvatar(file, input);
+      }
+
+      async function uploadAvatar(file, inputElement) {
+        var formData = new FormData();
+        formData.append('action', 'update_avatar');
+        formData.append('avatar', file);
+
+        try {
+          var response = await fetch('my_profile.php', {
+            method: 'POST',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+          });
+
+          var result = await response.json();
+
+          if (!response.ok || !result.success) {
+            showAlert(result.error || 'Αποτυχία ενημέρωσης φωτογραφίας.', 'danger');
+            inputElement.value = '';
+            return;
+          }
+
+          if (result.avatar_src) {
+            updateAvatarElements(result.avatar_src);
+          }
+
+          showAlert(result.message || 'Η φωτογραφία προφίλ ενημερώθηκε επιτυχώς.', 'success');
+          inputElement.value = '';
+        } catch (error) {
+          showAlert('Παρουσιάστηκε σφάλμα κατά την ενημέρωση φωτογραφίας.', 'danger');
+          inputElement.value = '';
         }
       }
 
@@ -606,6 +818,7 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
         var lastName  = document.getElementById('lastName').value.trim();
         var email     = document.getElementById('profileEmail').value.trim();
         var phone     = document.getElementById('profilePhone').value.trim();
+        var dob       = document.getElementById('profileDob').value.trim();
 
         if (!firstName || !lastName || !email) {
           showAlert('Παρακαλώ συμπληρώστε όλα τα υποχρεωτικά πεδία.', 'danger');
@@ -618,6 +831,7 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
         payload.append('last_name', lastName);
         payload.append('email', email);
         payload.append('phone', phone);
+        payload.append('dob', dob);
 
         try {
           var response = await fetch('my_profile.php', {
@@ -640,6 +854,7 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
           document.getElementById('navUserName').textContent = result.profile.full_name;
           document.getElementById('profileEmailDisplay').textContent = result.profile.email;
           document.getElementById('profilePhoneDisplay').textContent = result.profile.phone || 'Δεν έχει οριστεί';
+          document.getElementById('profileDobDisplay').textContent = result.profile.dob_display || '—';
           showAlert(result.message || 'Οι αλλαγές αποθηκεύτηκαν επιτυχώς.', 'success');
         } catch (error) {
           showAlert('Παρουσιάστηκε σφάλμα κατά την αποθήκευση.', 'danger');

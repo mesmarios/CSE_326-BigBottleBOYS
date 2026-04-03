@@ -72,9 +72,45 @@ function roleLabel(string $role): string
     return $role === 'admin' ? 'Admin' : 'Χρήστης';
 }
 
+function resolveAdminAvatarSrc(PDO $pdo, int $userId): string
+{
+  $fallback = '../../assets/images/avatar.png';
+
+  if ($userId <= 0) {
+    return $fallback;
+  }
+
+  try {
+    $stmt = $pdo->prepare('SELECT profilepic, profilepic_mime FROM users WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $userId]);
+    $row = $stmt->fetch();
+
+    if (is_array($row) && !empty($row['profilepic'])) {
+      $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      $mime = in_array((string)($row['profilepic_mime'] ?? ''), $allowedMimeTypes, true)
+        ? (string)$row['profilepic_mime']
+        : 'image/jpeg';
+
+      return 'data:' . $mime . ';base64,' . base64_encode((string)$row['profilepic']);
+    }
+  } catch (Throwable $e) {
+    // Fallback to file path below.
+  }
+
+  $fileMatches = glob(__DIR__ . '/../../uploads/profile_pics/user_' . $userId . '.*');
+  if (is_array($fileMatches) && $fileMatches !== []) {
+    $filePath = $fileMatches[0];
+    $fileVersion = (int)@filemtime($filePath) ?: time();
+    return '../../uploads/profile_pics/' . rawurlencode(basename($filePath)) . '?v=' . $fileVersion;
+  }
+
+  return $fallback;
+}
+
 $adminFullName = trim((string)(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')));
 $adminFullName = $adminFullName !== '' ? $adminFullName : 'Administrator';
 $adminId = (int)($_SESSION['user_id'] ?? 0);
+$adminAvatarSrc = resolveAdminAvatarSrc($pdo, $adminId);
 
 $stats = [
     'total_users' => 0,
@@ -223,7 +259,6 @@ if ($currentPeriod) {
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#007bff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="../../assets/css/adminlte.css" />
@@ -290,12 +325,12 @@ if ($currentPeriod) {
             </li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="<?= h($adminFullName) ?>" />
+                <img src="<?= h($adminAvatarSrc) ?>" class="user-image rounded-circle shadow" alt="<?= h($adminFullName) ?>" />
                 <span class="d-none d-md-inline"><?= h($adminFullName) ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
-                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="<?= h($adminFullName) ?>" />
+                  <img src="<?= h($adminAvatarSrc) ?>" class="rounded-circle shadow" alt="<?= h($adminFullName) ?>" />
                   <p>
                     <?= h($adminFullName) ?>
                     <small>Διαχειριστής Συστήματος</small>
@@ -427,12 +462,21 @@ if ($currentPeriod) {
 
             <div class="row justify-content-center mb-4">
               <div class="col-12 col-lg-10">
-                <p class="text-center text-secondary mb-2">
-                  Καλώς ήρθες, <?= h($adminFullName) ?>. Αυτή τη στιγμή υπάρχουν
-                  <?= h(formatNumber($stats['published_announcements'])) ?> δημοσιευμένες ανακοινώσεις,
-                  <?= h(formatNumber($stats['submitted_applications'])) ?> υποβλημένες αιτήσεις
-                  και <?= h(formatNumber($stats['active_periods'])) ?> ενεργή περίοδος αιτήσεων.
-                </p>
+                <div class="config-card bg-body shadow-sm mb-2">
+                  <div class="config-card-body py-3 px-4 text-center">
+                    <div class="fw-semibold text-dark mb-2" style="font-size:1.04rem;">
+                      Καλώς ήρθες ξανά, <?= h($adminFullName) ?>.
+                    </div>
+                    <p class="text-secondary mb-0">
+                      Η πλατφόρμα τρέχει με
+                      <span class="fw-semibold text-primary"><?= h(formatNumber($stats['published_announcements'])) ?> ενεργές ανακοινώσεις</span>,
+                      <span class="fw-semibold text-success"><?= h(formatNumber($stats['submitted_applications'])) ?> καταχωρημένες αιτήσεις</span>
+                      και
+                      <span class="fw-semibold text-warning-emphasis"><?= h(formatNumber($stats['active_periods'])) ?> ενεργή περίοδο</span>
+                      στρατολόγησης.
+                    </p>
+                  </div>
+                </div>
                 <?php if ($dashboardError !== null): ?>
                 <div class="alert alert-warning shadow-sm mb-0" role="alert">
                   <i class="bi bi-exclamation-triangle me-2"></i><?= h($dashboardError) ?>
@@ -448,11 +492,11 @@ if ($currentPeriod) {
                     <div class="nav-card-arrow"><i class="bi bi-arrow-up-right"></i></div>
                     <div class="card-body d-flex flex-column align-items-center justify-content-center py-5">
                       <div class="admin-nav-icon-wrap">
-                        <i class="bi bi-people-fill"></i>
+                        <i class="bi bi-person-gear"></i>
                       </div>
                       <h5 class="card-title fw-bold mb-1">Manage Users</h5>
                       <p class="card-text text-secondary small mb-1">
-                        Προβολή, προσθήκη, επεξεργασία και ανάθεση ρόλων σε χρήστες
+                        Δημιουργία λογαριασμών, ενημέρωση στοιχείων και διαχείριση δικαιωμάτων
                       </p>
                       <span class="badge rounded-pill text-bg-light">
                         <?= h(formatNumber($stats['total_users'])) ?> χρήστες συνολικά
@@ -468,11 +512,11 @@ if ($currentPeriod) {
                     <div class="nav-card-arrow"><i class="bi bi-arrow-up-right"></i></div>
                     <div class="card-body d-flex flex-column align-items-center justify-content-center py-5">
                       <div class="admin-nav-icon-wrap">
-                        <i class="bi bi-clipboard-check-fill"></i>
+                        <i class="bi bi-diagram-3-fill"></i>
                       </div>
                       <h5 class="card-title fw-bold mb-1">Manage Recruitment</h5>
                       <p class="card-text text-secondary small mb-1">
-                        Αιτήσεις, σχολές, τμήματα, μαθήματα και περίοδοι
+                        Οργάνωση ροής πρόσληψης: αιτήσεις, αξιολόγηση και ακαδημαϊκή δομή
                       </p>
                       <span class="badge rounded-pill text-bg-light">
                         <?= h(formatNumber($stats['pending_applications'])) ?> αιτήσεις σε εκκρεμότητα
@@ -488,11 +532,11 @@ if ($currentPeriod) {
                     <div class="nav-card-arrow"><i class="bi bi-arrow-up-right"></i></div>
                     <div class="card-body d-flex flex-column align-items-center justify-content-center py-5">
                       <div class="admin-nav-icon-wrap">
-                        <i class="bi bi-gear-fill"></i>
+                        <i class="bi bi-sliders2-vertical"></i>
                       </div>
                       <h5 class="card-title fw-bold mb-1">Configure System</h5>
                       <p class="card-text text-secondary small mb-1">
-                        Θέμα, λογότυπα, σύνδεση με Moodle και λοιπές ρυθμίσεις
+                        Ρυθμίσεις πλατφόρμας, branding και παράμετροι ενσωμάτωσης
                       </p>
                       <span class="badge rounded-pill text-bg-light">
                         <?= h(formatNumber($stats['active_periods'])) ?> ενεργή περίοδος
@@ -508,11 +552,11 @@ if ($currentPeriod) {
                     <div class="nav-card-arrow"><i class="bi bi-arrow-up-right"></i></div>
                     <div class="card-body d-flex flex-column align-items-center justify-content-center py-5">
                       <div class="admin-nav-icon-wrap">
-                        <i class="bi bi-bar-chart-fill"></i>
+                        <i class="bi bi-file-earmark-bar-graph-fill"></i>
                       </div>
                       <h5 class="card-title fw-bold mb-1">Reports</h5>
                       <p class="card-text text-secondary small mb-1">
-                        Στατιστικά αιτήσεων, γραφήματα και αναλυτικά δεδομένα
+                        Αναφορές απόδοσης, δείκτες προόδου και εξαγωγή συγκεντρωτικών στοιχείων
                       </p>
                       <span class="badge rounded-pill text-bg-light">
                         <?= h(formatNumber($stats['published_announcements'])) ?> δημοσιευμένες ανακοινώσεις
@@ -530,7 +574,7 @@ if ($currentPeriod) {
                     <div class="stat-card bg-body shadow-sm h-100">
                       <div class="d-flex align-items-center gap-3">
                         <div class="stat-icon-wrap" style="background:#dbeafe;color:#1d4ed8;">
-                          <i class="bi bi-people-fill"></i>
+                          <i class="bi bi-person-badge-fill"></i>
                         </div>
                         <div>
                           <div class="stat-value"><?= h(formatNumber($stats['total_users'])) ?></div>
@@ -546,7 +590,7 @@ if ($currentPeriod) {
                     <div class="stat-card bg-body shadow-sm h-100">
                       <div class="d-flex align-items-center gap-3">
                         <div class="stat-icon-wrap" style="background:#dcfce7;color:#15803d;">
-                          <i class="bi bi-clipboard-check-fill"></i>
+                          <i class="bi bi-inbox-fill"></i>
                         </div>
                         <div>
                           <div class="stat-value"><?= h(formatNumber($stats['submitted_applications'])) ?></div>
@@ -562,7 +606,7 @@ if ($currentPeriod) {
                     <div class="stat-card bg-body shadow-sm h-100">
                       <div class="d-flex align-items-center gap-3">
                         <div class="stat-icon-wrap" style="background:#fef3c7;color:#b45309;">
-                          <i class="bi bi-mortarboard-fill"></i>
+                          <i class="bi bi-building"></i>
                         </div>
                         <div>
                           <div class="stat-value"><?= h(formatNumber($stats['total_departments'])) ?></div>
@@ -578,7 +622,7 @@ if ($currentPeriod) {
                     <div class="stat-card bg-body shadow-sm h-100">
                       <div class="d-flex align-items-center gap-3">
                         <div class="stat-icon-wrap" style="background:#ede9fe;color:#6d28d9;">
-                          <i class="bi bi-book-fill"></i>
+                          <i class="bi bi-journal-bookmark-fill"></i>
                         </div>
                         <div>
                           <div class="stat-value"><?= h(formatNumber($stats['total_courses'])) ?></div>

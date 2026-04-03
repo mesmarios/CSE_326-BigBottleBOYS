@@ -70,10 +70,67 @@ $flashType = isset($_GET['mtype']) && in_array($_GET['mtype'], ['success', 'dang
     ? $_GET['mtype']
     : 'success';
 
+function resolveAdminAvatarSrc(PDO $pdo, int $userId): string {
+  $fallback = '../../assets/images/avatar.png';
+
+  if ($userId <= 0) {
+    return $fallback;
+  }
+
+  try {
+    $stmt = $pdo->prepare('SELECT profilepic, profilepic_mime FROM users WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $userId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (is_array($row) && !empty($row['profilepic'])) {
+      $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      $mime = in_array((string)($row['profilepic_mime'] ?? ''), $allowedMimeTypes, true)
+        ? (string)$row['profilepic_mime']
+        : 'image/jpeg';
+
+      return 'data:' . $mime . ';base64,' . base64_encode((string)$row['profilepic']);
+    }
+  } catch (Throwable $e) {
+    // Fallback to file path below.
+  }
+
+  $fileMatches = glob(__DIR__ . '/../../uploads/profile_pics/user_' . $userId . '.*');
+  if (is_array($fileMatches) && $fileMatches !== []) {
+    $filePath = $fileMatches[0];
+    $fileVersion = (int)@filemtime($filePath) ?: time();
+    return '../../uploads/profile_pics/' . rawurlencode(basename($filePath)) . '?v=' . $fileVersion;
+  }
+
+  return $fallback;
+}
+
+function resolveUserAvatarSrc(array $user): ?string {
+  if (!empty($user['profilepic'])) {
+    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    $mime = in_array((string)($user['profilepic_mime'] ?? ''), $allowedMimeTypes, true)
+      ? (string)$user['profilepic_mime']
+      : 'image/jpeg';
+    return 'data:' . $mime . ';base64,' . base64_encode((string)$user['profilepic']);
+  }
+
+  $userId = (int)($user['id'] ?? 0);
+  if ($userId > 0) {
+    $fileMatches = glob(__DIR__ . '/../../uploads/profile_pics/user_' . $userId . '.*');
+    if (is_array($fileMatches) && $fileMatches !== []) {
+      $filePath = $fileMatches[0];
+      $fileVersion = (int)@filemtime($filePath) ?: time();
+      return '../../uploads/profile_pics/' . rawurlencode(basename($filePath)) . '?v=' . $fileVersion;
+    }
+  }
+
+  return null;
+}
+
 $navFullName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')) ?: 'Administrator';
+$navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
 
 $stmt = $pdo->query(
-    "SELECT id, first_name, last_name, email, phone, role, created_at
+  "SELECT id, first_name, last_name, email, phone, role, created_at, profilepic, profilepic_mime
      FROM users ORDER BY created_at DESC"
 );
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -133,12 +190,12 @@ function avatarInitials(string $f, string $l): string {
             </li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="<?= escape($navFullName) ?>" />
+                <img src="<?= escape($navAvatarSrc) ?>" class="user-image rounded-circle shadow" alt="<?= escape($navFullName) ?>" />
                 <span class="d-none d-md-inline"><?= escape($navFullName) ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
-                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="<?= escape($navFullName) ?>" />
+                  <img src="<?= escape($navAvatarSrc) ?>" class="rounded-circle shadow" alt="<?= escape($navFullName) ?>" />
                   <p><?= escape($navFullName) ?><small>Διαχειριστής Συστήματος</small></p>
                 </li>
                 <li class="user-footer">
@@ -303,13 +360,20 @@ function avatarInitials(string $f, string $l): string {
                         $isAdmin   = $u['role'] === 'admin';
                         $avBg      = $isAdmin ? '#dbeafe' : '#dcfce7';
                         $avColor   = $isAdmin ? '#1d4ed8' : '#15803d';
+                        $avatarSrc = resolveUserAvatarSrc($u);
                         $badgeCls  = $isAdmin ? 'badge-role-admin' : 'badge-role-applicant';
                         $roleLabel = $isAdmin ? 'Admin' : 'Χρήστης';
                         $fullName  = escape($u['first_name']) . ' ' . escape($u['last_name']);
                         $dateFmt   = date('d/m/Y', strtotime($u['created_at']));
                     ?>
                     <tr data-role="<?= escape($u['role']) ?>">
-                      <td><div class="table-avatar-placeholder" style="background:<?= $avBg ?>;color:<?= $avColor ?>;"><?= escape($initials) ?></div></td>
+                      <td>
+                        <?php if ($avatarSrc !== null): ?>
+                        <img src="<?= escape($avatarSrc) ?>" alt="<?= $fullName ?>" class="table-avatar" />
+                        <?php else: ?>
+                        <div class="table-avatar-placeholder" style="background:<?= $avBg ?>;color:<?= $avColor ?>;"><?= escape($initials) ?></div>
+                        <?php endif; ?>
+                      </td>
                       <td class="fw-semibold"><?= $fullName ?></td>
                       <td class="text-secondary"><?= escape($u['email']) ?></td>
                       <td><span class="badge <?= $badgeCls ?> rounded-pill px-3 py-1"><?= $roleLabel ?></span></td>
