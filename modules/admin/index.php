@@ -401,8 +401,6 @@ if ($currentPeriod) {
       </aside>
 
       <main class="app-main">
-        <div id="cardNavMount"></div>
-
         <div class="app-content-header">
           <div class="container-fluid">
             <div class="row justify-content-center mt-2">
