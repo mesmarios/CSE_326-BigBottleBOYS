@@ -7,6 +7,8 @@ $bootCalls = [];
 $bootSubmissions = [];
 $bootUser = [];
 
+$keyword = trim($_GET['keyword'] ?? '');
+
 if (!empty($_SESSION['user_id']) && isset($pdo)) {
   $candidateId = (int)$_SESSION['user_id'];
 
@@ -27,9 +29,11 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
       LEFT JOIN schools s ON s.id = ja.school_id
       LEFT JOIN courses c ON c.id = ja.course_id
       WHERE ja.status IN ('published', 'closed')
+      AND (ja.title LIKE :kw OR d.name LIKE :kw OR s.name LIKE :kw)
       ORDER BY rp.start_date DESC, ja.id DESC
     ";
-    $callsStmt = $pdo->query($callsSql);
+    $callsStmt = $pdo->prepare($callsSql);
+    $callsStmt->execute([':kw' => '%' . $keyword . '%']);
     $callsRows = $callsStmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($callsRows as $row) {
@@ -128,6 +132,32 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         <!--begin::App Content-->
         <div class="app-content">
           <div class="container-fluid">
+
+            <!-- ── Keyword Search ──────────────────────────────── -->
+            <form method="GET" action="" class="mb-4">
+              <div class="input-group">
+                <input
+                  type="text"
+                  class="form-control"
+                  name="keyword"
+                  placeholder="Αναζήτηση θέσης, τμήματος ή σχολής…"
+                  value="<?= htmlspecialchars($keyword, ENT_QUOTES, 'UTF-8') ?>"
+                />
+                <button class="btn btn-primary" type="submit">
+                  <i class="bi bi-search me-1"></i>Αναζήτηση
+                </button>
+                <?php if ($keyword !== ''): ?>
+                  <a href="myapplication.php" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i>
+                  </a>
+                <?php endif; ?>
+              </div>
+              <?php if ($keyword !== ''): ?>
+                <small class="text-muted mt-1 d-block">
+                  Αποτελέσματα για: <strong><?= htmlspecialchars($keyword, ENT_QUOTES, 'UTF-8') ?></strong>
+                </small>
+              <?php endif; ?>
+            </form>
 
             <!-- ── Available Application Calls ─────────────────── -->
             <div class="mb-4" id="drafts">
