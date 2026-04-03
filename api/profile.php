@@ -20,11 +20,142 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
 }
 
+function buildAvatarSrc(string $binary, ?string $mimeType): string {
+    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    $safeMimeType = in_array((string)$mimeType, $allowedMimeTypes, true)
+        ? (string)$mimeType
+        : 'image/jpeg';
+
+    return 'data:' . $safeMimeType . ';base64,' . base64_encode($binary);
+}
+
+function resolveAvatarFileUrl(int $userId): ?string {
+    if ($userId <= 0) {
+        return null;
+    }
+
+    $matches = glob(__DIR__ . '/../uploads/profile_pics/user_' . $userId . '.*');
+    if (!is_array($matches) || $matches === []) {
+        return null;
+    }
+
+    $filePath = $matches[0];
+    $basename = basename($filePath);
+    $version = @filemtime($filePath) ?: time();
+    return '../../uploads/profile_pics/' . rawurlencode($basename) . '?v=' . $version;
+}
+
+function uploadErrorMessage(int $uploadError): string {
+    return match ($uploadError) {
+        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'The file is too large. It exceeds server or form upload limits.',
+        UPLOAD_ERR_PARTIAL => 'The upload was interrupted. Please try again.',
+        UPLOAD_ERR_NO_FILE => 'No image file selected.',
+        UPLOAD_ERR_NO_TMP_DIR => 'Server misconfiguration: missing temporary upload folder.',
+        UPLOAD_ERR_CANT_WRITE => 'Server could not write the uploaded file to disk.',
+        UPLOAD_ERR_EXTENSION => 'A server extension blocked the upload.',
+        default => 'Upload failed. Please try again.',
+    };
+}
+
+function handleAvatarUpload(PDO $pdo, int $userId): void {
+    if (!isset($_FILES['avatar']) || !is_array($_FILES['avatar'])) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'No image file selected']);
+        return;
+    }
+
+    $avatarFile = $_FILES['avatar'];
+    $uploadError = (int)($avatarFile['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($uploadError !== UPLOAD_ERR_OK) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => uploadErrorMessage($uploadError)]);
+        return;
+    }
+
+    $tmpPath = (string)($avatarFile['tmp_name'] ?? '');
+    if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Invalid uploaded file']);
+        return;
+    }
+
+    $maxBytes = 8 * 1024 * 1024;
+    $fileSize = (int)($avatarFile['size'] ?? 0);
+    if ($fileSize <= 0 || $fileSize > $maxBytes) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Image must be up to 8MB']);
+        return;
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $detectedMimeType = $finfo ? finfo_file($finfo, $tmpPath) : false;
+    if ($finfo) {
+        finfo_close($finfo);
+    }
+
+    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!in_array((string)$detectedMimeType, $allowedMimeTypes, true)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Only JPG, PNG, GIF or WEBP images are allowed']);
+        return;
+    }
+
+    $extByMime = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    ];
+    $extension = $extByMime[(string)$detectedMimeType] ?? 'jpg';
+
+    $avatarDir = __DIR__ . '/../uploads/profile_pics';
+    if (!is_dir($avatarDir) && !mkdir($avatarDir, 0775, true) && !is_dir($avatarDir)) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Failed to create avatar storage']);
+        return;
+    }
+
+    $existingFiles = glob($avatarDir . '/user_' . $userId . '.*');
+    if (is_array($existingFiles)) {
+        foreach ($existingFiles as $existingFile) {
+            @unlink($existingFile);
+        }
+    }
+
+    $targetPath = $avatarDir . '/user_' . $userId . '.' . $extension;
+    $savedToFile = move_uploaded_file($tmpPath, $targetPath);
+    if (!$savedToFile) {
+        $savedToFile = @copy($tmpPath, $targetPath);
+    }
+
+    $binarySourcePath = $savedToFile ? $targetPath : $tmpPath;
+    $binaryData = file_get_contents($binarySourcePath);
+    if ($binaryData === false || $binaryData === '') {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Unable to read image data']);
+        return;
+    }
+
+    $stmt = $pdo->prepare(
+        'UPDATE users SET profilepic = :profilepic, profilepic_mime = :profilepic_mime, updated_at = NOW() WHERE id = :id'
+    );
+    $stmt->bindValue(':profilepic', $binaryData, PDO::PARAM_LOB);
+    $stmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
+    $stmt->bindValue(':id', $userId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    echo json_encode([
+        'success' => true,
+        'avatar_src' => buildAvatarSrc($binaryData, (string)$detectedMimeType),
+    ]);
+}
+
 /* ── GET: return profile + academic data ─────────────────────────── */
 function handleGet(PDO $pdo, int $userId): void {
     $stmt = $pdo->prepare("
         SELECT first_name, last_name, email, phone, address,
-               dob, degree, institution, specialization, experience, summary
+               dob, degree, institution, specialization, experience, summary,
+               profilepic, profilepic_mime
         FROM users WHERE id = ?
     ");
     $stmt->execute([$userId]);
@@ -45,11 +176,19 @@ function handleGet(PDO $pdo, int $userId): void {
             'experience'     => $user['experience'] !== null ? (string)$user['experience'] : '',
             'summary'        => $user['summary']        ?? '',
         ],
+        'avatar_src' => !empty($user['profilepic'])
+            ? buildAvatarSrc((string)$user['profilepic'], (string)($user['profilepic_mime'] ?? ''))
+            : (resolveAvatarFileUrl($userId) ?? null),
     ]);
 }
 
 /* ── POST: update user info + academic data ──────────────────────── */
 function handlePost(PDO $pdo, int $userId): void {
+    if (isset($_POST['action']) && $_POST['action'] === 'update_avatar') {
+        handleAvatarUpload($pdo, $userId);
+        return;
+    }
+
     $body = json_decode(file_get_contents('php://input'), true);
     if (!$body) {
         echo json_encode(['success' => false, 'error' => 'Invalid JSON']);

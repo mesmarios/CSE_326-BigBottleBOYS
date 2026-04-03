@@ -6,7 +6,7 @@ require_once dirname(__DIR__) . '/database/db.php';
 // Fetch minimal user data for navbar (profile pic + name)
 $_nav_user = null;
 try {
-    $s = $pdo->prepare('SELECT first_name, last_name, email, profilepic FROM users WHERE id = :id');
+  $s = $pdo->prepare('SELECT first_name, last_name, email, profilepic, profilepic_mime FROM users WHERE id = :id');
     $s->execute([':id' => $_SESSION['user_id']]);
     $_nav_user = $s->fetch();
 } catch (Exception $e) { /* fallback to session */ }
@@ -17,9 +17,19 @@ $_nav_full  = htmlspecialchars(
 );
 $_nav_email = htmlspecialchars($_nav_user['email'] ?? $_SESSION['email'] ?? '');
 $_nav_role  = htmlspecialchars(ucfirst($_SESSION['role'] ?? 'user'));
+$_nav_allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+$_nav_mime = in_array((string)($_nav_user['profilepic_mime'] ?? ''), $_nav_allowed_mimes, true)
+  ? (string)$_nav_user['profilepic_mime']
+  : 'image/jpeg';
+
+$_nav_file_match = glob(__DIR__ . '/../uploads/profile_pics/user_' . (int)($_SESSION['user_id'] ?? 0) . '.*');
+$_nav_file_url = (is_array($_nav_file_match) && $_nav_file_match !== [])
+  ? '../../uploads/profile_pics/' . rawurlencode(basename($_nav_file_match[0])) . '?v=' . ((int)@filemtime($_nav_file_match[0]) ?: time())
+  : null;
+
 $_nav_pic   = (!empty($_nav_user['profilepic']))
-    ? 'data:image/jpeg;base64,' . base64_encode($_nav_user['profilepic'])
-    : '../../recruitment/assets/images/user2-160x160.jpg';
+  ? 'data:' . $_nav_mime . ';base64,' . base64_encode($_nav_user['profilepic'])
+  : ($_nav_file_url ?: '../../recruitment/assets/images/user2-160x160.jpg');
 $_nav_pic_attr = htmlspecialchars($_nav_pic, ENT_QUOTES, 'UTF-8');
 // ─────────────────────────────────────────────────────────────────────────────
 ?>

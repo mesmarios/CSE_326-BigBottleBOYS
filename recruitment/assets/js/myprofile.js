@@ -97,6 +97,78 @@ function showSaveFeedback(btn, success) {
   img.src = url;
 })();
 
+function applyAvatarToUI(src) {
+  const profileImg = document.getElementById('profilePicSmallBox');
+  if (profileImg) profileImg.src = src;
+
+  const navImages = document.querySelectorAll('.user-menu img.user-image, .user-menu .user-header img.rounded-circle.shadow');
+  navImages.forEach((img) => {
+    img.src = src;
+  });
+}
+
+(function initAvatarUpload() {
+  const input = document.getElementById('profilePicInput');
+  if (!input) return;
+
+  input.addEventListener('change', async function () {
+    if (!input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please select a JPG, PNG, GIF or WEBP image.');
+      input.value = '';
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Image size must be up to 8MB.');
+      input.value = '';
+      return;
+    }
+
+    const previousSrc = document.getElementById('profilePicSmallBox')?.src || '';
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      if (e.target && typeof e.target.result === 'string') {
+        applyAvatarToUI(e.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
+
+    const formData = new FormData();
+    formData.append('action', 'update_avatar');
+    formData.append('avatar', file);
+
+    try {
+      const resp = await fetch(`${API_BASE}/profile.php`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || !data.success) {
+        if (previousSrc) applyAvatarToUI(previousSrc);
+        alert(data.error || 'Avatar upload failed. Please try again.');
+        input.value = '';
+        return;
+      }
+
+      if (data.avatar_src) {
+        applyAvatarToUI(data.avatar_src);
+        if (window.CareerTrack) window.CareerTrack.profilePic = data.avatar_src;
+      }
+    } catch (e) {
+      if (previousSrc) applyAvatarToUI(previousSrc);
+      alert('Avatar upload failed. Please try again.');
+    } finally {
+      input.value = '';
+    }
+  });
+})();
+
 /* ── User Info section (name, surname, address, phone, dob) ────── */
 const editBtn    = document.getElementById('editBtn');
 const userFields = document.querySelectorAll('.user-field');

@@ -8,9 +8,19 @@ $stmt = $pdo->prepare('SELECT * FROM users WHERE id = :id');
 $stmt->execute([':id' => $_SESSION['user_id']]);
 $user = $stmt->fetch();
 
+$allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+$profileMimeType = in_array((string)($user['profilepic_mime'] ?? ''), $allowedMimeTypes, true)
+  ? (string)$user['profilepic_mime']
+  : 'image/jpeg';
+
+$profileFileMatch = glob(__DIR__ . '/../../uploads/profile_pics/user_' . (int)($_SESSION['user_id'] ?? 0) . '.*');
+$profileFileUrl = (is_array($profileFileMatch) && $profileFileMatch !== [])
+  ? '../../uploads/profile_pics/' . rawurlencode(basename($profileFileMatch[0])) . '?v=' . ((int)@filemtime($profileFileMatch[0]) ?: time())
+  : null;
+
 $profilePicSrc = (!empty($user['profilepic']))
-    ? 'data:image/jpeg;base64,' . base64_encode($user['profilepic'])
-    : '../../recruitment/assets/images/user2-160x160.jpg';
+  ? 'data:' . $profileMimeType . ';base64,' . base64_encode($user['profilepic'])
+  : ($profileFileUrl ?: '../../recruitment/assets/images/user2-160x160.jpg');
 $profilePicSrcAttr = htmlspecialchars($profilePicSrc, ENT_QUOTES, 'UTF-8');
 $rawFullName = trim((string)($user['first_name'] ?? '') . ' ' . (string)($user['last_name'] ?? ''));
 $fullName    = htmlspecialchars($rawFullName, ENT_QUOTES, 'UTF-8');
@@ -58,6 +68,15 @@ $profileData = [
                       src="<?= $profilePicSrcAttr ?>"
                       alt="User Profile"
                     />
+                    <label class="avatar-edit-btn" title="Αλλαγή φωτογραφίας προφίλ">
+                      <i class="bi bi-camera-fill"></i>
+                      <input
+                        type="file"
+                        id="profilePicInput"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        class="d-none"
+                      />
+                    </label>
                   </div>
                   <div>
                     <h4 class="mb-0 fw-bold" id="bannerFullName"><?= $fullName ?></h4>

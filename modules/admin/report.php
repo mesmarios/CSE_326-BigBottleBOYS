@@ -114,6 +114,41 @@ function buildReportUrl(?int $periodId, bool $export = false): string
     return 'report.php?' . http_build_query($params);
 }
 
+function resolveAdminAvatarSrc(PDO $pdo, int $userId): string
+{
+  $fallback = '../../assets/images/avatar.png';
+
+  if ($userId <= 0) {
+    return $fallback;
+  }
+
+  try {
+    $stmt = $pdo->prepare('SELECT profilepic, profilepic_mime FROM users WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $userId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (is_array($row) && !empty($row['profilepic'])) {
+      $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      $mime = in_array((string)($row['profilepic_mime'] ?? ''), $allowedMimeTypes, true)
+        ? (string)$row['profilepic_mime']
+        : 'image/jpeg';
+
+      return 'data:' . $mime . ';base64,' . base64_encode((string)$row['profilepic']);
+    }
+  } catch (Throwable $e) {
+    // Fallback to file path below.
+  }
+
+  $fileMatches = glob(__DIR__ . '/../../uploads/profile_pics/user_' . $userId . '.*');
+  if (is_array($fileMatches) && $fileMatches !== []) {
+    $filePath = $fileMatches[0];
+    $fileVersion = (int)@filemtime($filePath) ?: time();
+    return '../../uploads/profile_pics/' . rawurlencode(basename($filePath)) . '?v=' . $fileVersion;
+  }
+
+  return $fallback;
+}
+
 $periods = $pdo->query("
     SELECT id, name, status, start_date, end_date
     FROM recruitment_periods
@@ -454,6 +489,7 @@ if ($isExportRequest) {
 }
 
 $navFullName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')) ?: 'Administrator';
+$navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
 ?>
 <!doctype html>
 <html lang="el">
@@ -502,12 +538,12 @@ $navFullName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_nam
             </li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="<?= h($navFullName) ?>" />
+                <img src="<?= h($navAvatarSrc) ?>" class="user-image rounded-circle shadow" alt="<?= h($navFullName) ?>" />
                 <span class="d-none d-md-inline"><?= h($navFullName) ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
-                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="<?= h($navFullName) ?>" />
+                  <img src="<?= h($navAvatarSrc) ?>" class="rounded-circle shadow" alt="<?= h($navFullName) ?>" />
                   <p><?= h($navFullName) ?><small>Διαχειριστής Συστήματος</small></p>
                 </li>
                 <li class="user-footer">
