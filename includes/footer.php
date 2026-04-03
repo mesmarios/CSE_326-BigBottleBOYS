@@ -76,7 +76,7 @@
               <p class="mb-2">Διδάσκων καθηγητής: <strong>ΠΑΠΑΓΙΑΝΝΗΣ ΠΕΤΡΟΣ</strong>.</p>
               <p class="mb-1">Η ομάδα ανάπτυξης αποτελείται από τους:</p>
               <p class="mb-1">Μάριος Σιήττας, Α.Φ.Τ. 27432</p>
-              <p class="mb-1">Μάριος Μεσαριτής, Α.Φ.Τ. 27818</p>
+              <p class="mb-1">Μάριος Μεσαρίτης, Α.Φ.Τ. 27818</p>
               <p class="mb-3">Μιχαλής Τσαδιώτης, Α.Φ.Τ. 28053</p>
               <p class="mt-3 mb-0">&copy; <?php echo date('Y'); ?> BigBottleBOYS. All rights reserved.</p>
             </div>

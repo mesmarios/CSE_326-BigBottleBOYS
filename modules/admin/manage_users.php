@@ -70,6 +70,8 @@ $flashType = isset($_GET['mtype']) && in_array($_GET['mtype'], ['success', 'dang
     ? $_GET['mtype']
     : 'success';
 
+$navFullName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')) ?: 'Administrator';
+
 $stmt = $pdo->query(
     "SELECT id, first_name, last_name, email, phone, role, created_at
      FROM users ORDER BY created_at DESC"
@@ -131,13 +133,13 @@ function avatarInitials(string $f, string $l): string {
             </li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="Admin" />
-                <span class="d-none d-md-inline">Administrator</span>
+                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="<?= escape($navFullName) ?>" />
+                <span class="d-none d-md-inline"><?= escape($navFullName) ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
-                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="Admin" />
-                  <p>Administrator<small>Διαχειριστής Συστήματος</small></p>
+                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="<?= escape($navFullName) ?>" />
+                  <p><?= escape($navFullName) ?><small>Διαχειριστής Συστήματος</small></p>
                 </li>
                 <li class="user-footer">
                   <a href="my_profile.php" class="btn btn-default btn-flat"><i class="bi bi-person me-1"></i>Προφίλ</a>

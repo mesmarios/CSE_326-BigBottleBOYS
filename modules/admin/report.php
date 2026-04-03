@@ -452,6 +452,8 @@ if ($isExportRequest) {
     <?php
     exit;
 }
+
+$navFullName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')) ?: 'Administrator';
 ?>
 <!doctype html>
 <html lang="el">
@@ -500,13 +502,13 @@ if ($isExportRequest) {
             </li>
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="Admin" />
-                <span class="d-none d-md-inline">Administrator</span>
+                <img src="../../assets/images/avatar.png" class="user-image rounded-circle shadow" alt="<?= h($navFullName) ?>" />
+                <span class="d-none d-md-inline"><?= h($navFullName) ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
-                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="Admin" />
-                  <p>Administrator<small>Διαχειριστής Συστήματος</small></p>
+                  <img src="../../assets/images/AdminLTELogo.png" class="rounded-circle shadow" alt="<?= h($navFullName) ?>" />
+                  <p><?= h($navFullName) ?><small>Διαχειριστής Συστήματος</small></p>
                 </li>
                 <li class="user-footer">
                   <a href="my_profile.php" class="btn btn-default btn-flat"><i class="bi bi-person me-1"></i>Προφίλ</a>
