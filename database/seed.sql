@@ -15,31 +15,31 @@ INSERT INTO roles (name, description) VALUES
 -- ============================================================================
 -- 2. INSERT USERS
 -- ============================================================================
-INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role) VALUES
+INSERT INTO users (username, email, password_hash, first_name, last_name, phone, address, role) VALUES
 -- Admin users
-('admin@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Γιάννης', 'Παπαδόπουλος', '+357 22 894556', 'Λευκωσία, Κύπρος', 'admin'),
-('admin2@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Μαρία', 'Χατζηιωάννου', '+357 22 894557', 'Λεμεσός, Κύπρος', 'admin'),
+('gpapadopoulos', 'admin@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Γιάννης', 'Παπαδόπουλος', '+357 22 894556', 'Λευκωσία, Κύπρος', 'admin'),
+('mchatziioannon', 'admin2@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Μαρία', 'Χατζηιωάννου', '+357 22 894557', 'Λεμεσός, Κύπρος', 'admin'),
 
 -- Standard users
-('hr@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Δημήτρης', 'Οικονόμου', '+357 22 894558', 'Λάρνακα, Κύπρος', 'user'),
-('hr2@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Έλενα', 'Δημοσθένους', '+357 22 894559', 'Αμμόχωστος, Κύπρος', 'user'),
+('doikonomou', 'hr@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Δημήτρης', 'Οικονόμου', '+357 22 894558', 'Λάρνακα, Κύπρος', 'user'),
+('edemosthenous', 'hr2@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Έλενα', 'Δημοσθένους', '+357 22 894559', 'Αμμόχωστος, Κύπρος', 'user'),
 
 -- Additional users
-('evaluator1@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Αντώνης', 'Κωνσταντίνου', '+357 22 894560', 'Λευκωσία, Κύπρος', 'user'),
-('evaluator2@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Σοφία', 'Βασιλειάδη', '+357 22 894561', 'Λευκωσία, Κύπρος', 'user'),
-('evaluator3@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Νικόλαος', 'Ζάγουρας', '+357 22 894562', 'Λεμεσός, Κύπρος', 'user'),
+('akonstantinou', 'evaluator1@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Αντώνης', 'Κωνσταντίνου', '+357 22 894560', 'Λευκωσία, Κύπρος', 'user'),
+('svasileiadi', 'evaluator2@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Σοφία', 'Βασιλειάδη', '+357 22 894561', 'Λευκωσία, Κύπρος', 'user'),
+('nzagouras', 'evaluator3@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Νικόλαος', 'Ζάγουρας', '+357 22 894562', 'Λεμεσός, Κύπρος', 'user'),
 
 -- Candidate-style sample users
-('candidate1@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Παναγιώτης', 'Κυριακίδης', '+357 96 123456', 'Λευκωσία, Κύπρος', 'user'),
-('candidate2@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Αλέξανδρος', 'Πιερίδης', '+357 96 234567', 'Λεμεσός, Κύπρος', 'user'),
-('candidate3@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Μαρία', 'Φιλίππου', '+357 96 345678', 'Λάρνακα, Κύπρος', 'user'),
-('candidate4@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Ιωάννης', 'Σταθόπουλος', '+357 96 456789', 'Πάφος, Κύπρος', 'user'),
-('candidate5@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Αναστασία', 'Μιχαλοπούλου', '+357 96 567890', 'Λευκωσία, Κύπρος', 'user'),
+('pkyriakidis', 'candidate1@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Παναγιώτης', 'Κυριακίδης', '+357 96 123456', 'Λευκωσία, Κύπρος', 'user'),
+('apieridis', 'candidate2@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Αλέξανδρος', 'Πιερίδης', '+357 96 234567', 'Λεμεσός, Κύπρος', 'user'),
+('mfilippou', 'candidate3@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Μαρία', 'Φιλίππου', '+357 96 345678', 'Λάρνακα, Κύπρος', 'user'),
+('istathopoulos', 'candidate4@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Ιωάννης', 'Σταθόπουλος', '+357 96 456789', 'Πάφος, Κύπρος', 'user'),
+('amichalopoulou', 'candidate5@example.com', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Αναστασία', 'Μιχαλοπούλου', '+357 96 567890', 'Λευκωσία, Κύπρος', 'user'),
 
 -- Specialist-style sample users
-('specialist1@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Ανδρέας', 'Λοΐζου', '+357 22 894563', 'Λευκωσία, Κύπρος', 'user'),
-('specialist2@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Νίκη', 'Αντωνιάδη', '+357 22 894564', 'Λεμεσός, Κύπρος', 'user'),
-('specialist3@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Χριστόφορος', 'Δημοσθένης', '+357 22 894565', 'Λάρνακα, Κύπρος', 'user');
+('aloizou', 'specialist1@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Ανδρέας', 'Λοΐζου', '+357 22 894563', 'Λευκωσία, Κύπρος', 'user'),
+('nantoniadi', 'specialist2@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Νίκη', 'Αντωνιάδη', '+357 22 894564', 'Λεμεσός, Κύπρος', 'user'),
+('cdemosthenis', 'specialist3@tepak.cy', '$2y$10$44FLgpptREMY9xddnKYnFeuFkxxgU1FlCdB9fz3TmLf33yFemmGFq', 'Χριστόφορος', 'Δημοσθένης', '+357 22 894565', 'Λάρνακα, Κύπρος', 'user');
 
 -- ============================================================================
 -- 3. ASSIGN ROLES TO USERS
