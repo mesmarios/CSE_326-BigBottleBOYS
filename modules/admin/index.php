@@ -286,35 +286,37 @@ if ($currentPeriod) {
           </ul>
           <ul class="navbar-nav ms-auto">
             <li class="nav-item dropdown">
-              <a class="nav-link" data-bs-toggle="dropdown" href="#" aria-label="Notifications">
+              <a class="nav-link" data-bs-toggle="dropdown" href="#" aria-label="Notifications" id="notifBell">
                 <i class="bi bi-bell-fill"></i>
                 <?php if ($unreadNotifications > 0): ?>
-                <span class="navbar-badge badge text-bg-warning"><?= h((string)min($unreadNotifications, 99)) ?></span>
+                <span class="navbar-badge badge text-bg-warning" id="notifBadge"><?= h((string)min($unreadNotifications, 99)) ?></span>
                 <?php endif; ?>
               </a>
               <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-                <span class="dropdown-item dropdown-header">
-                  <?= h((string)$unreadNotifications) ?> μη αναγνωσμένες ειδοποιήσεις
-                </span>
-                <div class="dropdown-divider"></div>
+                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                  <span class="fw-semibold small"><?= h((string)$unreadNotifications) ?> μη αναγνωσμένες ειδοποιήσεις</span>
+                  <?php if ($unreadNotifications > 0): ?>
+                  <button type="button" class="btn btn-link btn-sm p-0 text-secondary text-decoration-none" onclick="markAllNotificationsRead()">Σήμανση ως αναγνωσμένα</button>
+                  <?php endif; ?>
+                </div>
                 <?php if ($notifications === []): ?>
-                <span class="dropdown-item text-secondary small">
+                <span class="dropdown-item text-secondary small py-3">
                   Δεν υπάρχουν ειδοποιήσεις για τον τρέχοντα διαχειριστή.
                 </span>
                 <?php else: ?>
                   <?php foreach ($notifications as $notification): ?>
-                  <a href="my_profile.php" class="dropdown-item">
-                    <i class="bi bi-info-circle-fill me-2 <?= (int)$notification['is_read'] === 1 ? 'text-secondary' : 'text-primary' ?>"></i>
+                  <a href="manage_recruitment.php" class="dropdown-item <?= (int)$notification['is_read'] === 0 ? 'fw-semibold' : '' ?>">
+                    <i class="bi bi-person-fill-add me-2 <?= (int)$notification['is_read'] === 0 ? 'text-primary' : 'text-secondary' ?>"></i>
                     <?= h(truncateText((string)$notification['title'], 52)) ?>
                     <span class="float-end text-secondary fs-7"><?= h(formatDate((string)$notification['created_at'], true)) ?></span>
                     <?php if (trim((string)($notification['message'] ?? '')) !== ''): ?>
-                    <span class="d-block text-secondary small mt-1"><?= h(truncateText((string)$notification['message'], 78)) ?></span>
+                    <span class="d-block text-secondary small mt-1 fw-normal"><?= h(truncateText((string)$notification['message'], 78)) ?></span>
                     <?php endif; ?>
                   </a>
                   <div class="dropdown-divider"></div>
                   <?php endforeach; ?>
                 <?php endif; ?>
-                <a href="report.php" class="dropdown-item dropdown-footer">Άνοιγμα αναφορών</a>
+                <a href="manage_recruitment.php" class="dropdown-item dropdown-footer">Προβολή αιτήσεων</a>
               </div>
             </li>
             <li class="nav-item">
@@ -790,6 +792,28 @@ if ($currentPeriod) {
           });
         }
       });
+
+      function markAllNotificationsRead() {
+        fetch('../../api/notifications.php?action=mark_all_read', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.success) {
+              var badge = document.getElementById('notifBadge');
+              if (badge) badge.remove();
+              document.querySelectorAll('.dropdown-menu .fw-semibold.dropdown-item').forEach(function(el) {
+                el.classList.remove('fw-semibold');
+              });
+              document.querySelectorAll('.bi-person-fill-add.text-primary').forEach(function(el) {
+                el.classList.replace('text-primary', 'text-secondary');
+              });
+              var markBtn = document.querySelector('[onclick="markAllNotificationsRead()"]');
+              if (markBtn) markBtn.remove();
+              var header = document.querySelector('.dropdown-menu .fw-semibold.small');
+              if (header) header.textContent = '0 μη αναγνωσμένες ειδοποιήσεις';
+            }
+          })
+          .catch(function() {});
+      }
     </script>
   </body>
 </html>

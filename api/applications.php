@@ -302,7 +302,44 @@ function handleSubmit(PDO $pdo, int $userId): void {
         $appId = (int)$pdo->lastInsertId();
     }
 
+    notifyAdminsNewApplication($pdo, $userId, $announcementId, $appId);
     echo json_encode(['success' => true, 'application_id' => $appId]);
+}
+
+/* ── Notify all admins about a new submitted application ─────────── */
+function notifyAdminsNewApplication(PDO $pdo, int $candidateId, int $announcementId, int $appId): void {
+    try {
+        $infoStmt = $pdo->prepare("
+            SELECT u.first_name, u.last_name, ja.title AS job_title
+            FROM users u
+            JOIN candidate_applications ca ON ca.id = :app_id
+            JOIN job_announcements ja ON ja.id = ca.announcement_id
+            WHERE u.id = :uid
+            LIMIT 1
+        ");
+        $infoStmt->execute([':app_id' => $appId, ':uid' => $candidateId]);
+        $info = $infoStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$info) return;
+
+        $applicantName = trim($info['first_name'] . ' ' . $info['last_name']);
+        $jobTitle      = $info['job_title'];
+        $title         = 'Νέα αίτηση: ' . $jobTitle;
+        $message       = 'Ο χρήστης ' . $applicantName . ' υπέβαλε αίτηση για τη θέση "' . $jobTitle . '".';
+
+        $adminsStmt = $pdo->query("SELECT id FROM users WHERE role = 'admin'");
+        $admins = $adminsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $ins = $pdo->prepare("
+            INSERT INTO notifications
+                (user_id, title, message, notification_type, related_entity_id, related_entity_type)
+            VALUES (?, ?, ?, 'new_application', ?, 'candidate_application')
+        ");
+        foreach ($admins as $adminId) {
+            $ins->execute([(int)$adminId, $title, $message, $appId]);
+        }
+    } catch (Throwable $e) {
+        // Notification failure should not break the submit response
+    }
 }
 
 /* ── POST delete: remove a draft ────────────────────────────────── */
