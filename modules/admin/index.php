@@ -292,31 +292,46 @@ if ($currentPeriod) {
                 <span class="navbar-badge badge text-bg-warning" id="notifBadge"><?= h((string)min($unreadNotifications, 99)) ?></span>
                 <?php endif; ?>
               </a>
-              <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-                  <span class="fw-semibold small"><?= h((string)$unreadNotifications) ?> μη αναγνωσμένες ειδοποιήσεις</span>
-                  <?php if ($unreadNotifications > 0): ?>
-                  <button type="button" class="btn btn-link btn-sm p-0 text-secondary text-decoration-none" onclick="markAllNotificationsRead()">Σήμανση ως αναγνωσμένα</button>
-                  <?php endif; ?>
+              <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end" style="min-width:320px;">
+                <div class="px-3 py-2 border-bottom">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="fw-semibold small"><?= h((string)$unreadNotifications) ?> μη αναγνωσμένες ειδοποιήσεις</span>
+                    <?php if ($unreadNotifications > 0): ?>
+                    <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-primary text-decoration-none lh-1" style="font-size:.78rem;white-space:nowrap;" onclick="markAllNotificationsRead()">Σήμανση ως αναγνωσμένα</button>
+                    <?php endif; ?>
+                  </div>
                 </div>
                 <?php if ($notifications === []): ?>
                 <span class="dropdown-item text-secondary small py-3">
                   Δεν υπάρχουν ειδοποιήσεις για τον τρέχοντα διαχειριστή.
                 </span>
                 <?php else: ?>
-                  <?php foreach ($notifications as $notification): ?>
-                  <a href="manage_recruitment.php" class="dropdown-item <?= (int)$notification['is_read'] === 0 ? 'fw-semibold' : '' ?>">
-                    <i class="bi bi-person-fill-add me-2 <?= (int)$notification['is_read'] === 0 ? 'text-primary' : 'text-secondary' ?>"></i>
-                    <?= h(truncateText((string)$notification['title'], 52)) ?>
-                    <span class="float-end text-secondary fs-7"><?= h(formatDate((string)$notification['created_at'], true)) ?></span>
-                    <?php if (trim((string)($notification['message'] ?? '')) !== ''): ?>
-                    <span class="d-block text-secondary small mt-1 fw-normal"><?= h(truncateText((string)$notification['message'], 78)) ?></span>
-                    <?php endif; ?>
+                  <?php foreach ($notifications as $notification):
+                    $isUnread = (int)$notification['is_read'] === 0;
+                  ?>
+                  <a href="manage_recruitment.php" class="dropdown-item py-2 px-3" style="white-space:normal;">
+                    <div class="d-flex align-items-start gap-2">
+                      <i class="bi bi-person-fill-add flex-shrink-0 mt-1 <?= $isUnread ? 'text-primary' : 'text-secondary' ?>" style="font-size:1rem;"></i>
+                      <div class="flex-grow-1" style="min-width:0;">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                          <span class="<?= $isUnread ? 'fw-semibold' : '' ?>" style="font-size:.875rem;line-height:1.3;"><?= h(truncateText((string)$notification['title'], 40)) ?></span>
+                          <span class="text-secondary flex-shrink-0" style="font-size:.72rem;white-space:nowrap;margin-top:2px;"><?= h(formatDate((string)$notification['created_at'], true)) ?></span>
+                        </div>
+                        <?php if (trim((string)($notification['message'] ?? '')) !== ''): ?>
+                        <div class="text-secondary mt-1" style="font-size:.78rem;line-height:1.4;"><?= h(truncateText((string)$notification['message'], 70)) ?></div>
+                        <?php endif; ?>
+                        <?php if ($isUnread): ?>
+                        <span class="badge rounded-pill bg-primary mt-1" style="font-size:.65rem;">Νέο</span>
+                        <?php endif; ?>
+                      </div>
+                    </div>
                   </a>
-                  <div class="dropdown-divider"></div>
+                  <div class="dropdown-divider my-0"></div>
                   <?php endforeach; ?>
                 <?php endif; ?>
-                <a href="manage_recruitment.php" class="dropdown-item dropdown-footer">Προβολή αιτήσεων</a>
+                <a href="manage_recruitment.php" class="dropdown-item dropdown-footer text-center">
+                  <i class="bi bi-arrow-right-circle me-1"></i>Προβολή αιτήσεων
+                </a>
               </div>
             </li>
             <li class="nav-item">
