@@ -2,6 +2,45 @@
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../database/db.php';
 
+$brandingError   = null;
+$brandingSuccess = false;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'upload_branding') {
+    $assetsDir = __DIR__ . '/../../assets/images/';
+
+    if (!empty($_FILES['logo']['tmp_name']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+        $allowedLogo = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/svg+xml' => 'svg', 'image/gif' => 'gif'];
+        $mime = mime_content_type($_FILES['logo']['tmp_name']);
+        if (isset($allowedLogo[$mime])) {
+            foreach (glob($assetsDir . 'site-logo.*') as $old) { @unlink($old); }
+            move_uploaded_file($_FILES['logo']['tmp_name'], $assetsDir . 'site-logo.' . $allowedLogo[$mime]);
+        } else {
+            $brandingError = 'Μη έγκυρος τύπος λογοτύπου. Επιτρέπονται PNG, JPG, SVG, GIF.';
+        }
+    }
+
+    if (!$brandingError && !empty($_FILES['favicon']['tmp_name']) && $_FILES['favicon']['error'] === UPLOAD_ERR_OK) {
+        $ext = strtolower(pathinfo($_FILES['favicon']['name'], PATHINFO_EXTENSION));
+        $allowedFav = ['ico', 'png', 'jpg', 'jpeg'];
+        if (in_array($ext, $allowedFav, true)) {
+            foreach (glob($assetsDir . 'site-favicon.*') as $old) { @unlink($old); }
+            move_uploaded_file($_FILES['favicon']['tmp_name'], $assetsDir . 'site-favicon.' . $ext);
+        } else {
+            $brandingError = 'Μη έγκυρος τύπος favicon. Επιτρέπονται ICO, PNG, JPG.';
+        }
+    }
+
+    if (!$brandingError) {
+        $brandingSuccess = true;
+    }
+}
+
+// Φόρτωση τρεχόντων αρχείων
+$logoFiles    = glob(__DIR__ . '/../../assets/images/site-logo.*');
+$faviconFiles = glob(__DIR__ . '/../../assets/images/site-favicon.*');
+$currentLogo    = !empty($logoFiles)    ? '../../assets/images/' . basename($logoFiles[0])    . '?v=' . @filemtime($logoFiles[0])    : '../../assets/images/AdminLTELogo.png';
+$currentFavicon = !empty($faviconFiles) ? '../../assets/images/' . basename($faviconFiles[0]) . '?v=' . @filemtime($faviconFiles[0]) : null;
+
 function resolveAdminAvatarSrc(PDO $pdo, int $userId): string
 {
   $fallback = '../../assets/images/avatar.png';
@@ -46,6 +85,9 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Admin | Configure System</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <?php if ($currentFavicon): ?>
+    <link rel="icon" href="<?= htmlspecialchars($currentFavicon) ?>">
+    <?php endif; ?>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="../../assets/css/adminlte.css" />
@@ -102,7 +144,7 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
           <a href="index.php" class="brand-link">
-            <img src="../../assets/images/AdminLTELogo.png" alt="Logo" class="brand-image opacity-75 shadow" />
+            <img src="<?= htmlspecialchars($currentLogo) ?>" alt="Logo" class="brand-image opacity-75 shadow" />
             <span class="brand-text fw-light">Admin Panel</span>
           </a>
         </div>
@@ -217,19 +259,25 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                     Branding & Θέμα
                   </div>
                   <div class="config-card-body">
-                    <form>
+                    <?php if ($brandingError): ?>
+                    <div class="alert alert-danger mb-3"><i class="bi bi-exclamation-triangle me-2"></i><?= htmlspecialchars($brandingError) ?></div>
+                    <?php elseif ($brandingSuccess): ?>
+                    <div class="alert alert-success mb-3"><i class="bi bi-check-circle me-2"></i>Το λογότυπο/favicon αποθηκεύτηκε επιτυχώς.</div>
+                    <?php endif; ?>
+                    <form method="POST" enctype="multipart/form-data">
+                      <input type="hidden" name="action" value="upload_branding">
                       <div class="row g-3">
                         <!-- Logo upload -->
                         <div class="col-12">
                           <label class="form-label fw-semibold">Λογότυπο</label>
                           <div class="d-flex align-items-center gap-3 flex-wrap">
                             <div class="border rounded p-2" style="background:#f8fafc;">
-                              <img src="../../assets/images/AdminLTELogo.png" alt="Current Logo" style="height:48px;object-fit:contain;" id="logoPreview" />
+                              <img src="<?= htmlspecialchars($currentLogo) ?>" alt="Current Logo" style="height:48px;object-fit:contain;" id="logoPreview" />
                             </div>
                             <div>
                               <label class="btn btn-outline-secondary btn-sm mb-1">
                                 <i class="bi bi-upload me-1"></i>Αλλαγή Λογοτύπου
-                                <input type="file" accept="image/*" class="d-none" onchange="previewLogo(this)" />
+                                <input type="file" name="logo" accept="image/*" class="d-none" onchange="previewLogo(this)" />
                               </label>
                               <div class="form-text">Συνιστώμενο μέγεθος: 200×50px. PNG ή SVG.</div>
                             </div>
@@ -239,48 +287,24 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                         <div class="col-12">
                           <label class="form-label fw-semibold">Favicon</label>
                           <div class="d-flex align-items-center gap-3">
-                            <div class="border rounded p-2" style="background:#f8fafc;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
-                              <i class="bi bi-globe text-secondary"></i>
+                            <div class="border rounded p-2" style="background:#f8fafc;width:40px;height:40px;display:flex;align-items:center;justify-content:center;" id="faviconPreviewWrap">
+                              <?php if ($currentFavicon): ?>
+                              <img src="<?= htmlspecialchars($currentFavicon) ?>" alt="Favicon" style="width:24px;height:24px;object-fit:contain;" id="faviconPreview" />
+                              <?php else: ?>
+                              <i class="bi bi-globe text-secondary" id="faviconPreview"></i>
+                              <?php endif; ?>
                             </div>
-                            <label class="btn btn-outline-secondary btn-sm">
-                              <i class="bi bi-upload me-1"></i>Αλλαγή Favicon
-                              <input type="file" accept="image/*,.ico" class="d-none" />
-                            </label>
+                            <div>
+                              <label class="btn btn-outline-secondary btn-sm mb-1">
+                                <i class="bi bi-upload me-1"></i>Αλλαγή Favicon
+                                <input type="file" name="favicon" accept="image/*,.ico" class="d-none" onchange="previewFavicon(this)" />
+                              </label>
+                              <div class="form-text">ICO, PNG ή JPG. Συνιστώμενο: 32×32px.</div>
+                            </div>
                           </div>
-                        </div>
-                        <!-- Colors -->
-                        <div class="col-md-4">
-                          <label class="form-label fw-semibold">Κύριο Χρώμα</label>
-                          <div class="input-group">
-                            <input type="color" class="form-control form-control-color" value="#0d6efd" style="max-width:60px;" />
-                            <input type="text" class="form-control" value="#0d6efd" />
-                          </div>
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label fw-semibold">Δευτερεύον Χρώμα</label>
-                          <div class="input-group">
-                            <input type="color" class="form-control form-control-color" value="#6c757d" style="max-width:60px;" />
-                            <input type="text" class="form-control" value="#6c757d" />
-                          </div>
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label fw-semibold">Χρώμα Sidebar</label>
-                          <div class="input-group">
-                            <input type="color" class="form-control form-control-color" value="#1f1f1f" style="max-width:60px;" />
-                            <input type="text" class="form-control" value="#1f1f1f" />
-                          </div>
-                        </div>
-                        <!-- Texts -->
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">Λεκτικό "Υποβολή Αίτησης"</label>
-                          <input type="text" class="form-control" value="Υποβολή Αίτησης" />
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">Λεκτικό "Αξιολόγηση"</label>
-                          <input type="text" class="form-control" value="Αξιολόγηση Αίτησης" />
                         </div>
                         <div class="col-12">
-                          <button type="button" class="btn btn-primary" onclick="showSaveAlert()">
+                          <button type="submit" class="btn btn-primary">
                             <i class="bi bi-floppy me-1"></i>Αποθήκευση
                           </button>
                         </div>
@@ -544,6 +568,17 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
           var reader = new FileReader();
           reader.onload = function (e) {
             document.getElementById('logoPreview').src = e.target.result;
+          };
+          reader.readAsDataURL(input.files[0]);
+        }
+      }
+
+      function previewFavicon(input) {
+        if (input.files && input.files[0]) {
+          var reader = new FileReader();
+          reader.onload = function (e) {
+            var wrap = document.getElementById('faviconPreviewWrap');
+            wrap.innerHTML = '<img src="' + e.target.result + '" alt="Favicon" style="width:24px;height:24px;object-fit:contain;" id="faviconPreview" />';
           };
           reader.readAsDataURL(input.files[0]);
         }
