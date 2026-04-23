@@ -48,15 +48,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
 
     } elseif ($action === 'edit') {
-        $id    = (int)($_POST['user_id'] ?? 0);
-        $fn    = trim($_POST['first_name'] ?? '');
-        $ln    = trim($_POST['last_name']  ?? '');
-        $email = trim($_POST['email']      ?? '');
-        $phone = trim($_POST['phone']      ?? '') ?: null;
-        $role  = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
+        $id      = (int)($_POST['user_id'] ?? 0);
+        $fn      = trim($_POST['first_name'] ?? '');
+        $ln      = trim($_POST['last_name']  ?? '');
+        $email   = trim($_POST['email']      ?? '');
+        $phone   = trim($_POST['phone']      ?? '') ?: null;
+        $role    = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
+        $newPass = trim($_POST['new_password'] ?? '');
         if ($id > 0 && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $pdo->prepare('UPDATE users SET first_name=?,last_name=?,email=?,phone=?,role=?,updated_at=NOW() WHERE id=?')
-                ->execute([$fn, $ln, $email, $phone, $role, $id]);
+            if ($newPass !== '' && strlen($newPass) >= 8) {
+                $hash = password_hash($newPass, PASSWORD_DEFAULT);
+                $pdo->prepare('UPDATE users SET first_name=?,last_name=?,email=?,phone=?,role=?,password_hash=?,updated_at=NOW() WHERE id=?')
+                    ->execute([$fn, $ln, $email, $phone, $role, $hash, $id]);
+            } else {
+                $pdo->prepare('UPDATE users SET first_name=?,last_name=?,email=?,phone=?,role=?,updated_at=NOW() WHERE id=?')
+                    ->execute([$fn, $ln, $email, $phone, $role, $id]);
+            }
             header('Location: manage_users.php?msg=' . urlencode('Τα στοιχεία αποθηκεύτηκαν επιτυχώς.') . '&mtype=success');
             exit;
         }
@@ -334,7 +341,7 @@ function avatarInitials(string $f, string $l): string {
                     <option value="user">Χρήστης</option>
                   </select>
                 </div>
-                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openAddUserModal()">
+                <button type="button" class="btn btn-primary btn-sm" onclick="openAddUserModal()">
                   <i class="bi bi-plus-lg me-1"></i>Προσθήκη Χρήστη
                 </button>
               </div>
@@ -419,7 +426,7 @@ function avatarInitials(string $f, string $l): string {
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <form id="userForm" method="POST">
+            <form id="userForm" method="POST" onsubmit="return validateUserForm()">
               <input type="hidden" id="userFormAction" name="action" value="add">
               <input type="hidden" id="userFormId" name="user_id" value="">
               <div class="row g-3">
@@ -447,13 +454,29 @@ function avatarInitials(string $f, string $l): string {
                     <option value="user">Χρήστης</option>
                   </select>
                 </div>
+                <!-- Πεδίο κωδικού για νέο χρήστη -->
                 <div class="col-md-6" id="passwordField">
                   <label class="form-label fw-semibold">Κωδικός <span class="text-danger">*</span></label>
                   <input type="password" class="form-control" id="userPassword" name="password" placeholder="Τουλάχιστον 8 χαρακτήρες" />
                 </div>
                 <div class="col-md-6" id="confirmPasswordField">
-                  <label class="form-label fw-semibold">Επιβεβαίωση Κωδικού</label>
+                  <label class="form-label fw-semibold">Επιβεβαίωση Κωδικού <span class="text-danger">*</span></label>
                   <input type="password" class="form-control" id="userPasswordConfirm" placeholder="Επαναλάβετε τον κωδικό" />
+                </div>
+                <!-- Πεδία αλλαγής κωδικού για επεξεργασία (εμφανίζεται μόνο στο edit) -->
+                <div class="col-12" id="changePasswordSection" style="display:none;">
+                  <hr class="my-1">
+                  <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>Αφήστε κενό αν δεν θέλετε να αλλάξετε τον κωδικό.</p>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Νέος Κωδικός</label>
+                      <input type="password" class="form-control" id="userNewPassword" name="new_password" placeholder="Τουλάχιστον 8 χαρακτήρες" />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Επιβεβαίωση Νέου Κωδικού</label>
+                      <input type="password" class="form-control" id="userNewPasswordConfirm" placeholder="Επαναλάβετε τον κωδικό" />
+                    </div>
+                  </div>
                 </div>
               </div>
             </form>
@@ -474,13 +497,24 @@ function avatarInitials(string $f, string $l): string {
     <script src="../../assets/js/adminlte.js" defer></script>
     <script src="../../assets/js/changes.js" defer></script>
     <script>
-      // Embed DB users for edit modal population
-      const USERS_DATA = <?= json_encode(array_column($users, null, 'id'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      var USERS_DATA = <?= json_encode(
+        array_column(
+          array_map(function($u) { unset($u['profilepic'], $u['profilepic_mime']); return $u; }, $users),
+          null, 'id'
+        ),
+        JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+      ) ?>;
+
+      var _userModal = null;
 
       document.addEventListener('DOMContentLoaded', function () {
+        // Αρχικοποίηση Bootstrap modal instance
+        var modalEl = document.getElementById('userModal');
+        _userModal = new bootstrap.Modal(modalEl);
+
         // OverlayScrollbars
-        const sw = document.querySelector('.sidebar-wrapper');
-        if (sw && OverlayScrollbarsGlobal?.OverlayScrollbars) {
+        var sw = document.querySelector('.sidebar-wrapper');
+        if (sw && OverlayScrollbarsGlobal && OverlayScrollbarsGlobal.OverlayScrollbars) {
           OverlayScrollbarsGlobal.OverlayScrollbars(sw, {
             scrollbars: { theme: 'os-theme-light', autoHide: 'leave', clickScroll: true }
           });
@@ -488,7 +522,7 @@ function avatarInitials(string $f, string $l): string {
 
         // Live search
         document.getElementById('userSearch').addEventListener('input', function () {
-          const q = this.value.toLowerCase();
+          var q = this.value.toLowerCase();
           document.querySelectorAll('#usersTable tbody tr').forEach(function (row) {
             row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
           });
@@ -496,7 +530,7 @@ function avatarInitials(string $f, string $l): string {
 
         // Role filter
         document.getElementById('roleFilter').addEventListener('change', function () {
-          const val = this.value;
+          var val = this.value;
           document.querySelectorAll('#usersTable tbody tr').forEach(function (row) {
             row.style.display = (!val || row.dataset.role === val) ? '' : 'none';
           });
@@ -510,14 +544,23 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userFormId').value = '';
         document.getElementById('passwordField').style.display = '';
         document.getElementById('confirmPasswordField').style.display = '';
+        document.getElementById('changePasswordSection').style.display = 'none';
         document.getElementById('userPassword').setAttribute('required', 'required');
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
+        if (_userModal) {
+          _userModal.show();
+        } else {
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
+        }
       }
 
       function openEditUserModal(id) {
-        const u = USERS_DATA[id];
-        if (!u) return;
+        var u = USERS_DATA[id];
+        if (!u) {
+          alert('Σφάλμα: Δεν βρέθηκαν στοιχεία χρήστη. Ανανεώστε τη σελίδα.');
+          return;
+        }
         document.getElementById('userModalLabel').textContent = 'Επεξεργασία Χρήστη';
+        document.getElementById('userForm').reset();
         document.getElementById('userFormAction').value = 'edit';
         document.getElementById('userFormId').value = id;
         document.getElementById('userFirstName').value = u.first_name || '';
@@ -525,12 +568,49 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userEmail').value     = u.email      || '';
         document.getElementById('userPhone').value     = u.phone      || '';
         document.getElementById('userRole').value      = u.role       || 'user';
+        // Κρύψε πεδία κωδικού για νέο χρήστη, δείξε την ενότητα αλλαγής κωδικού
         document.getElementById('passwordField').style.display = 'none';
         document.getElementById('confirmPasswordField').style.display = 'none';
+        document.getElementById('changePasswordSection').style.display = '';
         document.getElementById('userPassword').removeAttribute('required');
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
+        document.getElementById('userNewPassword').value = '';
+        document.getElementById('userNewPasswordConfirm').value = '';
+        if (_userModal) {
+          _userModal.show();
+        } else {
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show();
+        }
       }
 
+      function validateUserForm() {
+        var action = document.getElementById('userFormAction').value;
+        if (action === 'add') {
+          var pass = document.getElementById('userPassword').value;
+          var confirm = document.getElementById('userPasswordConfirm').value;
+          if (pass.length < 8) {
+            alert('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.');
+            return false;
+          }
+          if (pass !== confirm) {
+            alert('Οι κωδικοί δεν ταιριάζουν.');
+            return false;
+          }
+        } else if (action === 'edit') {
+          var newPass = document.getElementById('userNewPassword').value;
+          if (newPass !== '') {
+            if (newPass.length < 8) {
+              alert('Ο νέος κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.');
+              return false;
+            }
+            var newConfirm = document.getElementById('userNewPasswordConfirm').value;
+            if (newPass !== newConfirm) {
+              alert('Οι νέοι κωδικοί δεν ταιριάζουν.');
+              return false;
+            }
+          }
+        }
+        return true;
+      }
     </script>
   </body>
 </html>
