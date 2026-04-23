@@ -20,6 +20,17 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: ' . $loginUrl);
     exit;
 }
+
+// Maintenance mode check — admins bypass
+$_maintenanceLock = dirname(__DIR__) . '/maintenance.lock';
+if (file_exists($_maintenanceLock) && ($_SESSION['role'] ?? '') !== 'admin') {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $basePath = strpos($scriptName, '/modules/') !== false
+        ? strstr($scriptName, '/modules/', true)
+        : rtrim(dirname($scriptName), '/');
+    header('Location: ' . rtrim($basePath, '/') . '/maintenance.php');
+    exit;
+}
 // ───────────────────────────────────────────────────────────────────────────
 ?>
 <!doctype html>

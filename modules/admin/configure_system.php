@@ -2,6 +2,45 @@
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../database/db.php';
 
+$maintenanceLock = __DIR__ . '/../../maintenance.lock';
+
+// DB Backup download
+if (isset($_GET['action']) && $_GET['action'] === 'db_backup') {
+    require_once __DIR__ . '/../../database/db.php';
+    $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+    $sql = "-- DB Backup: " . date('Y-m-d H:i:s') . "\nSET FOREIGN_KEY_CHECKS=0;\n\n";
+    foreach ($tables as $table) {
+        $sql .= "DROP TABLE IF EXISTS `$table`;\n";
+        $create = $pdo->query("SHOW CREATE TABLE `$table`")->fetch();
+        $sql .= $create[1] . ";\n\n";
+        $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            $vals = array_map(fn($v) => $v === null ? 'NULL' : $pdo->quote((string)$v), array_values($row));
+            $sql .= "INSERT INTO `$table` VALUES (" . implode(',', $vals) . ");\n";
+        }
+        $sql .= "\n";
+    }
+    $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
+    header('Content-Type: application/octet-stream');
+    header('Content-Disposition: attachment; filename="backup_' . date('Ymd_His') . '.sql"');
+    header('Content-Length: ' . strlen($sql));
+    echo $sql;
+    exit;
+}
+
+// Maintenance mode toggle
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_maintenance') {
+    $enable = ($_POST['enable'] ?? '') === '1';
+    if ($enable) {
+        file_put_contents($maintenanceLock, date('Y-m-d H:i:s'));
+    } else {
+        @unlink($maintenanceLock);
+    }
+    header('Location: configure_system.php');
+    exit;
+}
+
+$maintenanceActive = file_exists($maintenanceLock);
 $brandingError   = null;
 $brandingSuccess = false;
 
@@ -488,23 +527,26 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                   </div>
                   <div class="config-card-body">
                     <div class="d-grid gap-2">
-                      <button type="button" class="btn btn-outline-secondary btn-sm text-start">
+                      <button type="button" class="btn btn-outline-secondary btn-sm text-start" disabled>
                         <i class="bi bi-arrow-clockwise me-2 text-primary"></i>Εκκαθάριση Cache
                       </button>
-                      <button type="button" class="btn btn-outline-secondary btn-sm text-start">
+                      <a href="?action=db_backup" class="btn btn-outline-secondary btn-sm text-start">
                         <i class="bi bi-database me-2 text-success"></i>Δημιουργία Αντιγράφου DB
-                      </button>
-                      <button type="button" class="btn btn-outline-secondary btn-sm text-start">
+                      </a>
+                      <button type="button" class="btn btn-outline-secondary btn-sm text-start" disabled>
                         <i class="bi bi-file-earmark-text me-2 text-info"></i>Λήψη Αρχείων Καταγραφής
                       </button>
                       <hr class="my-1" />
                       <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="maintenanceMode" />
+                        <input class="form-check-input" type="checkbox" id="maintenanceMode" <?= $maintenanceActive ? 'checked' : '' ?> onchange="toggleMaintenance(this.checked)" />
                         <label class="form-check-label text-danger fw-semibold" for="maintenanceMode">
                           Λειτουργία Συντήρησης
                         </label>
                       </div>
                       <small class="text-secondary">Ενεργοποιεί σελίδα συντήρησης για όλους τους χρήστες εκτός του admin.</small>
+                      <?php if ($maintenanceActive): ?>
+                      <div class="alert alert-warning py-1 px-2 mb-0 small"><i class="bi bi-cone-striped me-1"></i>Η λειτουργία συντήρησης είναι <strong>ενεργή</strong>.</div>
+                      <?php endif; ?>
                     </div>
                   </div>
                 </div>
@@ -561,6 +603,20 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
         var status = document.getElementById('moodleConnStatus');
         status.style.display = 'block';
         setTimeout(function () { status.style.display = 'none'; }, 4000);
+      }
+
+      function toggleMaintenance(enable) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'configure_system.php';
+        var a1 = document.createElement('input');
+        a1.type = 'hidden'; a1.name = 'action'; a1.value = 'toggle_maintenance';
+        var a2 = document.createElement('input');
+        a2.type = 'hidden'; a2.name = 'enable'; a2.value = enable ? '1' : '0';
+        form.appendChild(a1);
+        form.appendChild(a2);
+        document.body.appendChild(form);
+        form.submit();
       }
 
       function previewLogo(input) {
