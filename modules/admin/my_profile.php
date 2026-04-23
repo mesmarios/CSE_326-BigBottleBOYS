@@ -564,13 +564,6 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
                           <input type="text" class="form-control" value="Διαχειριστής Συστήματος" disabled />
                           <div class="form-text">Ο ρόλος δεν μπορεί να αλλαχθεί από εδώ.</div>
                         </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">Γλώσσα Διεπαφής</label>
-                          <select class="form-select">
-                            <option selected>Ελληνικά</option>
-                            <option>English</option>
-                          </select>
-                        </div>
                         <div class="col-12">
                           <button type="button" class="btn btn-primary" onclick="saveProfile()">
                             <i class="bi bi-floppy me-1"></i>Αποθήκευση Στοιχείων
