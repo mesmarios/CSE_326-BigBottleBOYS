@@ -652,28 +652,6 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
                     Ασφάλεια Λογαριασμού
                   </div>
                   <div class="config-card-body">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                      <div>
-                        <div class="fw-semibold">Έλεγχος Ταυτότητας Δύο Παραγόντων (2FA)</div>
-                        <small class="text-secondary">Προσθέστε ένα επιπλέον επίπεδο ασφάλειας στον λογαριασμό σας.</small>
-                      </div>
-                      <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="twoFactor" style="width:2.5em;height:1.4em;" />
-                        <label class="form-check-label ms-1 fw-semibold" for="twoFactor">Ανενεργό</label>
-                      </div>
-                    </div>
-                    <hr />
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                      <div>
-                        <div class="fw-semibold">Ειδοποιήσεις Σύνδεσης</div>
-                        <small class="text-secondary">Λαμβάνετε email κάθε φορά που γίνεται σύνδεση στον λογαριασμό σας.</small>
-                      </div>
-                      <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="loginNotif" checked style="width:2.5em;height:1.4em;" />
-                        <label class="form-check-label ms-1 fw-semibold" for="loginNotif">Ενεργό</label>
-                      </div>
-                    </div>
-                    <hr />
                     <div class="fw-semibold mb-2">Πρόσφατη Δραστηριότητα</div>
                     <ul class="list-group list-group-flush">
                       <li class="list-group-item px-0 py-2">
