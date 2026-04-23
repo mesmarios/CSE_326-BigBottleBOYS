@@ -51,12 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['last_name']  = $user['last_name'];
                 $_SESSION['email']      = $user['email'];
 
-                $defaultTarget = $user['role'] === 'admin'
+                $defaultTarget = $isAdmin
                     ? 'modules/admin/index.php'
                     : 'modules/recruitmentModule/index.php';
                 $target = $redirectTo;
 
-                if ($user['role'] !== 'admin' && $target !== null && str_starts_with($target, 'modules/admin/')) {
+                if (!$isAdmin && $target !== null && str_starts_with($target, 'modules/admin/')) {
                     $target = null;
                 }
 
