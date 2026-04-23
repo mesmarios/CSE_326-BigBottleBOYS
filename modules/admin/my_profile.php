@@ -665,9 +665,6 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
           });
         }
 
-        document.getElementById('twoFactor').addEventListener('change', function () {
-          this.nextElementSibling.textContent = this.checked ? 'Ενεργό' : 'Ανενεργό';
-        });
       });
 
       function updateAvatarElements(src) {
