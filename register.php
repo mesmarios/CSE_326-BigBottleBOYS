@@ -35,11 +35,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Εγγραφή — role DEFAULT 'user' αυτόματα από τη βάση
     if (empty($errors)) {
         $hash = password_hash($password, PASSWORD_DEFAULT);
+
+        // Auto-generate a unique username from first_name.last_name
+        $baseUsername = strtolower(
+            preg_replace('/[^a-zA-Z0-9]/', '', iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $first_name))
+            . '.'
+            . preg_replace('/[^a-zA-Z0-9]/', '', iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $last_name))
+        );
+        if ($baseUsername === '.') {
+            $baseUsername = 'user';
+        }
+        $username = $baseUsername;
+        $suffix = 1;
+        $checkStmt = $pdo->prepare('SELECT id FROM users WHERE username = :u');
+        while (true) {
+            $checkStmt->execute([':u' => $username]);
+            if (!$checkStmt->fetch()) break;
+            $username = $baseUsername . $suffix++;
+        }
+
         $stmt = $pdo->prepare(
-            'INSERT INTO users (first_name, last_name, email, phone, address, password_hash)
-             VALUES (:fn, :ln, :e, :ph, :ad, :h)'
+            'INSERT INTO users (username, first_name, last_name, email, phone, address, password_hash)
+             VALUES (:u, :fn, :ln, :e, :ph, :ad, :h)'
         );
         $stmt->execute([
+            ':u'  => $username,
             ':fn' => $first_name,
             ':ln' => $last_name,
             ':e'  => $email,
