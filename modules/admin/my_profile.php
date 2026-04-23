@@ -646,53 +646,6 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
                   </div>
                 </div>
 
-                <div class="config-card bg-body shadow-sm">
-                  <div class="config-card-header">
-                    <i class="bi bi-shield-check text-success"></i>
-                    Ασφάλεια Λογαριασμού
-                  </div>
-                  <div class="config-card-body">
-                    <div class="fw-semibold mb-2">Πρόσφατη Δραστηριότητα</div>
-                    <ul class="list-group list-group-flush">
-                      <li class="list-group-item px-0 py-2">
-                        <div class="d-flex align-items-center gap-3">
-                          <div class="stat-icon-wrap" style="background:#dcfce7;color:#15803d;width:36px;height:36px;border-radius:10px;font-size:1rem;">
-                            <i class="bi bi-box-arrow-in-right"></i>
-                          </div>
-                          <div>
-                            <div class="small fw-semibold">Σύνδεση επιτυχής</div>
-                            <div class="text-secondary" style="font-size:.78rem;">27/02/2026 09:14 · Chrome · Windows 11</div>
-                          </div>
-                          <span class="badge bg-success ms-auto">Επιτυχία</span>
-                        </div>
-                      </li>
-                      <li class="list-group-item px-0 py-2">
-                        <div class="d-flex align-items-center gap-3">
-                          <div class="stat-icon-wrap" style="background:#dcfce7;color:#15803d;width:36px;height:36px;border-radius:10px;font-size:1rem;">
-                            <i class="bi bi-box-arrow-in-right"></i>
-                          </div>
-                          <div>
-                            <div class="small fw-semibold">Σύνδεση επιτυχής</div>
-                            <div class="text-secondary" style="font-size:.78rem;">26/02/2026 14:32 · Chrome · Windows 11</div>
-                          </div>
-                          <span class="badge bg-success ms-auto">Επιτυχία</span>
-                        </div>
-                      </li>
-                      <li class="list-group-item px-0 py-2">
-                        <div class="d-flex align-items-center gap-3">
-                          <div class="stat-icon-wrap" style="background:#fee2e2;color:#b91c1c;width:36px;height:36px;border-radius:10px;font-size:1rem;">
-                            <i class="bi bi-x-circle"></i>
-                          </div>
-                          <div>
-                            <div class="small fw-semibold">Αποτυχημένη σύνδεση</div>
-                            <div class="text-secondary" style="font-size:.78rem;">25/02/2026 11:05 · Firefox · Unknown</div>
-                          </div>
-                          <span class="badge bg-danger ms-auto">Αποτυχία</span>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
 
               </div>
             </div>
