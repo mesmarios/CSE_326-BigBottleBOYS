@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../database/db.php';
+require_once __DIR__ . '/../../includes/admin-branding.php';
 
 function h(string $value): string
 {
@@ -72,6 +73,71 @@ function roleLabel(string $role): string
     return $role === 'admin' ? 'Admin' : 'Χρήστης';
 }
 
+function notificationDestination(array $notification): array
+{
+    $entityType = strtolower(trim((string)($notification['related_entity_type'] ?? '')));
+    $notificationType = strtolower(trim((string)($notification['notification_type'] ?? '')));
+
+    $targets = [
+        'applications' => [
+            'url' => 'manage_recruitment.php#applications',
+            'label' => 'Προβολή αιτήσεων',
+            'icon' => 'bi bi-file-earmark-text',
+        ],
+        'schools' => [
+            'url' => 'manage_recruitment.php#schools',
+            'label' => 'Προβολή σχολών',
+            'icon' => 'bi bi-building',
+        ],
+        'departments' => [
+            'url' => 'manage_recruitment.php#departments',
+            'label' => 'Προβολή τμημάτων',
+            'icon' => 'bi bi-diagram-3',
+        ],
+        'courses' => [
+            'url' => 'manage_recruitment.php#courses',
+            'label' => 'Προβολή μαθημάτων',
+            'icon' => 'bi bi-book',
+        ],
+        'period' => [
+            'url' => 'manage_recruitment.php#period',
+            'label' => 'Προβολή περιόδων',
+            'icon' => 'bi bi-calendar-range',
+        ],
+        'users' => [
+            'url' => 'manage_users.php',
+            'label' => 'Προβολή χρηστών',
+            'icon' => 'bi bi-people',
+        ],
+        'settings' => [
+            'url' => 'configure_system.php',
+            'label' => 'Προβολή ρυθμίσεων',
+            'icon' => 'bi bi-gear',
+        ],
+        'dashboard' => [
+            'url' => 'index.php',
+            'label' => 'Προβολή dashboard',
+            'icon' => 'bi bi-speedometer2',
+        ],
+    ];
+
+    $targetKey = match (true) {
+        in_array($entityType, ['job_announcement', 'candidate_application', 'specialist_enrollment'], true) => 'applications',
+        $entityType === 'school' => 'schools',
+        $entityType === 'department' => 'departments',
+        $entityType === 'course' => 'courses',
+        in_array($entityType, ['recruitment_period', 'period'], true) => 'period',
+        in_array($entityType, ['user', 'admin'], true) => 'users',
+        in_array($entityType, ['system_setting', 'theme'], true) => 'settings',
+        in_array($notificationType, ['application_received', 'status_update', 'new_applications', 'enrollment'], true) => 'applications',
+        str_contains($notificationType, 'user') => 'users',
+        str_contains($notificationType, 'system') => 'settings',
+        default => 'dashboard',
+    };
+
+    return $targets[$targetKey];
+}
+
 function resolveAdminAvatarSrc(PDO $pdo, int $userId): string
 {
   $fallback = '../../assets/images/avatar.png';
@@ -111,6 +177,10 @@ $adminFullName = trim((string)(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSIO
 $adminFullName = $adminFullName !== '' ? $adminFullName : 'Administrator';
 $adminId = (int)($_SESSION['user_id'] ?? 0);
 $adminAvatarSrc = resolveAdminAvatarSrc($pdo, $adminId);
+$brandingContext = adminGetBrandingContext($pdo);
+$adminBrandText = $brandingContext['brand_text'];
+$adminLogo = $brandingContext['logo'];
+$adminFavicon = $brandingContext['favicon'];
 
 $stats = [
     'total_users' => 0,
@@ -204,7 +274,7 @@ try {
     if ($adminId > 0) {
         $notificationStmt = $pdo->prepare(
             "
-            SELECT id, title, message, is_read, created_at
+            SELECT id, title, message, notification_type, related_entity_id, related_entity_type, is_read, created_at
             FROM notifications
             WHERE user_id = :user_id
             ORDER BY created_at DESC, id DESC
@@ -249,22 +319,58 @@ if ($currentPeriod) {
         $periodTimeline = 'Η περίοδος είναι διαθέσιμη, αλλά οι ημερομηνίες της δεν μπόρεσαν να διαβαστούν.';
     }
 }
+
+$notificationsFooterDestination = $notifications !== [] ? notificationDestination($notifications[0]) : [
+    'url' => 'index.php',
+    'label' => 'Προβολή dashboard',
+    'icon' => 'bi bi-speedometer2',
+];
 ?>
 <!doctype html>
 <html lang="el">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Admin | Dashboard</title>
+    <title><?= h($adminBrandText) ?> | Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#007bff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
+    <?php if ($adminFavicon): ?>
+    <link rel="icon" href="<?= h($adminFavicon) ?>" />
+    <?php endif; ?>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="../../assets/css/adminlte.css" />
     <link rel="stylesheet" href="../../assets/css/card-nav.css" />
     <link rel="stylesheet" href="../../assets/css/admin-pages.css" />
     <link rel="stylesheet" href="../../assets/css/admin-ui.css" />
+    <style>
+      .notification-dropdown {
+        width: min(360px, calc(100vw - 1.5rem));
+        min-width: min(320px, calc(100vw - 1.5rem));
+        max-width: calc(100vw - 1.5rem);
+      }
+
+      .notification-dropdown .notification-header-label,
+      .notification-dropdown .notification-empty,
+      .notification-dropdown .notification-title,
+      .notification-dropdown .notification-message,
+      .notification-dropdown .dropdown-footer {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .notification-dropdown .dropdown-footer {
+        display: block;
+        line-height: 1.35;
+      }
+
+      .notification-dropdown .notification-meta {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+    </style>
   </head>
   <body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
     <div class="app-wrapper">
@@ -292,33 +398,34 @@ if ($currentPeriod) {
                 <span class="navbar-badge badge text-bg-warning" id="notifBadge"><?= h((string)min($unreadNotifications, 99)) ?></span>
                 <?php endif; ?>
               </a>
-              <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end" style="min-width:320px;">
+              <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end notification-dropdown">
                 <div class="px-3 py-2 border-bottom">
                   <div class="d-flex align-items-center justify-content-between">
-                    <span class="fw-semibold small"><?= h((string)$unreadNotifications) ?> μη αναγνωσμένες ειδοποιήσεις</span>
+                    <span class="fw-semibold small notification-header-label"><?= h((string)$unreadNotifications) ?> μη αναγνωσμένες ειδοποιήσεις</span>
                     <?php if ($unreadNotifications > 0): ?>
                     <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-primary text-decoration-none lh-1" style="font-size:.78rem;white-space:nowrap;" onclick="markAllNotificationsRead()">Σήμανση ως αναγνωσμένα</button>
                     <?php endif; ?>
                   </div>
                 </div>
                 <?php if ($notifications === []): ?>
-                <span class="dropdown-item text-secondary small py-3">
+                <span class="d-block px-3 py-3 text-secondary small notification-empty">
                   Δεν υπάρχουν ειδοποιήσεις για τον τρέχοντα διαχειριστή.
                 </span>
                 <?php else: ?>
                   <?php foreach ($notifications as $notification):
                     $isUnread = (int)$notification['is_read'] === 0;
+                    $destination = notificationDestination($notification);
                   ?>
-                  <a href="manage_recruitment.php" class="dropdown-item py-2 px-3" style="white-space:normal;">
+                  <a href="<?= h($destination['url']) ?>" class="dropdown-item py-2 px-3" style="white-space:normal;">
                     <div class="d-flex align-items-start gap-2">
-                      <i class="bi bi-person-fill-add flex-shrink-0 mt-1 <?= $isUnread ? 'text-primary' : 'text-secondary' ?>" style="font-size:1rem;"></i>
+                      <i class="<?= h($destination['icon']) ?> flex-shrink-0 mt-1 <?= $isUnread ? 'text-primary' : 'text-secondary' ?>" style="font-size:1rem;"></i>
                       <div class="flex-grow-1" style="min-width:0;">
                         <div class="d-flex justify-content-between align-items-start gap-2">
-                          <span class="<?= $isUnread ? 'fw-semibold' : '' ?>" style="font-size:.875rem;line-height:1.3;"><?= h(truncateText((string)$notification['title'], 40)) ?></span>
-                          <span class="text-secondary flex-shrink-0" style="font-size:.72rem;white-space:nowrap;margin-top:2px;"><?= h(formatDate((string)$notification['created_at'], true)) ?></span>
+                          <span class="<?= $isUnread ? 'fw-semibold' : '' ?> notification-title" style="font-size:.875rem;line-height:1.3;"><?= h(truncateText((string)$notification['title'], 40)) ?></span>
+                          <span class="text-secondary notification-meta" style="font-size:.72rem;margin-top:2px;"><?= h(formatDate((string)$notification['created_at'], true)) ?></span>
                         </div>
                         <?php if (trim((string)($notification['message'] ?? '')) !== ''): ?>
-                        <div class="text-secondary mt-1" style="font-size:.78rem;line-height:1.4;"><?= h(truncateText((string)$notification['message'], 70)) ?></div>
+                        <div class="text-secondary mt-1 notification-message" style="font-size:.78rem;line-height:1.4;"><?= h(truncateText((string)$notification['message'], 70)) ?></div>
                         <?php endif; ?>
                         <?php if ($isUnread): ?>
                         <span class="badge rounded-pill bg-primary mt-1" style="font-size:.65rem;">Νέο</span>
@@ -329,8 +436,8 @@ if ($currentPeriod) {
                   <div class="dropdown-divider my-0"></div>
                   <?php endforeach; ?>
                 <?php endif; ?>
-                <a href="manage_recruitment.php" class="dropdown-item dropdown-footer text-center">
-                  <i class="bi bi-arrow-right-circle me-1"></i>Προβολή αιτήσεων
+                <a href="<?= h($notificationsFooterDestination['url']) ?>" class="dropdown-item dropdown-footer text-center">
+                  <i class="<?= h($notificationsFooterDestination['icon']) ?> me-1"></i><?= h($notificationsFooterDestination['label']) ?>
                 </a>
               </div>
             </li>
@@ -371,8 +478,8 @@ if ($currentPeriod) {
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
           <a href="index.php" class="brand-link">
-            <img src="../../assets/images/AdminLTELogo.png" alt="Logo" class="brand-image opacity-75 shadow" />
-            <span class="brand-text fw-light">Admin Panel</span>
+            <img src="<?= h($adminLogo) ?>" alt="Logo" class="brand-image opacity-75 shadow" />
+            <span class="brand-text fw-light"><?= h($adminBrandText) ?></span>
           </a>
         </div>
         <div class="sidebar-wrapper">
@@ -393,7 +500,7 @@ if ($currentPeriod) {
                 </a>
               </li>
               <li class="nav-item">
-                <a href="manage_recruitment.php" class="nav-link">
+                <a href="#" class="nav-link" role="button">
                   <i class="nav-icon bi bi-clipboard-check"></i>
                   <p>
                     Manage Recruitment

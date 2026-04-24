@@ -1,8 +1,10 @@
 <?php
+require_once __DIR__ . '/includes/maintenance-mode.php';
+
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-// Αν δεν υπάρχει maintenance.lock, πήγαινε στη login
-if (!file_exists(__DIR__ . '/maintenance.lock')) {
+// Αν δεν είναι ενεργή η λειτουργία συντήρησης, πήγαινε στη login
+if (!isMaintenanceModeActive()) {
     header('Location: login.php');
     exit;
 }

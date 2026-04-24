@@ -12,10 +12,10 @@ $currentPage = basename($_SERVER['PHP_SELF']);
   </div>
   <div class="sidebar-wrapper">
     <nav class="mt-2">
-      <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" aria-label="Main navigation" data-accordion="false" id="navigation">
+      <ul class="nav sidebar-menu flex-column" role="navigation" aria-label="Main navigation" id="navigation">
         <li class="nav-item menu-open">
           <?php // parent stays open always ?>
-          <ul class="nav nav-treeview">
+          <ul class="nav nav-treeview" style="display:block;">
             <li class="nav-item">
               <a href="./index.php" class="nav-link <?php echo $currentPage === 'index.php' ? 'active' : ''; ?>">
                 <i class="nav-icon bi bi-house-fill"></i>

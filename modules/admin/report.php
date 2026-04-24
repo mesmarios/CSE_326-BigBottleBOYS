@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../database/db.php';
+require_once __DIR__ . '/../../includes/admin-branding.php';
 
 function h(string $value): string
 {
@@ -490,13 +491,20 @@ if ($isExportRequest) {
 
 $navFullName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')) ?: 'Administrator';
 $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
+$brandingContext = adminGetBrandingContext($pdo);
+$adminBrandText = $brandingContext['brand_text'];
+$adminLogo = $brandingContext['logo'];
+$adminFavicon = $brandingContext['favicon'];
 ?>
 <!doctype html>
 <html lang="el">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Admin | Reports</title>
+    <title><?= h($adminBrandText) ?> | Reports</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <?php if ($adminFavicon): ?>
+    <link rel="icon" href="<?= h($adminFavicon) ?>" />
+    <?php endif; ?>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="../../assets/css/adminlte.css" />
@@ -560,8 +568,8 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
           <a href="index.php" class="brand-link">
-            <img src="../../assets/images/AdminLTELogo.png" alt="Logo" class="brand-image opacity-75 shadow" />
-            <span class="brand-text fw-light">Admin Panel</span>
+            <img src="<?= h($adminLogo) ?>" alt="Logo" class="brand-image opacity-75 shadow" />
+            <span class="brand-text fw-light"><?= h($adminBrandText) ?></span>
           </a>
         </div>
         <div class="sidebar-wrapper">
@@ -572,7 +580,7 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
               <li class="nav-header">ΔΙΑΧΕΙΡΙΣΗ</li>
               <li class="nav-item"><a href="manage_users.php" class="nav-link"><i class="nav-icon bi bi-people"></i><p>Manage Users</p></a></li>
               <li class="nav-item">
-                <a href="manage_recruitment.php" class="nav-link">
+                <a href="#" class="nav-link" role="button">
                   <i class="nav-icon bi bi-clipboard-check"></i>
                   <p>Manage Recruitment<i class="nav-arrow bi bi-chevron-right"></i></p>
                 </a>

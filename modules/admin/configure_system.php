@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../database/db.php';
-
-$maintenanceLock = __DIR__ . '/../../maintenance.lock';
+require_once __DIR__ . '/../../includes/admin-branding.php';
+require_once __DIR__ . '/../../includes/maintenance-mode.php';
 
 // DB Backup download
 if (isset($_GET['action']) && $_GET['action'] === 'db_backup') {
@@ -28,19 +28,75 @@ if (isset($_GET['action']) && $_GET['action'] === 'db_backup') {
     exit;
 }
 
-// Maintenance mode toggle
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_maintenance') {
-    $enable = ($_POST['enable'] ?? '') === '1';
-    if ($enable) {
-        file_put_contents($maintenanceLock, date('Y-m-d H:i:s'));
-    } else {
-        @unlink($maintenanceLock);
+// General settings save
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_general_settings') {
+    $appName = trim((string)($_POST['app_name'] ?? ''));
+    $appSlogan = trim((string)($_POST['app_slogan'] ?? ''));
+    $appDescription = trim((string)($_POST['app_description'] ?? ''));
+    $adminEmail = trim((string)($_POST['admin_email'] ?? ''));
+    $supportPhone = trim((string)($_POST['support_phone'] ?? ''));
+
+    if ($appName === '') {
+        $_SESSION['configure_system_flash'] = [
+            'type' => 'danger',
+            'message' => 'Το όνομα εφαρμογής είναι υποχρεωτικό.',
+        ];
+        header('Location: configure_system.php');
+        exit;
     }
+
+    if ($adminEmail === '' || !filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['configure_system_flash'] = [
+            'type' => 'danger',
+            'message' => 'Το email διαχειριστή δεν είναι έγκυρο.',
+        ];
+        header('Location: configure_system.php');
+        exit;
+    }
+
+    try {
+        adminSaveGeneralSettings($pdo, [
+            'app_name' => $appName,
+            'app_slogan' => $appSlogan,
+            'app_description' => $appDescription,
+            'admin_email' => $adminEmail,
+            'support_phone' => $supportPhone,
+        ]);
+
+        $_SESSION['configure_system_flash'] = [
+            'type' => 'success',
+            'message' => 'Οι γενικές ρυθμίσεις αποθηκεύτηκαν επιτυχώς.',
+        ];
+    } catch (Throwable $e) {
+        $_SESSION['configure_system_flash'] = [
+            'type' => 'danger',
+            'message' => 'Δεν ήταν δυνατή η αποθήκευση των γενικών ρυθμίσεων.',
+        ];
+    }
+
     header('Location: configure_system.php');
     exit;
 }
 
-$maintenanceActive = file_exists($maintenanceLock);
+// Maintenance mode toggle
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_maintenance') {
+    $enable = ($_POST['enable'] ?? '') === '1';
+    $toggleSuccess = setMaintenanceMode($enable);
+    $_SESSION['configure_system_flash'] = [
+        'type' => $toggleSuccess ? 'success' : 'danger',
+        'message' => $toggleSuccess
+            ? ($enable
+                ? 'Η λειτουργία συντήρησης ενεργοποιήθηκε.'
+                : 'Η λειτουργία συντήρησης απενεργοποιήθηκε.')
+            : 'Δεν ήταν δυνατή η ενημέρωση της λειτουργίας συντήρησης.',
+    ];
+    header('Location: configure_system.php');
+    exit;
+}
+
+$maintenanceActive = isMaintenanceModeActive();
+$maintenanceFlash = $_SESSION['configure_system_flash'] ?? null;
+unset($_SESSION['configure_system_flash']);
 $brandingError   = null;
 $brandingSuccess = false;
 
@@ -74,11 +130,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'uploa
     }
 }
 
-// Φόρτωση τρεχόντων αρχείων
-$logoFiles    = glob(__DIR__ . '/../../assets/images/site-logo.*');
-$faviconFiles = glob(__DIR__ . '/../../assets/images/site-favicon.*');
-$currentLogo    = !empty($logoFiles)    ? '../../assets/images/' . basename($logoFiles[0])    . '?v=' . @filemtime($logoFiles[0])    : '../../assets/images/AdminLTELogo.png';
-$currentFavicon = !empty($faviconFiles) ? '../../assets/images/' . basename($faviconFiles[0]) . '?v=' . @filemtime($faviconFiles[0]) : null;
+$brandingContext = adminGetBrandingContext($pdo);
+$generalSettings = $brandingContext['settings'];
+$brandText = $brandingContext['brand_text'];
+$currentLogo = $brandingContext['logo'];
+$currentFavicon = $brandingContext['favicon'];
 
 function resolveAdminAvatarSrc(PDO $pdo, int $userId): string
 {
@@ -122,7 +178,7 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
 <html lang="el">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Admin | Configure System</title>
+    <title><?= htmlspecialchars($brandText, ENT_QUOTES, 'UTF-8') ?> | Configure System</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <?php if ($currentFavicon): ?>
     <link rel="icon" href="<?= htmlspecialchars($currentFavicon) ?>">
@@ -184,7 +240,7 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
         <div class="sidebar-brand">
           <a href="index.php" class="brand-link">
             <img src="<?= htmlspecialchars($currentLogo) ?>" alt="Logo" class="brand-image opacity-75 shadow" />
-            <span class="brand-text fw-light">Admin Panel</span>
+            <span class="brand-text fw-light"><?= htmlspecialchars($brandText, ENT_QUOTES, 'UTF-8') ?></span>
           </a>
         </div>
         <div class="sidebar-wrapper">
@@ -195,7 +251,7 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
               <li class="nav-header">ΔΙΑΧΕΙΡΙΣΗ</li>
               <li class="nav-item"><a href="manage_users.php" class="nav-link"><i class="nav-icon bi bi-people"></i><p>Manage Users</p></a></li>
               <li class="nav-item">
-                <a href="manage_recruitment.php" class="nav-link">
+                <a href="#" class="nav-link" role="button">
                   <i class="nav-icon bi bi-clipboard-check"></i>
                   <p>Manage Recruitment<i class="nav-arrow bi bi-chevron-right"></i></p>
                 </a>
@@ -242,11 +298,16 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
         <div class="app-content">
           <div class="container-fluid">
 
-            <!-- Save notification (hidden by default) -->
             <div class="alert alert-success alert-dismissible fade d-none mb-3" id="saveAlert" role="alert">
               <i class="bi bi-check-circle me-2"></i>Οι ρυθμίσεις αποθηκεύτηκαν επιτυχώς.
               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
+            <?php if ($maintenanceFlash): ?>
+            <div class="alert alert-<?= htmlspecialchars((string)$maintenanceFlash['type'], ENT_QUOTES, 'UTF-8') ?> alert-dismissible fade show mb-3" role="alert">
+              <i class="bi bi-info-circle me-2"></i><?= htmlspecialchars((string)$maintenanceFlash['message'], ENT_QUOTES, 'UTF-8') ?>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php endif; ?>
 
             <div class="row g-4">
               <div class="col-12 col-xl-8">
@@ -258,31 +319,32 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                     Γενικές Ρυθμίσεις
                   </div>
                   <div class="config-card-body">
-                    <form>
+                    <form method="POST" action="configure_system.php">
+                      <input type="hidden" name="action" value="save_general_settings">
                       <div class="row g-3">
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Όνομα Εφαρμογής <span class="text-danger">*</span></label>
-                          <input type="text" class="form-control" value="CareerTrack" />
+                          <input type="text" class="form-control" name="app_name" value="<?= htmlspecialchars((string)$generalSettings['app_name'], ENT_QUOTES, 'UTF-8') ?>" required />
                           <div class="form-text">Το όνομα που εμφανίζεται στην κεφαλίδα και τον τίτλο.</div>
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Υπότιτλος / Slogan</label>
-                          <input type="text" class="form-control" value="Σύστημα Διαχείρισης Αιτήσεων" />
+                          <input type="text" class="form-control" name="app_slogan" value="<?= htmlspecialchars((string)$generalSettings['app_slogan'], ENT_QUOTES, 'UTF-8') ?>" />
                         </div>
                         <div class="col-12">
                           <label class="form-label fw-semibold">Περιγραφή Εφαρμογής</label>
-                          <textarea class="form-control" rows="2">Σύστημα διαχείρισης αιτήσεων εκπαιδευτικού προσωπικού για ακαδημαϊκά ιδρύματα.</textarea>
+                          <textarea class="form-control" rows="2" name="app_description"><?= htmlspecialchars((string)$generalSettings['app_description'], ENT_QUOTES, 'UTF-8') ?></textarea>
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Email Διαχειριστή <span class="text-danger">*</span></label>
-                          <input type="email" class="form-control" value="admin@university.gr" />
+                          <input type="email" class="form-control" name="admin_email" value="<?= htmlspecialchars((string)$generalSettings['admin_email'], ENT_QUOTES, 'UTF-8') ?>" required />
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Τηλέφωνο Υποστήριξης</label>
-                          <input type="tel" class="form-control" value="+30 210 1234567" />
+                          <input type="tel" class="form-control" name="support_phone" value="<?= htmlspecialchars((string)$generalSettings['support_phone'], ENT_QUOTES, 'UTF-8') ?>" />
                         </div>
                         <div class="col-12">
-                          <button type="button" class="btn btn-primary" onclick="showSaveAlert()">
+                          <button type="submit" class="btn btn-primary">
                             <i class="bi bi-floppy me-1"></i>Αποθήκευση
                           </button>
                         </div>
@@ -536,18 +598,24 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                       <button type="button" class="btn btn-outline-secondary btn-sm text-start" disabled>
                         <i class="bi bi-file-earmark-text me-2 text-info"></i>Λήψη Αρχείων Καταγραφής
                       </button>
-                      <hr class="my-1" />
-                      <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="maintenanceMode" <?= $maintenanceActive ? 'checked' : '' ?> onchange="toggleMaintenance(this.checked)" />
+                    </div>
+                    <hr class="my-3" />
+                    <form method="POST" action="configure_system.php" id="maintenanceToggleForm">
+                      <input type="hidden" name="action" value="toggle_maintenance" />
+                      <input type="hidden" name="enable" id="maintenanceModeValue" value="<?= $maintenanceActive ? '1' : '0' ?>" />
+                      <div class="form-check form-switch mb-1">
+                        <input class="form-check-input" type="checkbox" id="maintenanceMode" <?= $maintenanceActive ? 'checked' : '' ?> onchange="toggleMaintenance(this)" />
                         <label class="form-check-label text-danger fw-semibold" for="maintenanceMode">
                           Λειτουργία Συντήρησης
                         </label>
                       </div>
-                      <small class="text-secondary">Ενεργοποιεί σελίδα συντήρησης για όλους τους χρήστες εκτός του admin.</small>
-                      <?php if ($maintenanceActive): ?>
-                      <div class="alert alert-warning py-1 px-2 mb-0 small"><i class="bi bi-cone-striped me-1"></i>Η λειτουργία συντήρησης είναι <strong>ενεργή</strong>.</div>
-                      <?php endif; ?>
-                    </div>
+                    </form>
+                    <small class="text-secondary d-block">Ενεργοποιεί σελίδα συντήρησης για όλους τους χρήστες εκτός του admin.</small>
+                    <?php if ($maintenanceActive): ?>
+                    <div class="alert alert-warning py-1 px-2 mt-2 mb-0 small"><i class="bi bi-cone-striped me-1"></i>Η λειτουργία συντήρησης είναι <strong>ενεργή</strong>.</div>
+                    <?php else: ?>
+                    <div class="alert alert-light border py-1 px-2 mt-2 mb-0 small text-secondary"><i class="bi bi-check-circle me-1 text-success"></i>Η λειτουργία συντήρησης είναι ανενεργή.</div>
+                    <?php endif; ?>
                   </div>
                 </div>
 
@@ -605,17 +673,16 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
         setTimeout(function () { status.style.display = 'none'; }, 4000);
       }
 
-      function toggleMaintenance(enable) {
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'configure_system.php';
-        var a1 = document.createElement('input');
-        a1.type = 'hidden'; a1.name = 'action'; a1.value = 'toggle_maintenance';
-        var a2 = document.createElement('input');
-        a2.type = 'hidden'; a2.name = 'enable'; a2.value = enable ? '1' : '0';
-        form.appendChild(a1);
-        form.appendChild(a2);
-        document.body.appendChild(form);
+      function toggleMaintenance(toggle) {
+        var form = document.getElementById('maintenanceToggleForm');
+        var valueInput = document.getElementById('maintenanceModeValue');
+
+        if (!form || !valueInput || !toggle) {
+          return;
+        }
+
+        valueInput.value = toggle.checked ? '1' : '0';
+        toggle.disabled = true;
         form.submit();
       }
 

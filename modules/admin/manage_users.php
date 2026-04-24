@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/admin-branding.php';
 $pdo = getDBConnection();
 
 // ── CRUD action handlers ──────────────────────────────────────────────────────
@@ -135,6 +136,10 @@ function resolveUserAvatarSrc(array $user): ?string {
 
 $navFullName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')) ?: 'Administrator';
 $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
+$brandingContext = adminGetBrandingContext($pdo);
+$adminBrandText = $brandingContext['brand_text'];
+$adminLogo = $brandingContext['logo'];
+$adminFavicon = $brandingContext['favicon'];
 
 $stmt = $pdo->query(
   "SELECT id, first_name, last_name, email, phone, role, created_at, profilepic, profilepic_mime
@@ -156,13 +161,28 @@ function avatarInitials(string $f, string $l): string {
 <html lang="el">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Admin | Manage Users</title>
+    <title><?= escape($adminBrandText) ?> | Manage Users</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <?php if ($adminFavicon): ?>
+    <link rel="icon" href="<?= escape($adminFavicon) ?>" />
+    <?php endif; ?>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="../../assets/css/adminlte.css" />
     <link rel="stylesheet" href="../../assets/css/admin-pages.css" />
     <link rel="stylesheet" href="../../assets/css/admin-ui.css" />
+    <style>
+      .btn-modal-cancel {
+        transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+      }
+
+      .btn-modal-cancel:hover,
+      .btn-modal-cancel:focus-visible {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: #fff;
+      }
+    </style>
   </head>
   <body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
     <div class="app-wrapper">
@@ -220,8 +240,8 @@ function avatarInitials(string $f, string $l): string {
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
           <a href="index.php" class="brand-link">
-            <img src="../../assets/images/AdminLTELogo.png" alt="Logo" class="brand-image opacity-75 shadow" />
-            <span class="brand-text fw-light">Admin Panel</span>
+            <img src="<?= escape($adminLogo) ?>" alt="Logo" class="brand-image opacity-75 shadow" />
+            <span class="brand-text fw-light"><?= escape($adminBrandText) ?></span>
           </a>
         </div>
         <div class="sidebar-wrapper">
@@ -236,7 +256,7 @@ function avatarInitials(string $f, string $l): string {
                 <a href="manage_users.php" class="nav-link active"><i class="nav-icon bi bi-people"></i><p>Manage Users</p></a>
               </li>
               <li class="nav-item">
-                <a href="manage_recruitment.php" class="nav-link">
+                <a href="#" class="nav-link" role="button">
                   <i class="nav-icon bi bi-clipboard-check"></i>
                   <p>Manage Recruitment<i class="nav-arrow bi bi-chevron-right"></i></p>
                 </a>
@@ -354,14 +374,13 @@ function avatarInitials(string $f, string $l): string {
                       <th>Ονοματεπώνυμο</th>
                       <th>Email</th>
                       <th>Ρόλος</th>
-                      <th>Κατάσταση</th>
                       <th>Ημ/νία Εγγραφής</th>
                       <th class="text-end">Ενέργειες</th>
                     </tr>
                   </thead>
                   <tbody>
                     <?php if (empty($users)): ?>
-                    <tr><td colspan="7" class="text-center text-secondary py-4">Δεν βρέθηκαν χρήστες.</td></tr>
+                    <tr><td colspan="6" class="text-center text-secondary py-4">Δεν βρέθηκαν χρήστες.</td></tr>
                     <?php else: foreach ($users as $u):
                         $initials  = avatarInitials($u['first_name'], $u['last_name']);
                         $isAdmin   = $u['role'] === 'admin';
@@ -384,7 +403,6 @@ function avatarInitials(string $f, string $l): string {
                       <td class="fw-semibold"><?= $fullName ?></td>
                       <td class="text-secondary"><?= escape($u['email']) ?></td>
                       <td><span class="badge <?= $badgeCls ?> rounded-pill px-3 py-1"><?= $roleLabel ?></span></td>
-                      <td><span class="badge bg-success rounded-pill px-3 py-1">Ενεργός</span></td>
                       <td class="text-secondary small"><?= $dateFmt ?></td>
                       <td class="text-end">
                         <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(<?= (int)$u['id'] ?>)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
@@ -482,7 +500,7 @@ function avatarInitials(string $f, string $l): string {
             </form>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+            <button type="button" class="btn btn-secondary btn-modal-cancel" data-bs-dismiss="modal">Ακύρωση</button>
             <button type="submit" form="userForm" class="btn btn-primary" id="saveUserBtn">
               <i class="bi bi-check-lg me-1"></i>Αποθήκευση
             </button>

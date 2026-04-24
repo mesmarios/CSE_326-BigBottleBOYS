@@ -3,11 +3,21 @@
 // Include this as the very first file on every page.
 // Optionally define $extra_head (string of <style>/<link>/<script> tags) before including to inject
 // page-specific head content.
+require_once __DIR__ . '/maintenance-mode.php';
 
 // ── Session & Auth guard (must run before ANY output) ──────────────────────
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+$currentPath = ltrim(str_replace('\\', '/', (string)($_SERVER['PHP_SELF'] ?? $_SERVER['SCRIPT_NAME'] ?? '')), '/');
+$projectName = basename(dirname(__DIR__));
+$projectPrefix = $projectName . '/';
+
+if (str_starts_with($currentPath, $projectPrefix)) {
+    $currentPath = substr($currentPath, strlen($projectPrefix));
+}
+
 if (!isset($_SESSION['user_id'])) {
   $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
   if (strpos($scriptName, '/modules/') !== false) {
@@ -21,9 +31,17 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+if (($_SESSION['role'] ?? '') === 'admin' && str_starts_with($currentPath, 'modules/recruitmentModule/')) {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $basePath = strpos($scriptName, '/modules/') !== false
+        ? strstr($scriptName, '/modules/', true)
+        : rtrim(dirname($scriptName), '/');
+    header('Location: ' . rtrim($basePath, '/') . '/modules/admin/index.php');
+    exit;
+}
+
 // Maintenance mode check — admins bypass
-$_maintenanceLock = dirname(__DIR__) . '/maintenance.lock';
-if (file_exists($_maintenanceLock) && ($_SESSION['role'] ?? '') !== 'admin') {
+if (isMaintenanceModeActive() && ($_SESSION['role'] ?? '') !== 'admin') {
     $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
     $basePath = strpos($scriptName, '/modules/') !== false
         ? strstr($scriptName, '/modules/', true)

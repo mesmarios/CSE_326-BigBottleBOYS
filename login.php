@@ -17,11 +17,35 @@ function sanitizeLocalRedirect(?string $target): ?string
     return $target !== '' ? $target : null;
 }
 
+function defaultDashboardForRole(string $role): string
+{
+    return $role === 'admin'
+        ? 'modules/admin/index.php'
+        : 'modules/recruitmentModule/index.php';
+}
+
 $errors     = [];
 $registered = isset($_GET['registered']) && $_GET['registered'] == 1;
 $requireAdmin = (isset($_GET['admin']) && $_GET['admin'] === '1')
     || (isset($_POST['require_admin']) && $_POST['require_admin'] === '1');
 $redirectTo = sanitizeLocalRedirect($_POST['redirect_to'] ?? $_GET['redirect'] ?? null);
+
+if (isset($_SESSION['user_id'], $_SESSION['role'])) {
+    $sessionRole = (string)$_SESSION['role'];
+    $sessionTarget = defaultDashboardForRole($sessionRole);
+
+    if ($sessionRole === 'admin' && ($redirectTo === null || str_starts_with($redirectTo, 'modules/recruitmentModule/'))) {
+        header('Location: ' . $sessionTarget);
+        exit;
+    }
+
+    if ($sessionRole !== 'admin' && $redirectTo !== null && str_starts_with($redirectTo, 'modules/admin/')) {
+        $redirectTo = null;
+    }
+
+    header('Location: ' . ($redirectTo ?? $sessionTarget));
+    exit;
+}
 
 if (isset($_SESSION['auth_error'])) {
     $errors[] = $_SESSION['auth_error'];
@@ -51,12 +75,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['last_name']  = $user['last_name'];
                 $_SESSION['email']      = $user['email'];
 
-                $defaultTarget = $isAdmin
-                    ? 'modules/admin/index.php'
-                    : 'modules/recruitmentModule/index.php';
+                $userRole = (string)($user['role'] ?? '');
+                $defaultTarget = defaultDashboardForRole($userRole);
                 $target = $redirectTo;
 
-                if (!$isAdmin && $target !== null && str_starts_with($target, 'modules/admin/')) {
+                if ($userRole === 'admin' && ($target === null || str_starts_with($target, 'modules/recruitmentModule/'))) {
+                    $target = $defaultTarget;
+                }
+
+                if ($userRole !== 'admin' && $target !== null && str_starts_with($target, 'modules/admin/')) {
                     $target = null;
                 }
 

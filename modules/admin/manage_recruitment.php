@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../database/db.php';
+require_once __DIR__ . '/../../includes/admin-branding.php';
 
 /* ── POST handlers ──────────────────────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -223,13 +224,20 @@ function resolveAdminAvatarSrc(PDO $pdo, int $userId): string
 
 $navFullName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')) ?: 'Administrator';
 $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
+$brandingContext = adminGetBrandingContext($pdo);
+$adminBrandText = $brandingContext['brand_text'];
+$adminLogo = $brandingContext['logo'];
+$adminFavicon = $brandingContext['favicon'];
 ?>
 <!doctype html>
 <html lang="el">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Admin | Manage Recruitment</title>
+    <title><?= htmlspecialchars($adminBrandText, ENT_QUOTES, 'UTF-8') ?> | Manage Recruitment</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <?php if ($adminFavicon): ?>
+    <link rel="icon" href="<?= htmlspecialchars($adminFavicon, ENT_QUOTES, 'UTF-8') ?>" />
+    <?php endif; ?>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="../../assets/css/adminlte.css" />
@@ -286,8 +294,8 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
       <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
           <a href="index.php" class="brand-link">
-            <img src="../../assets/images/AdminLTELogo.png" alt="Logo" class="brand-image opacity-75 shadow" />
-            <span class="brand-text fw-light">Admin Panel</span>
+            <img src="<?= htmlspecialchars($adminLogo, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="brand-image opacity-75 shadow" />
+            <span class="brand-text fw-light"><?= htmlspecialchars($adminBrandText, ENT_QUOTES, 'UTF-8') ?></span>
           </a>
         </div>
         <div class="sidebar-wrapper">
@@ -298,7 +306,7 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
               <li class="nav-header">ΔΙΑΧΕΙΡΙΣΗ</li>
               <li class="nav-item"><a href="manage_users.php" class="nav-link"><i class="nav-icon bi bi-people"></i><p>Manage Users</p></a></li>
               <li class="nav-item menu-open">
-                <a href="manage_recruitment.php" class="nav-link active">
+                <a href="#" class="nav-link active" role="button">
                   <i class="nav-icon bi bi-clipboard-check"></i>
                   <p>Manage Recruitment<i class="nav-arrow bi bi-chevron-right"></i></p>
                 </a>
@@ -470,20 +478,20 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                   <div class="admin-table-toolbar">
                     <div class="admin-table-search">
                       <i class="bi bi-search"></i>
-                      <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση σχολής..." />
+                      <input type="text" class="form-control form-control-sm" id="schoolSearch" placeholder="Αναζήτηση σχολής..." />
                     </div>
                     <button class="btn btn-success btn-sm" onclick="openSchoolModal(0,'')">
                       <i class="bi bi-plus-lg me-1"></i>Νέα Σχολή
                     </button>
                   </div>
                   <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="schoolTable">
                       <thead class="table-light">
                         <tr><th>#</th><th>Όνομα Σχολής</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
                       <tbody>
                         <?php foreach ($schools as $i => $school): ?>
-                        <tr>
+                        <tr data-school-row="true">
                           <td><?= $i + 1 ?></td>
                           <td class="fw-semibold"><?= htmlspecialchars($school['name']) ?></td>
                           <td class="text-end">
@@ -511,14 +519,14 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                   <div class="admin-table-toolbar">
                     <div class="admin-table-search">
                       <i class="bi bi-search"></i>
-                      <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση τμήματος..." />
+                      <input type="text" class="form-control form-control-sm" id="departmentSearch" placeholder="Αναζήτηση τμήματος..." />
                     </div>
                     <button class="btn btn-success btn-sm" onclick="openDeptModal(0,'',0)">
                       <i class="bi bi-plus-lg me-1"></i>Νέο Τμήμα
                     </button>
                   </div>
                   <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="departmentTable">
                       <thead class="table-light">
                         <tr><th>#</th><th>Τμήμα</th><th>Σχολή</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
@@ -526,7 +534,7 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                         <?php
                         $schoolById = array_column($schools, 'name', 'id');
                         foreach ($departments as $i => $dept): ?>
-                        <tr>
+                        <tr data-department-row="true">
                           <td><?= $i + 1 ?></td>
                           <td class="fw-semibold"><?= htmlspecialchars($dept['name']) ?></td>
                           <td><?= htmlspecialchars($schoolById[$dept['school_id']] ?? '—') ?></td>
@@ -555,14 +563,14 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                   <div class="admin-table-toolbar">
                     <div class="admin-table-search">
                       <i class="bi bi-search"></i>
-                      <input type="text" class="form-control form-control-sm" placeholder="Αναζήτηση μαθήματος..." />
+                      <input type="text" class="form-control form-control-sm" id="courseSearch" placeholder="Αναζήτηση μαθήματος..." />
                     </div>
                     <button class="btn btn-success btn-sm" onclick="openCourseModal(0,'',0)">
                       <i class="bi bi-plus-lg me-1"></i>Νέο Μάθημα
                     </button>
                   </div>
                   <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0" id="courseTable">
                       <thead class="table-light">
                         <tr><th>#</th><th>Μάθημα</th><th>Τμήμα</th><th class="text-end">Ενέργειες</th></tr>
                       </thead>
@@ -570,7 +578,7 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                         <?php
                         $deptById = array_column($departments, 'name', 'id');
                         foreach ($courses as $i => $course): ?>
-                        <tr>
+                        <tr data-course-row="true">
                           <td><?= $i + 1 ?></td>
                           <td class="fw-semibold"><?= htmlspecialchars($course['name']) ?></td>
                           <td><?= htmlspecialchars($deptById[$course['department_id']] ?? '—') ?></td>
@@ -1019,6 +1027,9 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
         // Search filter
         document.getElementById('appSearch').addEventListener('input', filterTable);
         document.getElementById('appStatusFilter').addEventListener('change', filterTable);
+        document.getElementById('schoolSearch').addEventListener('input', filterSchools);
+        document.getElementById('departmentSearch').addEventListener('input', filterDepartments);
+        document.getElementById('courseSearch').addEventListener('input', filterCourses);
 
         function filterTable() {
           const search = document.getElementById('appSearch').value.toLowerCase();
@@ -1029,6 +1040,27 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
             const matchText = text.includes(search);
             const matchStatus = !status || rowStatus === status;
             row.style.display = matchText && matchStatus ? '' : 'none';
+          });
+        }
+
+        function filterSchools() {
+          const search = document.getElementById('schoolSearch').value.toLowerCase().trim();
+          document.querySelectorAll('#schoolTable tbody tr[data-school-row]').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+          });
+        }
+
+        function filterDepartments() {
+          const search = document.getElementById('departmentSearch').value.toLowerCase().trim();
+          document.querySelectorAll('#departmentTable tbody tr[data-department-row]').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+          });
+        }
+
+        function filterCourses() {
+          const search = document.getElementById('courseSearch').value.toLowerCase().trim();
+          document.querySelectorAll('#courseTable tbody tr[data-course-row]').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
           });
         }
 
