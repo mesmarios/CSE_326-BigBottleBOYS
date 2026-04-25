@@ -1,112 +1,72 @@
-# README
+# CSE 326 BigBottleBOYS
 
-## Στοιχεία Ομάδας
+## Ομάδα
 
-Η ομάδα ανάπτυξης αποτελείται από τους:
+- Μάριος Σιήττας - Α.Φ.Τ. 27432
+- Μάριος Μεσαρίτης - Α.Φ.Τ. 27818
+- Μιχαλής Τσαδιώτης - Α.Φ.Τ. 28053
 
-* Μάριος Σιήττας — Α.Φ.Τ. 27432
-* Μάριος Μεσαριτής — Α.Φ.Τ. 27818
-* Μιχαλής Τσαδιώτης — Α.Φ.Τ. 28053
+## Κατανομή εργασίας
 
----
+- Μάριος Σιήττας (27432): dashboard/admin σελίδες, σύνδεση διεπαφών με δεδομένα βάσης, γενική ενοποίηση εφαρμογής.
+- Μάριος Μεσαρίτης (27818): authentication flow, keyword search, βελτιώσεις ασφάλειας, schema/seed προσαρμογές.
+- Μιχαλής Τσαδιώτης (28053): README, έλεγχοι ασφάλειας, τεκμηρίωση και υποστήριξη τελικής παράδοσης.
 
-## Κατανομή Εργασίας
+Η παραπάνω κατανομή βασίζεται στα commits του repository και στην τελική δομή παράδοσης.
 
-Η εργασία υλοποιήθηκε συλλογικά από όλα τα μέλη της ομάδας.
-Δεν υπήρξε αυστηρός διαχωρισμός καθηκόντων, καθώς όλοι οι φοιτητές συνέβαλαν σε όλα τα μέρη του project.
+## Υποχρεωτική δομή για το παραδοτέο
 
-Συγκεκριμένα, η ομάδα συνεργάστηκε για την υλοποίηση των παρακάτω:
+- `database/schema.sql`
+- `database/seed.sql`
+- `includes/db.php`
+- `auth/register.php`
+- `auth/login.php`
+- `auth/logout.php`
+- `modules/dashboard.php`
+- `modules/list.php`
 
-* Dashboard
-* Front-end (Frontview)
-* Database (βάση δεδομένων & schema)
+Το repository περιέχει και επιπλέον αρχεία του project, αλλά τα παραπάνω είναι τα βασικά αρχεία που ζητά η εκφώνηση.
 
-Όλα τα μέλη συμμετείχαν ενεργά στον σχεδιασμό, την ανάπτυξη και τον έλεγχο της εφαρμογής.
+## Οδηγίες εγκατάστασης
 
----
-
-## Οδηγίες Εγκατάστασης
-
-### Εκτέλεση με LAMP (Linux)
-
-```bash
-sudo apt update
-sudo apt install apache2 mysql-server php libapache2-mod-php php-mysql
-```
-
-Τοποθετήστε τον φάκελο του project στο:
-
-```
-/var/www/html/
-```
-
-Παράδειγμα:
-
-```bash
-sudo cp -r project_folder /var/www/html/
-```
-
-Δημιουργήστε τη βάση δεδομένων:
+1. Εγκαταστήστε Apache, PHP και MySQL ή χρησιμοποιήστε XAMPP/LAMP.
+2. Τοποθετήστε τον φάκελο του project μέσα στο web root, π.χ.:
+   - XAMPP: `htdocs/`
+   - LAMP: `/var/www/html/`
+3. Δημιουργήστε τη βάση:
 
 ```sql
-CREATE DATABASE project_db;
+CREATE DATABASE bigbrothers CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-Κάντε εισαγωγή του αρχείου `schema.sql`:
+4. Κάντε import πρώτα το schema και μετά τα demo δεδομένα:
 
 ```bash
-mysql -u root -p project_db < schema.sql
+mysql -u root -p bigbrothers < database/schema.sql
+mysql -u root -p bigbrothers < database/seed.sql
 ```
 
----
+Demo password για τους seeded users: `Password123!`
 
-### Εκτέλεση με XAMPP (Windows)
+5. Ελέγξτε ότι το connection file χρησιμοποιεί τα σωστά credentials:
+   - αρχείο: `includes/db.php` -> φορτώνει το `database/db.php`
+   - βάση: `bigbrothers`
+   - host: `localhost`
+   - user: `root`
 
-Εγκαταστήστε και ανοίξτε το XAMPP.
+## Εκτέλεση
 
-Ενεργοποιήστε τα Apache και MySQL.
+Ανοίξτε στον browser το project και χρησιμοποιήστε τα υποχρεωτικά routes:
 
-Τοποθετήστε τον φάκελο του project στο:
+- `http://localhost/CSE_326-BigBottleBOYS/auth/register.php`
+- `http://localhost/CSE_326-BigBottleBOYS/auth/login.php`
+- `http://localhost/CSE_326-BigBottleBOYS/modules/dashboard.php`
+- `http://localhost/CSE_326-BigBottleBOYS/modules/list.php`
 
-```
-C:\xampp\htdocs\
-```
+## Σημειώσεις ασφάλειας
 
-Δημιουργήστε τη βάση δεδομένων:
-
-```sql
-CREATE DATABASE project_db;
-```
-
-Κάντε εισαγωγή του αρχείου `schema.sql`:
-
-```bash
-mysql -u root -p project_db < schema.sql
-```
-
----
-
-## Ρύθμιση Σύνδεσης
-
-```php
-$host = "localhost";
-$user = "root";
-$password = "";
-$database = "project_db";
-```
-
----
-
-## Εκτέλεση Εφαρμογής
-
-```
-http://localhost/project_folder/
-```
-
----
-
-## Παρατηρήσεις
-
-* Βεβαιωθείτε ότι Apache και MySQL είναι ενεργά.
-* Το αρχείο `schema.sql` πρέπει να βρίσκεται στον φάκελο του project.
-* Τα στοιχεία σύνδεσης πρέπει να αντιστοιχούν στη βάση δεδομένων που δημιουργήθηκε.
+- Χρησιμοποιείται PDO με prepared statements.
+- Τα passwords αποθηκεύονται μόνο με `password_hash()`.
+- Η επαλήθευση σύνδεσης γίνεται με `password_verify()`.
+- Όλα τα redirects συνοδεύονται από `exit`.
+- Η έξοδος προς HTML γίνεται με `htmlspecialchars()` όπου εμφανίζονται δυναμικά δεδομένα.
