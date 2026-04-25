@@ -13,9 +13,19 @@ require_once '../database/db.php';
 $userId = (int)$_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    handleGet($pdo, $userId);
+    try {
+        handleGet($pdo, $userId);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Unable to load profile data']);
+    }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    handlePost($pdo, $userId);
+    try {
+        handlePost($pdo, $userId);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Η ενημέρωση προφίλ απέτυχε.']);
+    }
 } else {
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
 }
@@ -27,6 +37,29 @@ function buildAvatarSrc(string $binary, ?string $mimeType): string {
         : 'image/jpeg';
 
     return 'data:' . $safeMimeType . ';base64,' . base64_encode($binary);
+}
+
+function getUsersTableColumns(PDO $pdo): array {
+    static $columns = null;
+
+    if (is_array($columns)) {
+        return $columns;
+    }
+
+    $stmt = $pdo->query('SHOW COLUMNS FROM users');
+    $columns = [];
+
+    foreach ($stmt->fetchAll() as $row) {
+        if (isset($row['Field'])) {
+            $columns[] = (string)$row['Field'];
+        }
+    }
+
+    return $columns;
+}
+
+function userColumnExists(PDO $pdo, string $column): bool {
+    return in_array($column, getUsersTableColumns($pdo), true);
 }
 
 function resolveAvatarFileUrl(int $userId): ?string {
@@ -100,6 +133,32 @@ function handleAvatarUpload(PDO $pdo, int $userId): void {
         return;
     }
 
+    $binaryData = file_get_contents($tmpPath);
+    if ($binaryData === false || $binaryData === '') {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Unable to read image data']);
+        return;
+    }
+
+    $setParts = ['profilepic = :profilepic'];
+    if (userColumnExists($pdo, 'profilepic_mime')) {
+        $setParts[] = 'profilepic_mime = :profilepic_mime';
+    }
+    if (userColumnExists($pdo, 'updated_at')) {
+        $setParts[] = 'updated_at = NOW()';
+    }
+
+    $stmt = $pdo->prepare(
+        'UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = :id'
+    );
+    $stmt->bindValue(':profilepic', $binaryData, PDO::PARAM_LOB);
+    if (userColumnExists($pdo, 'profilepic_mime')) {
+        $stmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
+    }
+    $stmt->bindValue(':id', $userId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    // Best-effort filesystem sync for legacy code paths; DB remains the source of truth.
     $extByMime = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
@@ -107,42 +166,18 @@ function handleAvatarUpload(PDO $pdo, int $userId): void {
         'image/webp' => 'webp',
     ];
     $extension = $extByMime[(string)$detectedMimeType] ?? 'jpg';
-
     $avatarDir = __DIR__ . '/../uploads/profile_pics';
-    if (!is_dir($avatarDir) && !mkdir($avatarDir, 0775, true) && !is_dir($avatarDir)) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Failed to create avatar storage']);
-        return;
-    }
-
-    $existingFiles = glob($avatarDir . '/user_' . $userId . '.*');
-    if (is_array($existingFiles)) {
-        foreach ($existingFiles as $existingFile) {
-            @unlink($existingFile);
+    if (is_dir($avatarDir) || @mkdir($avatarDir, 0775, true) || is_dir($avatarDir)) {
+        $existingFiles = glob($avatarDir . '/user_' . $userId . '.*');
+        if (is_array($existingFiles)) {
+            foreach ($existingFiles as $existingFile) {
+                @unlink($existingFile);
+            }
         }
-    }
 
-    $targetPath = $avatarDir . '/user_' . $userId . '.' . $extension;
-    $savedToFile = move_uploaded_file($tmpPath, $targetPath);
-    if (!$savedToFile) {
-        $savedToFile = @copy($tmpPath, $targetPath);
+        $targetPath = $avatarDir . '/user_' . $userId . '.' . $extension;
+        @copy($tmpPath, $targetPath);
     }
-
-    $binarySourcePath = $savedToFile ? $targetPath : $tmpPath;
-    $binaryData = file_get_contents($binarySourcePath);
-    if ($binaryData === false || $binaryData === '') {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Unable to read image data']);
-        return;
-    }
-
-    $stmt = $pdo->prepare(
-        'UPDATE users SET profilepic = :profilepic, profilepic_mime = :profilepic_mime, updated_at = NOW() WHERE id = :id'
-    );
-    $stmt->bindValue(':profilepic', $binaryData, PDO::PARAM_LOB);
-    $stmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
-    $stmt->bindValue(':id', $userId, PDO::PARAM_INT);
-    $stmt->execute();
 
     echo json_encode([
         'success' => true,
@@ -152,20 +187,44 @@ function handleAvatarUpload(PDO $pdo, int $userId): void {
 
 /* ── GET: return profile + academic data ─────────────────────────── */
 function handleGet(PDO $pdo, int $userId): void {
-    $stmt = $pdo->prepare("
-        SELECT first_name, last_name, email, phone, address,
-               dob, degree, institution, specialization, experience, summary,
-               profilepic, profilepic_mime
-        FROM users WHERE id = ?
-    ");
+    $availableColumns = getUsersTableColumns($pdo);
+    $candidateColumns = [
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'address',
+        'dob',
+        'degree',
+        'institution',
+        'specialization',
+        'experience',
+        'summary',
+        'profilepic',
+        'profilepic_mime',
+    ];
+    $selectColumns = [];
+    foreach ($candidateColumns as $column) {
+        if (in_array($column, $availableColumns, true)) {
+            $selectColumns[] = $column;
+        }
+    }
+
+    if ($selectColumns === []) {
+        $selectColumns[] = 'id';
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT ' . implode(', ', $selectColumns) . ' FROM users WHERE id = ?'
+    );
     $stmt->execute([$userId]);
-    $user = $stmt->fetch();
+    $user = $stmt->fetch() ?: [];
 
     echo json_encode([
         'success'    => true,
-        'first_name' => $user['first_name'],
-        'last_name'  => $user['last_name'],
-        'email'      => $user['email'],
+        'first_name' => $user['first_name'] ?? '',
+        'last_name'  => $user['last_name'] ?? '',
+        'email'      => $user['email'] ?? '',
         'phone'      => $user['phone']   ?? '',
         'address'    => $user['address'] ?? '',
         'profile_data' => [
@@ -213,19 +272,41 @@ function handlePost(PDO $pdo, int $userId): void {
     $experience     = ($pd['experience'] ?? '') !== '' ? (int)$pd['experience'] : null;
     $summary        = trim($pd['summary']        ?? '') ?: null;
 
-    $stmt = $pdo->prepare("
-        UPDATE users
-        SET first_name = ?, last_name = ?, phone = ?, address = ?,
-            dob = ?, degree = ?, institution = ?,
-            specialization = ?, experience = ?, summary = ?,
-            updated_at = NOW()
-        WHERE id = ?
-    ");
-    $stmt->execute([
-        $firstName, $lastName, $phone, $address,
-        $dob, $degree, $institution, $specialization, $experience, $summary,
-        $userId,
-    ]);
+    $updates = [];
+    $params = [];
+
+    $fieldMap = [
+        'first_name' => $firstName,
+        'last_name' => $lastName,
+        'phone' => $phone,
+        'address' => $address,
+        'dob' => $dob,
+        'degree' => $degree,
+        'institution' => $institution,
+        'specialization' => $specialization,
+        'experience' => $experience,
+        'summary' => $summary,
+    ];
+
+    foreach ($fieldMap as $column => $value) {
+        if (userColumnExists($pdo, $column)) {
+            $updates[] = $column . ' = ?';
+            $params[] = $value;
+        }
+    }
+
+    if (userColumnExists($pdo, 'updated_at')) {
+        $updates[] = 'updated_at = NOW()';
+    }
+
+    if ($updates === []) {
+        echo json_encode(['success' => false, 'error' => 'No compatible profile columns found']);
+        return;
+    }
+
+    $params[] = $userId;
+    $stmt = $pdo->prepare('UPDATE users SET ' . implode(', ', $updates) . ' WHERE id = ?');
+    $stmt->execute($params);
 
     $_SESSION['first_name'] = $firstName;
     $_SESSION['last_name']  = $lastName;

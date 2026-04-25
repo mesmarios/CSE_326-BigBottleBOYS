@@ -7,11 +7,17 @@ $pdo = getDBConnection();
 // ── CRUD action handlers ──────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    $currentAdminId = (int)($_SESSION['user_id'] ?? 0);
 
     if ($action === 'delete') {
         $id = (int)($_POST['user_id'] ?? 0);
         if ($id <= 0) {
             header('Location: manage_users.php?msg=' . urlencode('Μη έγκυρο αναγνωριστικό χρήστη.') . '&mtype=danger');
+            exit;
+        }
+
+        if ($currentAdminId > 0 && $id === $currentAdminId) {
+            header('Location: manage_users.php?msg=' . urlencode('Δεν μπορείτε να διαγράψετε τον δικό σας λογαριασμό διαχειριστή.') . '&mtype=danger');
             exit;
         }
 
@@ -56,6 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone   = trim($_POST['phone']      ?? '') ?: null;
         $role    = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
         $newPass = trim($_POST['new_password'] ?? '');
+
+        if ($currentAdminId > 0 && $id === $currentAdminId) {
+            header('Location: manage_users.php?msg=' . urlencode('Δεν μπορείτε να επεξεργαστείτε τον δικό σας λογαριασμό από αυτή τη σελίδα.') . '&mtype=danger');
+            exit;
+        }
+
         if ($id > 0 && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             if ($newPass !== '' && strlen($newPass) >= 8) {
                 $hash = password_hash($newPass, PASSWORD_DEFAULT);
@@ -152,6 +164,7 @@ $adminCount   = count(array_filter($users, fn($u) => $u['role'] === 'admin'));
 $userCount    = $totalUsers - $adminCount;
 $thisMonth    = date('Y-m');
 $newThisMonth = count(array_filter($users, fn($u) => str_starts_with($u['created_at'], $thisMonth)));
+$currentAdminId = (int)($_SESSION['user_id'] ?? 0);
 
 function avatarInitials(string $f, string $l): string {
     return mb_strtoupper(mb_substr($f,0,1,'UTF-8') . mb_substr($l,0,1,'UTF-8'), 'UTF-8');
@@ -182,10 +195,20 @@ function avatarInitials(string $f, string $l): string {
         border-color: #dc3545;
         color: #fff;
       }
+
+      .action-feedback-fixed {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1085;
+        min-width: 320px;
+        max-width: 420px;
+      }
     </style>
   </head>
   <body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
     <div class="app-wrapper">
+      <div id="actionFeedback" class="action-feedback-fixed d-none" aria-live="polite"></div>
 
       <!-- ===== NAVBAR ===== -->
       <header class="app-header">
@@ -384,6 +407,7 @@ function avatarInitials(string $f, string $l): string {
                     <?php else: foreach ($users as $u):
                         $initials  = avatarInitials($u['first_name'], $u['last_name']);
                         $isAdmin   = $u['role'] === 'admin';
+                        $isCurrentAdmin = (int)$u['id'] === $currentAdminId;
                         $avBg      = $isAdmin ? '#dbeafe' : '#dcfce7';
                         $avColor   = $isAdmin ? '#1d4ed8' : '#15803d';
                         $avatarSrc = resolveUserAvatarSrc($u);
@@ -400,16 +424,34 @@ function avatarInitials(string $f, string $l): string {
                         <div class="table-avatar-placeholder" style="background:<?= $avBg ?>;color:<?= $avColor ?>;"><?= escape($initials) ?></div>
                         <?php endif; ?>
                       </td>
-                      <td class="fw-semibold"><?= $fullName ?></td>
+                      <td class="fw-semibold">
+                        <?= $fullName ?>
+                        <?php if ($isCurrentAdmin): ?>
+                          <span class="badge text-bg-primary ms-2">
+                            <i class="bi bi-shield-lock-fill me-1"></i>Protected
+                          </span>
+                        <?php endif; ?>
+                      </td>
                       <td class="text-secondary"><?= escape($u['email']) ?></td>
                       <td><span class="badge <?= $badgeCls ?> rounded-pill px-3 py-1"><?= $roleLabel ?></span></td>
                       <td class="text-secondary small"><?= $dateFmt ?></td>
                       <td class="text-end">
-                        <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="openEditUserModal(<?= (int)$u['id'] ?>)" title="Επεξεργασία"><i class="bi bi-pencil"></i></button>
-                        <form method="POST" class="d-inline" onsubmit="return confirm('Είστε βέβαιοι ότι θέλετε να διαγράψετε τον χρήστη <?= escape(trim($u['first_name'] . ' ' . $u['last_name'])) ?>;');">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary me-1"
+                          onclick="openEditUserModal(<?= (int)$u['id'] ?>)"
+                          title="<?= $isCurrentAdmin ? 'Ο τρέχων διαχειριστής δεν μπορεί να επεξεργαστεί τον εαυτό του από αυτή τη σελίδα.' : 'Επεξεργασία' ?>"
+                          <?= $isCurrentAdmin ? 'disabled aria-disabled="true"' : '' ?>
+                        ><i class="bi bi-pencil"></i></button>
+                        <form method="POST" class="d-inline delete-user-form" data-user-id="<?= (int)$u['id'] ?>" data-user-name="<?= escape(trim($u['first_name'] . ' ' . $u['last_name'])) ?>">
                           <input type="hidden" name="action" value="delete">
                           <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
-                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Διαγραφή">
+                          <button
+                            type="submit"
+                            class="btn btn-sm btn-outline-danger"
+                            title="<?= $isCurrentAdmin ? 'Ο τρέχων διαχειριστής δεν μπορεί να διαγράψει τον εαυτό του.' : 'Διαγραφή' ?>"
+                            <?= $isCurrentAdmin ? 'disabled aria-disabled="true"' : '' ?>
+                          >
                             <i class="bi bi-trash"></i>
                           </button>
                         </form>
@@ -444,6 +486,7 @@ function avatarInitials(string $f, string $l): string {
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
+            <div id="userFormFeedback" class="alert alert-danger d-none" role="alert"></div>
             <form id="userForm" method="POST" onsubmit="return validateUserForm()">
               <input type="hidden" id="userFormAction" name="action" value="add">
               <input type="hidden" id="userFormId" name="user_id" value="">
@@ -509,6 +552,26 @@ function avatarInitials(string $f, string $l): string {
       </div>
     </div>
 
+    <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteUserModalLabel">Επιβεβαίωση διαγραφής</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Είστε βέβαιοι ότι θέλετε να διαγράψετε τον χρήστη <strong id="deleteUserName"></strong>;</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+            <button type="button" class="btn btn-danger" id="confirmDeleteUserBtn">
+              <i class="bi bi-trash me-1"></i>Διαγραφή
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
@@ -524,11 +587,38 @@ function avatarInitials(string $f, string $l): string {
       ) ?>;
 
       var _userModal = null;
+      var _deleteUserModal = null;
+      var _pendingDeleteForm = null;
+
+      function showActionFeedback(message, type) {
+        var box = document.getElementById('actionFeedback');
+        if (!box) return;
+        box.innerHTML = '<div class="alert alert-' + type + ' alert-dismissible fade show shadow-sm mb-0" role="alert">'
+          + message
+          + '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>'
+          + '</div>';
+        box.classList.remove('d-none');
+      }
+
+      function showUserFormFeedback(message) {
+        var box = document.getElementById('userFormFeedback');
+        if (!box) return;
+        box.textContent = message;
+        box.classList.remove('d-none');
+      }
+
+      function clearUserFormFeedback() {
+        var box = document.getElementById('userFormFeedback');
+        if (!box) return;
+        box.textContent = '';
+        box.classList.add('d-none');
+      }
 
       document.addEventListener('DOMContentLoaded', function () {
         // Αρχικοποίηση Bootstrap modal instance
         var modalEl = document.getElementById('userModal');
         _userModal = new bootstrap.Modal(modalEl);
+        _deleteUserModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
 
         // OverlayScrollbars
         var sw = document.querySelector('.sidebar-wrapper');
@@ -553,9 +643,25 @@ function avatarInitials(string $f, string $l): string {
             row.style.display = (!val || row.dataset.role === val) ? '' : 'none';
           });
         });
+
+        document.querySelectorAll('.delete-user-form').forEach(function (form) {
+          form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            _pendingDeleteForm = form;
+            document.getElementById('deleteUserName').textContent = form.dataset.userName || 'τον επιλεγμένο χρήστη';
+            _deleteUserModal.show();
+          });
+        });
+
+        document.getElementById('confirmDeleteUserBtn').addEventListener('click', function () {
+          if (_pendingDeleteForm) {
+            _pendingDeleteForm.submit();
+          }
+        });
       });
 
       function openAddUserModal() {
+        clearUserFormFeedback();
         document.getElementById('userModalLabel').textContent = 'Προσθήκη Χρήστη';
         document.getElementById('userForm').reset();
         document.getElementById('userFormAction').value = 'add';
@@ -574,9 +680,10 @@ function avatarInitials(string $f, string $l): string {
       function openEditUserModal(id) {
         var u = USERS_DATA[id];
         if (!u) {
-          alert('Σφάλμα: Δεν βρέθηκαν στοιχεία χρήστη. Ανανεώστε τη σελίδα.');
+          showActionFeedback('Σφάλμα: Δεν βρέθηκαν στοιχεία χρήστη. Ανανεώστε τη σελίδα.', 'danger');
           return;
         }
+        clearUserFormFeedback();
         document.getElementById('userModalLabel').textContent = 'Επεξεργασία Χρήστη';
         document.getElementById('userForm').reset();
         document.getElementById('userFormAction').value = 'edit';
@@ -601,28 +708,29 @@ function avatarInitials(string $f, string $l): string {
       }
 
       function validateUserForm() {
+        clearUserFormFeedback();
         var action = document.getElementById('userFormAction').value;
         if (action === 'add') {
           var pass = document.getElementById('userPassword').value;
           var confirm = document.getElementById('userPasswordConfirm').value;
           if (pass.length < 8) {
-            alert('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.');
+            showUserFormFeedback('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.');
             return false;
           }
           if (pass !== confirm) {
-            alert('Οι κωδικοί δεν ταιριάζουν.');
+            showUserFormFeedback('Οι κωδικοί δεν ταιριάζουν.');
             return false;
           }
         } else if (action === 'edit') {
           var newPass = document.getElementById('userNewPassword').value;
           if (newPass !== '') {
             if (newPass.length < 8) {
-              alert('Ο νέος κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.');
+              showUserFormFeedback('Ο νέος κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.');
               return false;
             }
             var newConfirm = document.getElementById('userNewPasswordConfirm').value;
             if (newPass !== newConfirm) {
-              alert('Οι νέοι κωδικοί δεν ταιριάζουν.');
+              showUserFormFeedback('Οι νέοι κωδικοί δεν ταιριάζουν.');
               return false;
             }
           }

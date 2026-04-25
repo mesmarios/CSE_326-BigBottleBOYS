@@ -56,6 +56,20 @@ function escapeHtml(value) {
   return span.innerHTML;
 }
 
+function showProfileMessage(message, type = 'danger') {
+  const box = document.getElementById('profileAvatarMessage');
+  if (!box) return;
+
+  box.textContent = message;
+  box.className = `alert alert-${type} py-2 px-3 mt-3 mb-0`;
+  box.classList.remove('d-none');
+
+  clearTimeout(showProfileMessage._timer);
+  showProfileMessage._timer = setTimeout(() => {
+    box.classList.add('d-none');
+  }, 4000);
+}
+
 /* ── Show a simple inline save-feedback message ───────────────── */
 function showSaveFeedback(btn, success) {
   const original = btn.textContent;
@@ -117,13 +131,13 @@ function applyAvatarToUI(src) {
     const file = input.files[0];
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Please select a JPG, PNG, GIF or WEBP image.');
+      showProfileMessage('Επίλεξε εικόνα JPG, PNG, GIF ή WEBP.');
       input.value = '';
       return;
     }
 
     if (file.size > 8 * 1024 * 1024) {
-      alert('Image size must be up to 8MB.');
+      showProfileMessage('Το μέγεθος της εικόνας πρέπει να είναι μέχρι 8MB.');
       input.value = '';
       return;
     }
@@ -147,11 +161,16 @@ function applyAvatarToUI(src) {
         method: 'POST',
         body: formData,
       });
-      const data = await resp.json();
+      let data;
+      try {
+        data = await resp.json();
+      } catch (parseError) {
+        data = { success: false, error: 'Η απάντηση του server δεν ήταν έγκυρη.' };
+      }
 
       if (!resp.ok || !data.success) {
         if (previousSrc) applyAvatarToUI(previousSrc);
-        alert(data.error || 'Avatar upload failed. Please try again.');
+        showProfileMessage(data.error || 'Η αποστολή της φωτογραφίας απέτυχε. Δοκίμασε ξανά.');
         input.value = '';
         return;
       }
@@ -160,9 +179,10 @@ function applyAvatarToUI(src) {
         applyAvatarToUI(data.avatar_src);
         if (window.CareerTrack) window.CareerTrack.profilePic = data.avatar_src;
       }
+      showProfileMessage('Η φωτογραφία προφίλ ενημερώθηκε.', 'success');
     } catch (e) {
       if (previousSrc) applyAvatarToUI(previousSrc);
-      alert('Avatar upload failed. Please try again.');
+      showProfileMessage('Η αποστολή της φωτογραφίας απέτυχε. Δοκίμασε ξανά.');
     } finally {
       input.value = '';
     }

@@ -83,6 +83,12 @@ $profileData = [
                     <p class="mb-0 opacity-75" style="font-size:.85rem;">
                       <i class="bi bi-envelope me-1"></i><span id="bannerEmail"><?= htmlspecialchars($user['email']) ?></span>
                     </p>
+                    <div
+                      id="profileAvatarMessage"
+                      class="alert d-none py-2 px-3 mt-3 mb-0"
+                      role="alert"
+                      aria-live="polite"
+                    ></div>
                   </div>
                 </div>
 
