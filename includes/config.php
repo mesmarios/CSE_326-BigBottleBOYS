@@ -54,6 +54,7 @@ const USER_ROLES = [
     'evaluator' => 3,
     'candidate' => 4,
     'specialist' => 5,
+    'user' => 4,
 ];
 
 // Application status constants

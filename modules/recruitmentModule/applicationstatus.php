@@ -30,6 +30,19 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         ca.submitted_at,
         ca.reviewed_at,
         ca.updated_at,
+        ca.app_phone,
+        ca.app_degree,
+        ca.app_institution,
+        ca.app_specialization,
+        ca.app_experience,
+        ca.app_summary,
+        ca.app_cv_path,
+        ca.app_cl_path,
+        ca.app_sup_path_1,
+        ca.app_sup_path_2,
+        ca.app_sup_path_3,
+        ca.app_sup_path_4,
+        ca.app_sup_path_5,
         ja.title,
         COALESCE(d.name, '—') AS department,
         COALESCE(s.name, '—') AS school,
@@ -123,6 +136,37 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         'withdrawn' => 'Rejected',
       ];
 
+      $supportFileNames = [];
+      $supportFileUrls = [];
+      for ($i = 1; $i <= 5; $i++) {
+        $supportPath = $row['app_sup_path_' . $i] ?? null;
+        if (!empty($supportPath)) {
+          $supportFileNames[] = basename((string)$supportPath);
+          $supportFileUrls[] = '../../api/download.php?app_id=' . $applicationId . '&type=sup&idx=' . (count($supportFileNames) - 1);
+        }
+      }
+
+      $submissionData = [
+        'fullName' => trim(($bootUser['name'] ?? '') . ' ' . ($bootUser['surname'] ?? '')),
+        'email' => $bootUser['email'] ?? '',
+        'phone' => $row['app_phone'] ?? ($bootUser['phone'] ?? ''),
+        'degree' => $row['app_degree'] ?? '',
+        'institution' => $row['app_institution'] ?? '',
+        'specialization' => $row['app_specialization'] ?? '',
+        'experience' => $row['app_experience'] !== null ? (string)$row['app_experience'] : '',
+        'summary' => $row['app_summary'] ?? '',
+        'cvFileName' => !empty($row['app_cv_path']) ? basename((string)$row['app_cv_path']) : null,
+        'clFileName' => !empty($row['app_cl_path']) ? basename((string)$row['app_cl_path']) : null,
+        'supFileNames' => $supportFileNames,
+        'cvFileData' => !empty($row['app_cv_path']) ? '../../api/download.php?app_id=' . $applicationId . '&type=cv' : null,
+        'clFileData' => !empty($row['app_cl_path']) ? '../../api/download.php?app_id=' . $applicationId . '&type=cl' : null,
+        'supFilesData' => $supportFileUrls,
+      ];
+
+      if (isset($responseMap[$applicationId]) && is_array($responseMap[$applicationId])) {
+        $submissionData = array_merge($submissionData, $responseMap[$applicationId]);
+      }
+
       $bootCalls[$callId] = [
         'id' => $callId,
         'title' => $row['title'],
@@ -142,7 +186,7 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         'updatedDate' => $row['updated_at'] ? date('c', strtotime($row['updated_at'])) : null,
         'reviewedDate' => $row['reviewed_at'] ? date('c', strtotime($row['reviewed_at'])) : null,
         'status' => $statusMap[$row['status']] ?? 'Submitted',
-        'data' => $responseMap[$applicationId] ?? [],
+        'data' => $submissionData,
       ];
     }
 
@@ -301,4 +345,3 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
   };
 </script>
 <script src="../../recruitment/assets/js/applicationstatus.js"></script>
-

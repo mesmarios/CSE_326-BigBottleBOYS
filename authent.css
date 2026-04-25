@@ -18,6 +18,32 @@ body.auth-page {
     font-family: 'Segoe UI', sans-serif;
 }
 
+.auth-home-btn {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 1100;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(11, 42, 107, 0.96);
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 14px 30px rgba(11, 42, 107, 0.2);
+    transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.auth-home-btn:hover,
+.auth-home-btn:focus {
+    background: #1f5fbf;
+    color: #fff;
+    transform: translateY(-2px);
+}
+
 /* ── Wrapper ── */
 .auth-wrapper {
     display: flex;
@@ -313,6 +339,13 @@ body.auth-page {
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+    .auth-home-btn {
+        top: 12px;
+        left: 12px;
+        padding: 9px 12px;
+        font-size: 12px;
+    }
+
     .auth-wrapper {
         flex-direction: column;
         width: 95%;

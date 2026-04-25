@@ -326,7 +326,7 @@ function notifyAdminsNewApplication(PDO $pdo, int $candidateId, int $announcemen
         $title         = 'Νέα αίτηση: ' . $jobTitle;
         $message       = 'Ο χρήστης ' . $applicantName . ' υπέβαλε αίτηση για τη θέση "' . $jobTitle . '".';
 
-        $adminsStmt = $pdo->query("SELECT id FROM users WHERE role = 'admin'");
+        $adminsStmt = $pdo->query("SELECT id FROM users WHERE role IN ('admin', 'hr_manager')");
         $admins = $adminsStmt->fetchAll(PDO::FETCH_COLUMN);
 
         $ins = $pdo->prepare("

@@ -1,5 +1,6 @@
 <?php
 require_once 'database/db.php';
+require_once __DIR__ . '/includes/role-access.php';
 
 $errors = [];
 
@@ -32,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->fetch()) $errors[] = 'Το email χρησιμοποιείται ήδη.';
     }
 
-    // Εγγραφή — role DEFAULT 'user' αυτόματα από τη βάση
     if (empty($errors)) {
         $hash = password_hash($password, PASSWORD_DEFAULT);
 
@@ -55,8 +55,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $stmt = $pdo->prepare(
-            'INSERT INTO users (username, first_name, last_name, email, phone, address, password_hash)
-             VALUES (:u, :fn, :ln, :e, :ph, :ad, :h)'
+            'INSERT INTO users (username, first_name, last_name, email, phone, address, role, password_hash)
+             VALUES (:u, :fn, :ln, :e, :ph, :ad, :role, :h)'
         );
         $stmt->execute([
             ':u'  => $username,
@@ -65,9 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':e'  => $email,
             ':ph' => $phone ?: null,
             ':ad' => $address ?: null,
+            ':role' => 'candidate',
             ':h'  => $hash,
         ]);
-        header('Location: login.php?registered=1');
+        header('Location: login.php?registered=1&module=recruitment');
         exit;
     }
 }
@@ -87,6 +88,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="authent.css?v=<?= $authCssVersion ?>" rel="stylesheet">
 </head>
 <body class="auth-page">
+
+<a href="index.php" class="auth-home-btn" aria-label="Επιστροφή στην αρχική">
+    <i class="bi bi-house-door-fill"></i>Αρχική
+</a>
 
 <div class="auth-wrapper">
 
@@ -111,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="assets/images/17780_100tepak-logo.png" alt="ΤΕΠΑΚ">
         </div>
         <h2>Εγγραφή</h2>
-        <p class="auth-subtitle">Δημιουργήστε τον λογαριασμό σας.</p>
+        <p class="auth-subtitle">Δημιουργήστε λογαριασμό υποψηφίου για το Recruitment Module.</p>
 
         <?php if (!empty($errors)): ?>
             <ul class="auth-errors">
@@ -186,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
 
         <p class="auth-login-link">
-            Έχεις ήδη λογαριασμό; <a href="login.php">Σύνδεση</a>
+            Έχεις ήδη λογαριασμό; <a href="login.php?module=recruitment">Σύνδεση</a>
         </p>
     </div>
 

@@ -158,7 +158,7 @@ $schools    = $pdo->query("SELECT id, name FROM schools ORDER BY name")->fetchAl
 $departments= $pdo->query("SELECT id, name, school_id FROM departments ORDER BY name")->fetchAll();
 $courses    = $pdo->query("SELECT id, name, department_id FROM courses ORDER BY name")->fetchAll();
 $periods    = $pdo->query("SELECT id, name, start_date, end_date, status, description FROM recruitment_periods ORDER BY start_date DESC")->fetchAll();
-$evalUsers  = $pdo->query("SELECT id, first_name, last_name FROM users ORDER BY last_name, first_name")->fetchAll();
+$evalUsers  = $pdo->query("SELECT id, first_name, last_name FROM users WHERE role = 'evaluator' ORDER BY last_name, first_name")->fetchAll();
 
 $evalAssignments = $pdo->query("
     SELECT ae.id AS ae_id, ja.title AS ann_title, u.first_name, u.last_name, ae.created_at

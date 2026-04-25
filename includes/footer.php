@@ -44,7 +44,45 @@
           outline: none;
         }
 
+        .floating-home-btn {
+          position: fixed;
+          left: 22px;
+          bottom: 22px;
+          z-index: 1080;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 999px;
+          background: #0b2a6b;
+          color: #fff;
+          text-decoration: none;
+          font-size: 0.92rem;
+          font-weight: 600;
+          box-shadow: 0 12px 28px rgba(11, 42, 107, 0.24);
+          transition: transform 0.18s ease, background-color 0.18s ease;
+        }
+
+        .floating-home-btn:hover,
+        .floating-home-btn:focus {
+          background: #1f5fbf;
+          color: #fff;
+          transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+          .floating-home-btn {
+            left: 14px;
+            bottom: 14px;
+            padding: 9px 12px;
+            font-size: 0.86rem;
+          }
+        }
+
       </style>
+      <a href="../../index.php" class="floating-home-btn" aria-label="Επιστροφή στην αρχική">
+        <i class="bi bi-house-door-fill"></i>Αρχική
+      </a>
       <!--begin::Footer-->
       <footer class="app-footer d-flex align-items-center justify-content-center gap-2 flex-wrap text-center">
         <!--begin::Copyright-->

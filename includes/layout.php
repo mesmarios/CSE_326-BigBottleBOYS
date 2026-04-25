@@ -4,6 +4,7 @@
 // Optionally define $extra_head (string of <style>/<link>/<script> tags) before including to inject
 // page-specific head content.
 require_once __DIR__ . '/maintenance-mode.php';
+require_once __DIR__ . '/role-access.php';
 
 // ── Session & Auth guard (must run before ANY output) ──────────────────────
 if (session_status() === PHP_SESSION_NONE) {
@@ -31,17 +32,31 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-if (($_SESSION['role'] ?? '') === 'admin' && str_starts_with($currentPath, 'modules/recruitmentModule/')) {
+$currentRole = normalizeAppRole((string)($_SESSION['role'] ?? ''));
+$_SESSION['role'] = $currentRole;
+
+if (str_starts_with($currentPath, 'modules/recruitmentModule/') && !roleCanAccessModule($currentRole, 'recruitment')) {
     $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
     $basePath = strpos($scriptName, '/modules/') !== false
         ? strstr($scriptName, '/modules/', true)
         : rtrim(dirname($scriptName), '/');
-    header('Location: ' . rtrim($basePath, '/') . '/modules/admin/index.php');
+    $_SESSION['auth_error'] = 'Ο λογαριασμός σας δεν έχει πρόσβαση στο Recruitment Module.';
+    header('Location: ' . rtrim($basePath, '/') . '/' . defaultDashboardPathForRole($currentRole));
+    exit;
+}
+
+if (str_starts_with($currentPath, 'modules/enrollmentModule/') && !roleCanAccessModule($currentRole, 'enrollment')) {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $basePath = strpos($scriptName, '/modules/') !== false
+        ? strstr($scriptName, '/modules/', true)
+        : rtrim(dirname($scriptName), '/');
+    $_SESSION['auth_error'] = 'Ο λογαριασμός σας δεν έχει πρόσβαση στο Enrollment Module.';
+    header('Location: ' . rtrim($basePath, '/') . '/' . defaultDashboardPathForRole($currentRole));
     exit;
 }
 
 // Maintenance mode check — admins bypass
-if (isMaintenanceModeActive() && ($_SESSION['role'] ?? '') !== 'admin') {
+if (isMaintenanceModeActive() && $currentRole !== 'admin') {
     $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
     $basePath = strpos($scriptName, '/modules/') !== false
         ? strstr($scriptName, '/modules/', true)

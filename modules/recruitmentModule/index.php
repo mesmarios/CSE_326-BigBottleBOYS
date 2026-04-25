@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../includes/role-access.php';
 include('../../includes/layout.php');
 include('../../includes/header.php');
 include('../../includes/nav.php');
@@ -11,6 +12,7 @@ $dashboardStats = [
   'upcomingDeadlines' => 0,
 ];
 $dashboardSubmissions = [];
+$dashboardRoleLabel = appRoleLabel($_SESSION['role'] ?? 'candidate');
 if (!empty($_SESSION['user_id']) && isset($pdo)) {
   $candidateId = (int)$_SESSION['user_id'];
 
@@ -144,9 +146,9 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
             <div class="dash-welcome mb-4">
               <div class="welcome-role-badge">
                 <i class="bi bi-person-badge-fill"></i>
-                Candidate
+                <?= htmlspecialchars($dashboardRoleLabel, ENT_QUOTES, 'UTF-8') ?>
               </div>
-              <h2 class="mb-1">Welcome back, <span id="dashWelcomeName">Candidate</span>!</h2>
+              <h2 class="mb-1">Welcome back, <span id="dashWelcomeName"><?= htmlspecialchars($dashboardRoleLabel, ENT_QUOTES, 'UTF-8') ?></span>!</h2>
               <p>Here's a quick overview of your recruitment activity. Track your applications,
                  upcoming deadlines, and open positions — all in one place.</p>
             </div>
@@ -316,7 +318,8 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
   window.RECRUITMENT_INDEX_BOOTSTRAP = {
     user: <?= json_encode($dashboardUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
     stats: <?= json_encode($dashboardStats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
-    submissions: <?= json_encode($dashboardSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+    submissions: <?= json_encode($dashboardSubmissions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+    roleLabel: <?= json_encode($dashboardRoleLabel, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
   };
 </script>
 <script src="../../recruitment/assets/js/index.js"></script>

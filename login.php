@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'database/db.php';
+require_once __DIR__ . '/includes/role-access.php';
 
 function sanitizeLocalRedirect(?string $target): ?string
 {
@@ -17,33 +18,47 @@ function sanitizeLocalRedirect(?string $target): ?string
     return $target !== '' ? $target : null;
 }
 
-function defaultDashboardForRole(string $role): string
-{
-    return $role === 'admin'
-        ? 'modules/admin/index.php'
-        : 'modules/recruitmentModule/index.php';
-}
-
 $errors     = [];
 $registered = isset($_GET['registered']) && $_GET['registered'] == 1;
-$requireAdmin = (isset($_GET['admin']) && $_GET['admin'] === '1')
+$legacyAdminFlag = (isset($_GET['admin']) && $_GET['admin'] === '1')
     || (isset($_POST['require_admin']) && $_POST['require_admin'] === '1');
+$requestedModule = normalizeRequestedModule(
+    $_POST['requested_module'] ?? $_GET['module'] ?? ($legacyAdminFlag ? 'admin' : null)
+);
 $redirectTo = sanitizeLocalRedirect($_POST['redirect_to'] ?? $_GET['redirect'] ?? null);
+if ($redirectTo !== null) {
+    if (str_starts_with($redirectTo, 'modules/admin/')) {
+        $requestedModule = 'admin';
+    } elseif (str_starts_with($redirectTo, 'modules/enrollmentModule/')) {
+        $requestedModule = 'enrollment';
+    } elseif (str_starts_with($redirectTo, 'modules/recruitmentModule/')) {
+        $requestedModule = 'recruitment';
+    }
+}
+
+$requestedModuleLabel = $requestedModule ? moduleLabel($requestedModule) : 'Σύστημα';
+$requestedModuleSubtitle = match ($requestedModule) {
+    'admin' => 'Σύνδεση διαχειριστή για το Admin Module.',
+    'enrollment' => 'Σύνδεση για πρόσβαση στο Enrollment Module.',
+    'recruitment' => 'Σύνδεση για πρόσβαση στο Recruitment Module.',
+    default => 'Καλώς ήρθατε πίσω.',
+};
 
 if (isset($_SESSION['user_id'], $_SESSION['role'])) {
-    $sessionRole = (string)$_SESSION['role'];
-    $sessionTarget = defaultDashboardForRole($sessionRole);
+    $sessionRole = normalizeAppRole((string)$_SESSION['role']);
+    $_SESSION['role'] = $sessionRole;
 
-    if ($sessionRole === 'admin' && ($redirectTo === null || str_starts_with($redirectTo, 'modules/recruitmentModule/'))) {
-        header('Location: ' . $sessionTarget);
-        exit;
+    if ($redirectTo !== null) {
+        if (
+            (str_starts_with($redirectTo, 'modules/admin/') && !roleCanAccessModule($sessionRole, 'admin'))
+            || (str_starts_with($redirectTo, 'modules/recruitmentModule/') && !roleCanAccessModule($sessionRole, 'recruitment'))
+            || (str_starts_with($redirectTo, 'modules/enrollmentModule/') && !roleCanAccessModule($sessionRole, 'enrollment'))
+        ) {
+            $redirectTo = null;
+        }
     }
 
-    if ($sessionRole !== 'admin' && $redirectTo !== null && str_starts_with($redirectTo, 'modules/admin/')) {
-        $redirectTo = null;
-    }
-
-    header('Location: ' . ($redirectTo ?? $sessionTarget));
+    header('Location: ' . ($redirectTo ?? resolveDashboardPathForRole($sessionRole, $requestedModule)));
     exit;
 }
 
@@ -55,7 +70,8 @@ if (isset($_SESSION['auth_error'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email']    ?? '');
     $password = $_POST['password']      ?? '';
-    $isAdmin  = isset($_POST['go_admin']) || $requireAdmin;
+    $postRequestedModule = normalizeRequestedModule($_POST['requested_module'] ?? ($legacyAdminFlag ? 'admin' : null));
+    $requestedModule = $postRequestedModule ?? $requestedModule;
 
     if ($email === '' || $password === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Λανθασμένα στοιχεία σύνδεσης.';
@@ -65,29 +81,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
-            if ($isAdmin && $user['role'] !== 'admin') {
-                $errors[] = 'Δεν έχετε δικαιώματα διαχειριστή.';
+            $userRole = normalizeAppRole((string)($user['role'] ?? 'candidate'));
+
+            if ($requestedModule !== null && !roleCanAccessModule($userRole, $requestedModule)) {
+                $errors[] = 'Ο λογαριασμός σας δεν έχει πρόσβαση στο ' . moduleLabel($requestedModule) . '.';
             } else {
                 session_regenerate_id(true);
                 $_SESSION['user_id']    = $user['id'];
-                $_SESSION['role']       = $user['role'];
+                $_SESSION['role']       = $userRole;
                 $_SESSION['first_name'] = $user['first_name'];
                 $_SESSION['last_name']  = $user['last_name'];
                 $_SESSION['email']      = $user['email'];
 
-                $userRole = (string)($user['role'] ?? '');
-                $defaultTarget = defaultDashboardForRole($userRole);
                 $target = $redirectTo;
-
-                if ($userRole === 'admin' && ($target === null || str_starts_with($target, 'modules/recruitmentModule/'))) {
-                    $target = $defaultTarget;
+                if ($target !== null) {
+                    if (
+                        (str_starts_with($target, 'modules/admin/') && !roleCanAccessModule($userRole, 'admin'))
+                        || (str_starts_with($target, 'modules/recruitmentModule/') && !roleCanAccessModule($userRole, 'recruitment'))
+                        || (str_starts_with($target, 'modules/enrollmentModule/') && !roleCanAccessModule($userRole, 'enrollment'))
+                    ) {
+                        $target = null;
+                    }
                 }
 
-                if ($userRole !== 'admin' && $target !== null && str_starts_with($target, 'modules/admin/')) {
-                    $target = null;
-                }
-
-                header('Location: ' . ($target ?? $defaultTarget));
+                header('Location: ' . ($target ?? resolveDashboardPathForRole($userRole, $requestedModule)));
                 exit;
             }
         } else {
@@ -108,6 +125,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="authent.css?v=<?= $authCssVersion ?>" rel="stylesheet">
 </head>
 <body class="auth-page">
+
+<a href="index.php" class="auth-home-btn" aria-label="Επιστροφή στην αρχική">
+    <i class="bi bi-house-door-fill"></i>Αρχική
+</a>
 
 <div class="auth-wrapper">
 
@@ -133,8 +154,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <h2>Σύνδεση</h2>
         <p class="auth-subtitle">
-            <?= $requireAdmin ? 'Σύνδεση διαχειριστή με έγκυρα στοιχεία.' : 'Καλώς ήρθατε πίσω.' ?>
+            <?= htmlspecialchars($requestedModuleSubtitle, ENT_QUOTES, 'UTF-8') ?>
         </p>
+
+        <?php if ($requestedModule !== null): ?>
+            <div class="auth-success" style="background:#eef6ff;color:#174ea6;border-color:#cfe2ff;">
+                <i class="bi bi-grid-1x2-fill me-2"></i>Επιλεγμένο module: <?= htmlspecialchars($requestedModuleLabel, ENT_QUOTES, 'UTF-8') ?>
+            </div>
+        <?php endif; ?>
 
         <?php if ($registered): ?>
             <div class="auth-success">
@@ -151,7 +178,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" class="auth-form">
-            <input type="hidden" name="require_admin" value="<?= $requireAdmin ? '1' : '0' ?>">
+            <input type="hidden" name="require_admin" value="<?= $requestedModule === 'admin' ? '1' : '0' ?>">
+            <input type="hidden" name="requested_module" value="<?= htmlspecialchars($requestedModule ?? '', ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($redirectTo ?? '') ?>">
             <div class="mb-4">
                 <label class="form-label login-label">Email <span class="required">*</span></label>
@@ -166,19 +194,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        placeholder="Εισάγετε τον κωδικό σας">
             </div>
 
-            <?php if ($requireAdmin): ?>
-                <button type="submit" name="go_admin" class="btn-auth btn-auth-login mb-3">
+            <button type="submit" name="login" class="btn-auth btn-auth-login mb-3">
+                <i class="bi bi-box-arrow-in-right me-2"></i>
+                <?= htmlspecialchars($requestedModule ? 'Σύνδεση στο ' . $requestedModuleLabel : 'Σύνδεση Χρήστη', ENT_QUOTES, 'UTF-8') ?>
+            </button>
+
+            <?php if ($requestedModule !== 'admin'): ?>
+                <a href="login.php?module=admin" class="btn-auth-secondary btn-auth-secondary-login d-inline-flex justify-content-center align-items-center text-decoration-none">
                     <i class="bi bi-shield-lock me-2"></i>Σύνδεση Διαχειριστή
-                </button>
-            <?php else: ?>
-                <button type="submit" name="login" class="btn-auth btn-auth-login mb-3">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Σύνδεση Χρήστη
-                </button>
-                <button type="submit" name="go_admin" class="btn-auth-secondary btn-auth-secondary-login">
-                    <i class="bi bi-shield-lock me-2"></i>Σύνδεση Διαχειριστή
-                </button>
+                </a>
             <?php endif; ?>
         </form>
+
+        <div class="d-flex flex-wrap gap-2 mt-3 justify-content-center" style="font-size:.88rem;">
+            <a href="login.php?module=recruitment" class="text-decoration-none">Recruitment</a>
+            <span class="text-secondary">|</span>
+            <a href="login.php?module=enrollment" class="text-decoration-none">Enrollment</a>
+            <span class="text-secondary">|</span>
+            <a href="login.php?module=admin" class="text-decoration-none">Admin</a>
+        </div>
 
         <p class="auth-login-link">
             Δεν έχεις λογαριασμό; <a href="register.php">Εγγραφή</a>

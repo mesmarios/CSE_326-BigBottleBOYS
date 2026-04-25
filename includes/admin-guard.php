@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/role-access.php';
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -20,7 +22,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-if (($_SESSION['role'] ?? null) !== 'admin') {
+if (normalizeAppRole((string)($_SESSION['role'] ?? '')) !== 'admin') {
     $_SESSION['auth_error'] = 'Χρειάζεστε λογαριασμό διαχειριστή για πρόσβαση στο Admin UI.';
     header('Location: ' . $loginUrl);
     exit;

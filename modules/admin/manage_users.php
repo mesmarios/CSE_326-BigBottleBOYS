@@ -2,7 +2,10 @@
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/admin-branding.php';
+require_once __DIR__ . '/../../includes/role-access.php';
 $pdo = getDBConnection();
+
+$assignableRoles = ['admin', 'hr_manager', 'evaluator', 'candidate', 'specialist'];
 
 // ── CRUD action handlers ──────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -42,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ln    = trim($_POST['last_name']  ?? '');
         $email = trim($_POST['email']      ?? '');
         $phone = trim($_POST['phone']      ?? '') ?: null;
-        $role  = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
+        $role  = in_array($_POST['role'] ?? '', $assignableRoles, true) ? $_POST['role'] : 'candidate';
         $pass  = $_POST['password'] ?? '';
         if ($fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL) && strlen($pass) >= 8) {
             $hash = password_hash($pass, PASSWORD_DEFAULT);
@@ -60,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ln      = trim($_POST['last_name']  ?? '');
         $email   = trim($_POST['email']      ?? '');
         $phone   = trim($_POST['phone']      ?? '') ?: null;
-        $role    = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
+        $role    = in_array($_POST['role'] ?? '', $assignableRoles, true) ? $_POST['role'] : 'candidate';
         $newPass = trim($_POST['new_password'] ?? '');
 
         if ($currentAdminId > 0 && $id === $currentAdminId) {
@@ -160,7 +163,7 @@ $stmt = $pdo->query(
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $totalUsers   = count($users);
-$adminCount   = count(array_filter($users, fn($u) => $u['role'] === 'admin'));
+$adminCount   = count(array_filter($users, fn($u) => normalizeAppRole((string)$u['role']) === 'admin'));
 $userCount    = $totalUsers - $adminCount;
 $thisMonth    = date('Y-m');
 $newThisMonth = count(array_filter($users, fn($u) => str_starts_with($u['created_at'], $thisMonth)));
@@ -381,7 +384,10 @@ function avatarInitials(string $f, string $l): string {
                   <select class="form-select form-select-sm" style="width:auto;" id="roleFilter">
                     <option value="">Όλοι οι ρόλοι</option>
                     <option value="admin">Admin</option>
-                    <option value="user">Χρήστης</option>
+                    <option value="hr_manager">HR Manager</option>
+                    <option value="evaluator">Evaluator</option>
+                    <option value="candidate">Candidate</option>
+                    <option value="specialist">Specialist</option>
                   </select>
                 </div>
                 <button type="button" class="btn btn-primary btn-sm" onclick="openAddUserModal()">
@@ -406,17 +412,36 @@ function avatarInitials(string $f, string $l): string {
                     <tr><td colspan="6" class="text-center text-secondary py-4">Δεν βρέθηκαν χρήστες.</td></tr>
                     <?php else: foreach ($users as $u):
                         $initials  = avatarInitials($u['first_name'], $u['last_name']);
-                        $isAdmin   = $u['role'] === 'admin';
+                        $normalizedRole = normalizeAppRole((string)$u['role']);
+                        $isAdmin   = $normalizedRole === 'admin';
                         $isCurrentAdmin = (int)$u['id'] === $currentAdminId;
-                        $avBg      = $isAdmin ? '#dbeafe' : '#dcfce7';
-                        $avColor   = $isAdmin ? '#1d4ed8' : '#15803d';
+                        $avBg      = match ($normalizedRole) {
+                          'admin' => '#dbeafe',
+                          'hr_manager' => '#fef3c7',
+                          'evaluator' => '#ede9fe',
+                          'specialist' => '#ffe4e6',
+                          default => '#dcfce7',
+                        };
+                        $avColor   = match ($normalizedRole) {
+                          'admin' => '#1d4ed8',
+                          'hr_manager' => '#b45309',
+                          'evaluator' => '#6d28d9',
+                          'specialist' => '#be123c',
+                          default => '#15803d',
+                        };
                         $avatarSrc = resolveUserAvatarSrc($u);
-                        $badgeCls  = $isAdmin ? 'badge-role-admin' : 'badge-role-applicant';
-                        $roleLabel = $isAdmin ? 'Admin' : 'Χρήστης';
+                        $badgeCls  = match ($normalizedRole) {
+                          'admin' => 'badge-role-admin',
+                          'hr_manager' => 'text-bg-warning',
+                          'evaluator' => 'text-bg-info',
+                          'specialist' => 'text-bg-danger',
+                          default => 'badge-role-applicant',
+                        };
+                        $roleLabel = appRoleLabel($normalizedRole);
                         $fullName  = escape($u['first_name']) . ' ' . escape($u['last_name']);
                         $dateFmt   = date('d/m/Y', strtotime($u['created_at']));
                     ?>
-                    <tr data-role="<?= escape($u['role']) ?>">
+                    <tr data-role="<?= escape($normalizedRole) ?>">
                       <td>
                         <?php if ($avatarSrc !== null): ?>
                         <img src="<?= escape($avatarSrc) ?>" alt="<?= $fullName ?>" class="table-avatar" />
@@ -512,7 +537,10 @@ function avatarInitials(string $f, string $l): string {
                   <select class="form-select" id="userRole" name="role" required>
                     <option value="">Επιλέξτε ρόλο...</option>
                     <option value="admin">Admin</option>
-                    <option value="user">Χρήστης</option>
+                    <option value="hr_manager">HR Manager</option>
+                    <option value="evaluator">Evaluator</option>
+                    <option value="candidate">Candidate</option>
+                    <option value="specialist">Specialist</option>
                   </select>
                 </div>
                 <!-- Πεδίο κωδικού για νέο χρήστη -->
@@ -692,7 +720,7 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userLastName').value  = u.last_name  || '';
         document.getElementById('userEmail').value     = u.email      || '';
         document.getElementById('userPhone').value     = u.phone      || '';
-        document.getElementById('userRole').value      = u.role       || 'user';
+        document.getElementById('userRole').value      = u.role       || 'candidate';
         // Κρύψε πεδία κωδικού για νέο χρήστη, δείξε την ενότητα αλλαγής κωδικού
         document.getElementById('passwordField').style.display = 'none';
         document.getElementById('confirmPasswordField').style.display = 'none';

@@ -1,5 +1,7 @@
 # ✅ SPECIALIST MANAGEMENT SYSTEM - DATABASE COMPLETE
 
+> Note: The current source of truth for database import is `database/schema.sql` and `database/seed.sql` with database name `bigbrothers`. Some notes below are legacy documentation.
+
 ## 📋 Summary of What Has Been Created
 
 Your Specialist Management System (ΕΕ - Ειδικοί Επιστήμονες) now has a **complete, production-ready database schema** with comprehensive sample data.
@@ -8,9 +10,9 @@ Your Specialist Management System (ΕΕ - Ειδικοί Επιστήμονες)
 
 ## 📦 Files Created
 
-### 1. **database.sql** (Root directory)
+### 1. **schema.sql** (`database/`)
 ```
-Location: /Applications/XAMPP/xamppfiles/htdocs/CSE_326-BigBottleBOYS/database.sql
+Location: /Applications/XAMPP/xamppfiles/htdocs/CSE_326-BigBottleBOYS/database/schema.sql
 Size: ~15KB
 Contains: 21 tables with relationships, constraints, and indexes
 ```
@@ -95,23 +97,22 @@ Contains: Import instructions, troubleshooting, usage examples
 cd /Applications/XAMPP/xamppfiles/htdocs/CSE_326-BigBottleBOYS
 
 # Using MySQL command line
-mysql -u root < database.sql
+mysql -u root -p bigbrothers < database/schema.sql
 
 # Import sample data
-mysql -u root specialist_management_system < seed.sql
+mysql -u root -p bigbrothers < database/seed.sql
 ```
 
 **OR using phpMyAdmin:**
 1. Go to http://localhost/phpmyadmin
 2. Click "Import"
-3. Select `database.sql` → Import
-4. Select `database.sql` again → Import (creates the schema)
-5. Repeat with `seed.sql`
+3. Select `database/schema.sql` → Import
+4. Select `database/seed.sql` → Import
 
 ### Step 2: Verify Connection
 The config.php is already updated with:
 - Default XAMPP credentials (`root` user, no password)
-- Database name: `specialist_management_system`
+- Database name: `bigbrothers`
 - PDO connection for security
 - Helper functions
 
@@ -424,8 +425,8 @@ DatabaseHelper::addEnrollmentLog(
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `database.sql` | Schema & structure | Root |
-| `seed.sql` | Test data | Root |
+| `database/schema.sql` | Schema & structure | `database/` |
+| `database/seed.sql` | Test data | `database/` |
 | `DATABASE_GUIDE.md` | Complete reference | Root |
 | `SETUP_INSTRUCTIONS.md` | Quick start | Root |
 | `config.php` | DB connection | includes/ |
@@ -435,7 +436,7 @@ DatabaseHelper::addEnrollmentLog(
 
 ## ✅ Verification Checklist
 
-- [ ] Import database.sql
+- [ ] Import database/schema.sql
 - [ ] Import seed.sql  
 - [ ] Test login with admin@tepak.cy / password123
 - [ ] Access phpMyAdmin and verify 21 tables
@@ -499,8 +500,8 @@ sudo /Applications/XAMPP/xamppfiles/bin/mysql.server start
 mysql -u root -e "SHOW DATABASES;"
 
 # Drop and reimport if needed
-mysql -u root -e "DROP DATABASE specialist_management_system;"
-mysql -u root < database.sql
+mysql -u root -e "DROP DATABASE bigbrothers;"
+mysql -u root -p bigbrothers < database/schema.sql
 ```
 
 ### Permission Issues

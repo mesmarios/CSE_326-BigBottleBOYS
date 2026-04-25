@@ -2,6 +2,7 @@
 // Session is already started and guard already ran in layout.php (included before this).
 // DB connection — require_once so it won't double-load if already included.
 require_once dirname(__DIR__) . '/database/db.php';
+require_once __DIR__ . '/role-access.php';
 
 // Fetch minimal user data for navbar (profile pic + name)
 $_nav_user = null;
@@ -16,7 +17,7 @@ $_nav_full  = htmlspecialchars(
     ($_nav_user['last_name']  ?? $_SESSION['last_name']  ?? '')
 );
 $_nav_email = htmlspecialchars($_nav_user['email'] ?? $_SESSION['email'] ?? '');
-$_nav_role  = htmlspecialchars(ucfirst($_SESSION['role'] ?? 'user'));
+$_nav_role  = htmlspecialchars(appRoleLabel($_SESSION['role'] ?? 'candidate'), ENT_QUOTES, 'UTF-8');
 $_nav_allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 $_nav_mime = in_array((string)($_nav_user['profilepic_mime'] ?? ''), $_nav_allowed_mimes, true)
   ? (string)$_nav_user['profilepic_mime']
@@ -76,6 +77,11 @@ $_nav_pic_attr = htmlspecialchars($_nav_pic, ENT_QUOTES, 'UTF-8');
               <!--begin::Menu Footer-->
               <li class="user-footer">
                 <a href="./myprofile.php" class="btn btn-default btn-flat">Profile</a>
+                <?php if (roleCanAccessModule($_SESSION['role'] ?? 'candidate', 'enrollment')): ?>
+                <a href="../enrollmentModule/index.php" class="btn btn-default btn-flat">
+                  <i class="bi bi-mortarboard me-1"></i>Enrollment
+                </a>
+                <?php endif; ?>
                 <a href="../../logout.php" class="btn btn-default btn-flat float-end">Sign out</a>
               </li>
               <!--end::Menu Footer-->

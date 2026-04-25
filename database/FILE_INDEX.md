@@ -1,5 +1,7 @@
 # 📑 Complete File Index
 
+> Note: For the final project state, use `database/schema.sql` and `database/seed.sql` with database name `bigbrothers`. Some references below describe an older import flow.
+
 ## 🎯 START HERE
 1. **README_DATABASE.md** (THIS DIRECTORY) - Quick overview, test accounts, troubleshooting
 2. **test-connection.php** (BigBottleBOYS/) - Visual verification tool, run first
@@ -21,16 +23,16 @@
 
 ## 💾 Database Files
 
-### Core Files (Root Directory)
+### Core Files (database/)
 ```
-database.sql          - Database schema (21 tables)
+schema.sql           - Database schema (single source of truth)
 seed.sql             - Sample test data
 ```
 
 **How to import:**
 ```bash
-mysql -u root < database.sql
-mysql -u root specialist_management_system < seed.sql
+mysql -u root -p bigbrothers < database/schema.sql
+mysql -u root -p bigbrothers < database/seed.sql
 ```
 
 ---
@@ -179,7 +181,7 @@ All passwords: `password123`
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');              // Add password if needed
-define('DB_NAME', 'specialist_management_system');
+define('DB_NAME', 'bigbrothers');
 ```
 
 ### Application Settings (config.php)
@@ -203,10 +205,10 @@ define('MOODLE_API_KEY', 'your_api_key_here');
 ### Import Database
 ```bash
 # Create schema
-mysql -u root < database.sql
+mysql -u root -p bigbrothers < database/schema.sql
 
 # Load sample data
-mysql -u root specialist_management_system < seed.sql
+mysql -u root -p bigbrothers < database/seed.sql
 ```
 
 ### Check MySQL Status
@@ -220,12 +222,12 @@ sudo /Applications/XAMPP/xamppfiles/bin/mysql.server start
 
 ### List Tables
 ```bash
-mysql -u root specialist_management_system -e "SHOW TABLES;"
+mysql -u root -p bigbrothers -e "USE bigbrothers; SHOW TABLES;"
 ```
 
 ### Count Records
 ```bash
-mysql -u root specialist_management_system -e "SELECT 'users' as table_name, COUNT(*) as count FROM users;"
+mysql -u root -p bigbrothers -e "USE bigbrothers; SELECT 'users' as table_name, COUNT(*) as count FROM users;"
 ```
 
 ### Reset Password
@@ -323,7 +325,7 @@ $stats = DatabaseHelper::getEnrollmentStats();
 ## ✅ Pre-Flight Checklist
 
 - [ ] MySQL is running
-- [ ] database.sql imported  
+- [ ] schema.sql imported  
 - [ ] seed.sql imported
 - [ ] config.php updated (if needed)
 - [ ] test-connection.php runs successfully
@@ -340,10 +342,10 @@ $stats = DatabaseHelper::getEnrollmentStats();
 - **Solution**: Start MySQL: `sudo /Applications/XAMPP/xamppfiles/bin/mysql.server start`
 
 **Issue**: "Unknown database"
-- **Solution**: Import database.sql first
+- **Solution**: Import `database/schema.sql` first
 
 **Issue**: "Table already exists"
-- **Solution**: Drop database and reimport: `mysql -u root -e "DROP DATABASE specialist_management_system;"`
+- **Solution**: Drop database and reimport: `mysql -u root -e "DROP DATABASE bigbrothers;"`
 
 **Issue**: "Access denied for user 'root'"
 - **Solution**: Check password in config.php (default is empty for XAMPP)
@@ -376,8 +378,8 @@ BigBottleBOYS/
 ├── register.php (Registration page)
 └── logout.php (Logout handler)
 
-Root Directory
-├── database.sql (Schema - 21 tables)
+database/
+├── schema.sql (Schema - 21 tables)
 ├── seed.sql (Sample data)
 ├── README_DATABASE.md (Quick start)
 ├── SETUP_INSTRUCTIONS.md (Detailed setup)
@@ -417,8 +419,8 @@ Root Directory
 1. **If you haven't imported the database yet:**
    ```bash
    cd /Applications/XAMPP/xamppfiles/htdocs/CSE_326-BigBottleBOYS
-   mysql -u root < database.sql
-   mysql -u root specialist_management_system < seed.sql
+   mysql -u root -p bigbrothers < database/schema.sql
+   mysql -u root -p bigbrothers < database/seed.sql
    ```
 
 2. **Then verify the installation:**

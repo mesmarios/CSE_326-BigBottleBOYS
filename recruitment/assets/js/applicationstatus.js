@@ -174,6 +174,10 @@ function buildTimeline(submission) {
 function openFile(encodedUrl) {
   try {
     const dataUrl = decodeURIComponent(encodedUrl);
+    if (!dataUrl.startsWith('data:')) {
+      window.open(dataUrl, '_blank', 'noopener');
+      return;
+    }
     const [header, body] = dataUrl.split(',');
     const mimeMatch = header.match(/:(.*?);/);
     if (!mimeMatch) {

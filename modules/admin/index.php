@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../database/db.php';
 require_once __DIR__ . '/../../includes/admin-branding.php';
+require_once __DIR__ . '/../../includes/role-access.php';
 
 function h(string $value): string
 {
@@ -70,7 +71,7 @@ function periodStatusMeta(string $status): array
 
 function roleLabel(string $role): string
 {
-    return $role === 'admin' ? 'Admin' : 'Χρήστης';
+    return appRoleLabel($role);
 }
 
 function notificationDestination(array $notification): array

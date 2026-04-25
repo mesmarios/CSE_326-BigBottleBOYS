@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   }
 
   const profile = getProfile();
-  const firstName = profile.name || 'Candidate';
+  const firstName = profile.name || BOOTSTRAP.roleLabel || 'Candidate';
   document.getElementById('dashWelcomeName').textContent = firstName;
 
   const navName = document.getElementById('navbarUserName');

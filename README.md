@@ -46,7 +46,7 @@ mysql -u root -p bigbrothers < database/schema.sql
 mysql -u root -p bigbrothers < database/seed.sql
 ```
 
-Demo password για τους seeded users: `Password123!`
+Demo password για όλους τους seeded users: `Password123!`
 
 5. Ελέγξτε ότι το connection file χρησιμοποιεί τα σωστά credentials:
    - αρχείο: `includes/db.php` -> φορτώνει το `database/db.php`
@@ -56,12 +56,28 @@ Demo password για τους seeded users: `Password123!`
 
 ## Εκτέλεση
 
-Ανοίξτε στον browser το project και χρησιμοποιήστε τα υποχρεωτικά routes:
+Αρχική landing page:
 
-- `http://localhost/CSE_326-BigBottleBOYS/auth/register.php`
-- `http://localhost/CSE_326-BigBottleBOYS/auth/login.php`
-- `http://localhost/CSE_326-BigBottleBOYS/modules/dashboard.php`
+- `http://localhost/CSE_326-BigBottleBOYS/`
+
+Κύρια routes:
+
+- `http://localhost/CSE_326-BigBottleBOYS/register.php`
+- `http://localhost/CSE_326-BigBottleBOYS/login.php`
+- `http://localhost/CSE_326-BigBottleBOYS/modules/admin/index.php`
+- `http://localhost/CSE_326-BigBottleBOYS/modules/recruitmentModule/index.php`
+- `http://localhost/CSE_326-BigBottleBOYS/modules/enrollmentModule/index.php`
 - `http://localhost/CSE_326-BigBottleBOYS/modules/list.php`
+
+Legacy routes `auth/register.php` και `auth/login.php` συνεχίζουν να δουλεύουν και κάνουν redirect στις κύριες σελίδες.
+
+## Demo λογαριασμοί
+
+- Admin: `admin@tepak.cy`
+- HR Manager: `hr@tepak.cy`
+- Evaluator: `evaluator1@tepak.cy`
+- Candidate: `candidate1@example.com`
+- Specialist: `specialist1@tepak.cy`
 
 ## Σημειώσεις ασφάλειας
 
