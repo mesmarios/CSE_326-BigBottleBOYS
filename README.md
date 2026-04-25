@@ -46,7 +46,7 @@ mysql -u root -p bigbrothers < database/schema.sql
 mysql -u root -p bigbrothers < database/seed.sql
 ```
 
-Demo password για όλους τους seeded users: `Password123!`
+Demo password για όλους τους seeded users: `password123`
 
 5. Ελέγξτε ότι το connection file χρησιμοποιεί τα σωστά credentials:
    - αρχείο: `includes/db.php` -> φορτώνει το `database/db.php`
