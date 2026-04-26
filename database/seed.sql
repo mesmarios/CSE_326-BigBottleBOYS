@@ -136,6 +136,46 @@ VALUES
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Άντρη', 'Χαραλάμπους', '+35799222012', 'Σπύρου Κυπριανού 66, Γερμασόγεια', '2002-10-25', 'candidate');
 
+-- Populate profile fields (degree/institution/specialization/experience/summary)
+UPDATE users
+SET degree = 'MSc Information Systems',
+    institution = 'TEPAK',
+    specialization = 'Platform Administration',
+    experience = 10,
+    summary = 'Administrator responsible for system operations, security, and governance.'
+WHERE role = 'admin';
+
+UPDATE users
+SET degree = 'MBA Human Resource Management',
+    institution = 'University of Cyprus',
+    specialization = 'Recruitment and Talent Operations',
+    experience = 8,
+    summary = 'HR manager coordinating hiring workflows and candidate communication.'
+WHERE role = 'hr';
+
+UPDATE users
+SET degree = 'MSc Engineering',
+    institution = 'TEPAK',
+    specialization = 'Academic Evaluation',
+    experience = 9,
+    summary = 'Evaluator reviewing applications, qualifications, and interview performance.'
+WHERE role = 'evaluator';
+
+UPDATE users
+SET degree = 'MSc Applied Computing',
+    institution = 'TEPAK',
+    specialization = 'Learning Technologies',
+    experience = 6,
+    summary = 'Special scientist supporting course delivery and LMS-related operations.'
+WHERE role = 'ee_hired';
+
+UPDATE users
+SET degree = 'BSc Candidate (In Progress)',
+    institution = 'TEPAK',
+    specialization = 'Computer Science',
+    experience = 1,
+    summary = 'Candidate with academic background and motivation for teaching support roles.'
+WHERE role = 'candidate';
 -- ============================================================================
 -- SCHOOLS
 -- ============================================================================
@@ -500,3 +540,4 @@ INSERT INTO notifications (user_id, title, message, notification_type, related_e
 -- ============================================================================
 -- END OF SEED
 -- ============================================================================
+
