@@ -2,22 +2,14 @@
 declare(strict_types=1);
 
 if (!function_exists('adminGetBrandingContext')) {
-    function adminGetBrandingContext(PDO $pdo): array
+    function adminGetBrandingContext(PDO $pdo, string $assetBasePath = '../../assets/images'): array
     {
         $defaults = [
             'app_name' => 'CareerTrack',
-            'app_slogan' => 'Σύστημα Διαχείρισης Αιτήσεων',
-            'app_description' => 'Σύστημα διαχείρισης αιτήσεων εκπαιδευτικού προσωπικού για ακαδημαϊκά ιδρύματα.',
-            'admin_email' => 'admin@university.gr',
-            'support_phone' => '+30 210 1234567',
         ];
 
         $settings = $defaults;
-        $fallbackSettings = [
-            'institution_email' => '',
-            'institution_phone' => '',
-        ];
-        $requestedKeys = array_merge(array_keys($defaults), array_keys($fallbackSettings));
+        $requestedKeys = array_keys($defaults);
         $placeholders = implode(',', array_fill(0, count($requestedKeys), '?'));
 
         $stmt = $pdo->prepare(
@@ -37,27 +29,19 @@ if (!function_exists('adminGetBrandingContext')) {
 
             if (array_key_exists($key, $settings)) {
                 $settings[$key] = $value;
-            } elseif (array_key_exists($key, $fallbackSettings)) {
-                $fallbackSettings[$key] = $value;
             }
-        }
-
-        if ($settings['admin_email'] === $defaults['admin_email'] && $fallbackSettings['institution_email'] !== '') {
-            $settings['admin_email'] = $fallbackSettings['institution_email'];
-        }
-
-        if ($settings['support_phone'] === $defaults['support_phone'] && $fallbackSettings['institution_phone'] !== '') {
-            $settings['support_phone'] = $fallbackSettings['institution_phone'];
         }
 
         $logoFiles = glob(__DIR__ . '/../assets/images/site-logo.*');
         $faviconFiles = glob(__DIR__ . '/../assets/images/site-favicon.*');
 
+        $assetBasePath = rtrim($assetBasePath, '/');
+
         $logo = !empty($logoFiles)
-            ? '../../assets/images/' . basename($logoFiles[0]) . '?v=' . (int)@filemtime($logoFiles[0])
-            : '../../assets/images/AdminLTELogo.png';
+            ? $assetBasePath . '/' . basename($logoFiles[0]) . '?v=' . (int)@filemtime($logoFiles[0])
+            : $assetBasePath . '/AdminLTELogo.png';
         $favicon = !empty($faviconFiles)
-            ? '../../assets/images/' . basename($faviconFiles[0]) . '?v=' . (int)@filemtime($faviconFiles[0])
+            ? $assetBasePath . '/' . basename($faviconFiles[0]) . '?v=' . (int)@filemtime($faviconFiles[0])
             : null;
 
         return [
@@ -74,10 +58,6 @@ if (!function_exists('adminSaveGeneralSettings')) {
     {
         $descriptions = [
             'app_name' => 'Όνομα εφαρμογής',
-            'app_slogan' => 'Υπότιτλος εφαρμογής',
-            'app_description' => 'Περιγραφή εφαρμογής',
-            'admin_email' => 'Email διαχειριστή',
-            'support_phone' => 'Τηλέφωνο υποστήριξης',
         ];
 
         $selectStmt = $pdo->prepare('SELECT id FROM system_settings WHERE setting_key = ?');

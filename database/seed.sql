@@ -167,7 +167,7 @@ VALUES
 
 -- Populate profile fields (degree/institution/specialization/experience/summary)
 UPDATE users
-SET degree = 'MSc Information Systems',
+SET degree = 'Master''s Degree',
     institution = 'TEPAK',
     specialization = 'Platform Administration',
     experience = 10,
@@ -175,7 +175,7 @@ SET degree = 'MSc Information Systems',
 WHERE role = 'admin';
 
 UPDATE users
-SET degree = 'MBA Human Resource Management',
+SET degree = 'Bachelor''s Degree',
     institution = 'University of Cyprus',
     specialization = 'Recruitment and Talent Operations',
     experience = 8,
@@ -183,7 +183,7 @@ SET degree = 'MBA Human Resource Management',
 WHERE role = 'hr';
 
 UPDATE users
-SET degree = 'MSc Engineering',
+SET degree = 'Doctoral Degree (PhD)',
     institution = 'TEPAK',
     specialization = 'Academic Evaluation',
     experience = 9,
@@ -191,7 +191,7 @@ SET degree = 'MSc Engineering',
 WHERE role = 'evaluator';
 
 UPDATE users
-SET degree = 'MSc Applied Computing',
+SET degree = 'Professional Degree (MD / JD / etc.)',
     institution = 'TEPAK',
     specialization = 'Learning Technologies',
     experience = 6,
@@ -199,12 +199,36 @@ SET degree = 'MSc Applied Computing',
 WHERE role = 'ee_hired';
 
 UPDATE users
-SET degree = 'BSc Candidate (In Progress)',
+SET degree = 'High School Diploma',
     institution = 'TEPAK',
     specialization = 'Computer Science',
     experience = 1,
     summary = 'Candidate with academic background and motivation for teaching support roles.'
-WHERE role = 'candidate';
+WHERE id IN (7, 12, 17);
+
+UPDATE users
+SET degree = 'Associate''s Degree',
+    institution = 'TEPAK',
+    specialization = 'Computer Science',
+    experience = 1,
+    summary = 'Candidate with academic background and motivation for teaching support roles.'
+WHERE id IN (8, 13, 18);
+
+UPDATE users
+SET degree = 'Bachelor''s Degree',
+    institution = 'TEPAK',
+    specialization = 'Computer Science',
+    experience = 1,
+    summary = 'Candidate with academic background and motivation for teaching support roles.'
+WHERE id IN (9, 14, 19);
+
+UPDATE users
+SET degree = 'Other',
+    institution = 'TEPAK',
+    specialization = 'Computer Science',
+    experience = 1,
+    summary = 'Candidate with academic background and motivation for teaching support roles.'
+WHERE id IN (15, 16, 20);
 -- ============================================================================
 -- SCHOOLS
 -- ============================================================================
@@ -519,14 +543,6 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
 -- branding
 ('app_name',              'CareerTrack',
  'Όνομα εφαρμογής'),
-('app_slogan',            'Σύστημα Διαχείρισης ΕΕ',
- 'Υπότιτλος εφαρμογής'),
-('app_description',       'Σύστημα διαχείρισης αιτήσεων εκπαιδευτικού προσωπικού για ακαδημαϊκά ιδρύματα.',
- 'Περιγραφή εφαρμογής'),
-('admin_email',           'admin@tepak.cy',
- 'Email διαχειριστή'),
-('support_phone',         '+357 25 002500',
- 'Τηλέφωνο υποστήριξης'),
 ('institution_name',      'ΤΕΠΑΚ',
  'Όνομα ιδρύματος'),
 -- moodle
@@ -562,4 +578,3 @@ INSERT INTO notifications (user_id, title, message, notification_type, related_e
 -- ============================================================================
 -- END OF SEED
 -- ============================================================================
-
