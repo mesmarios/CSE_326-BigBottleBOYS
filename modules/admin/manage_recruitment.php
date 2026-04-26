@@ -688,26 +688,31 @@ $adminFavicon = $brandingContext['favicon'];
                           </td>
                           <td class="text-end">
                             <?php if ($canReview): ?>
+                            <div class="d-inline-flex align-items-center gap-1 flex-wrap justify-content-end">
                             <form method="POST" class="d-inline">
                               <input type="hidden" name="action" value="review_candidate_application">
                               <input type="hidden" name="application_id" value="<?= (int)$ca['id'] ?>">
                               <input type="hidden" name="review_status" value="under_review">
-                              <button type="submit" class="btn btn-sm btn-outline-warning me-1" <?= $ca['status'] === 'under_review' ? 'disabled' : '' ?> title="Set Under Review">
+                              <button type="submit" class="btn btn-sm btn-outline-warning" <?= $ca['status'] === 'under_review' ? 'disabled' : '' ?> title="Μεταφορά σε αξιολόγηση">
                                 <i class="bi bi-hourglass-split"></i>
+                                <span class="d-none d-md-inline ms-1">Under Review</span>
                               </button>
                             </form>
-                            <form method="POST" class="d-inline" onsubmit="return confirm('Accept this application?');">
+                            <form method="POST" class="d-inline" onsubmit="return confirm('Να γίνει αποδοχή αυτής της αίτησης;');">
                               <input type="hidden" name="action" value="review_candidate_application">
                               <input type="hidden" name="application_id" value="<?= (int)$ca['id'] ?>">
                               <input type="hidden" name="review_status" value="accepted">
-                              <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Accept">
+                              <button type="submit" class="btn btn-sm btn-outline-success" title="Αποδοχή αίτησης">
                                 <i class="bi bi-check-lg"></i>
+                                <span class="d-none d-md-inline ms-1">Accept</span>
                               </button>
                             </form>
-                            <button type="button" class="btn btn-sm btn-outline-danger" title="Reject with feedback"
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Απόρριψη με σχόλιο"
                               onclick="openRejectModal(<?= (int)$ca['id'] ?>, <?= htmlspecialchars(json_encode($candidateName), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode((string)$ca['ann_title']), ENT_QUOTES) ?>)">
                               <i class="bi bi-x-lg"></i>
+                              <span class="d-none d-md-inline ms-1">Reject</span>
                             </button>
+                            </div>
                             <?php else: ?>
                             <span class="text-secondary small">No actions</span>
                             <?php endif; ?>
