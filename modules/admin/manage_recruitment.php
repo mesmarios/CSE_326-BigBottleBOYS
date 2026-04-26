@@ -3,6 +3,12 @@ require_once __DIR__ . '/../../includes/admin-guard.php';
 require_once __DIR__ . '/../../database/db.php';
 require_once __DIR__ . '/../../includes/admin-branding.php';
 
+$flashMsg = trim((string)($_GET['msg'] ?? ''));
+$flashType = (string)($_GET['mtype'] ?? 'info');
+if (!in_array($flashType, ['success', 'danger', 'warning', 'info'], true)) {
+    $flashType = 'info';
+}
+
 /* ── POST handlers ──────────────────────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -47,6 +53,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         header('Location: manage_recruitment.php#applications');
         exit;
+    }
+
+    if ($action === 'review_candidate_application') {
+        $applicationId = (int)($_POST['application_id'] ?? 0);
+        $reviewStatus = trim((string)($_POST['review_status'] ?? ''));
+        $feedback = trim((string)($_POST['feedback'] ?? ''));
+        $adminId = (int)($_SESSION['user_id'] ?? 0);
+
+        $redirectWithMessage = static function (string $message, string $type = 'info'): void {
+            $query = http_build_query([
+                'msg' => $message,
+                'mtype' => $type,
+            ]);
+            header('Location: manage_recruitment.php?' . $query . '#candidate-applications');
+            exit;
+        };
+
+        if ($applicationId <= 0 || !in_array($reviewStatus, ['under_review', 'accepted', 'rejected'], true)) {
+            $redirectWithMessage('Invalid application review request.', 'danger');
+        }
+
+        if ($reviewStatus === 'rejected' && $feedback === '') {
+            $redirectWithMessage('Feedback is required when rejecting an application.', 'warning');
+        }
+
+        try {
+            $currentStmt = $pdo->prepare("
+                SELECT status
+                FROM candidate_applications
+                WHERE id = ?
+                LIMIT 1
+            ");
+            $currentStmt->execute([$applicationId]);
+            $currentRow = $currentStmt->fetch();
+
+            if (!$currentRow) {
+                $redirectWithMessage('Application not found.', 'danger');
+            }
+
+            $currentStatus = (string)$currentRow['status'];
+            if (!in_array($currentStatus, ['submitted', 'under_review'], true)) {
+                $redirectWithMessage('Only submitted/under-review applications can be updated.', 'warning');
+            }
+
+            if ($reviewStatus === 'under_review') {
+                $stmt = $pdo->prepare("
+                    UPDATE candidate_applications
+                    SET status = 'under_review',
+                        reviewed_by = ?,
+                        reviewed_at = NULL,
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([$adminId, $applicationId]);
+                $redirectWithMessage('Application moved to under review.', 'success');
+            }
+
+            if ($reviewStatus === 'accepted') {
+                $stmt = $pdo->prepare("
+                    UPDATE candidate_applications
+                    SET status = 'accepted',
+                        feedback = NULL,
+                        reviewed_by = ?,
+                        reviewed_at = NOW(),
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([$adminId, $applicationId]);
+                $redirectWithMessage('Application accepted successfully.', 'success');
+            }
+
+            $stmt = $pdo->prepare("
+                UPDATE candidate_applications
+                SET status = 'rejected',
+                    feedback = ?,
+                    reviewed_by = ?,
+                    reviewed_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$feedback, $adminId, $applicationId]);
+            $redirectWithMessage('Application rejected and feedback saved.', 'success');
+        } catch (Throwable $e) {
+            $redirectWithMessage('Could not update application status. Please try again.', 'danger');
+        }
     }
 
     if ($action === 'save_school') {
@@ -168,6 +259,31 @@ $evalAssignments = $pdo->query("
     ORDER BY ja.title, u.last_name
 ")->fetchAll();
 
+$candidateApplications = $pdo->query("
+    SELECT
+        ca.id,
+        ca.status,
+        ca.submitted_at,
+        ca.reviewed_at,
+        ca.feedback,
+        u.first_name,
+        u.last_name,
+        u.email,
+        ja.title AS ann_title,
+        rp.name AS period_name,
+        d.name AS dept_name,
+        c.code AS course_code,
+        c.name AS course_name
+    FROM candidate_applications ca
+    INNER JOIN users u ON u.id = ca.candidate_id
+    INNER JOIN job_announcements ja ON ja.id = ca.announcement_id
+    LEFT JOIN recruitment_periods rp ON rp.id = ja.period_id
+    LEFT JOIN departments d ON d.id = ja.department_id
+    LEFT JOIN courses c ON c.id = ja.course_id
+    WHERE ca.status <> 'draft'
+    ORDER BY COALESCE(ca.submitted_at, ca.created_at) DESC, ca.id DESC
+")->fetchAll();
+
 $activePeriod = $pdo->query("SELECT * FROM recruitment_periods WHERE status='active' ORDER BY start_date DESC LIMIT 1")->fetch();
 if (!$activePeriod) {
     $activePeriod = $pdo->query("SELECT * FROM recruitment_periods ORDER BY start_date DESC LIMIT 1")->fetch();
@@ -185,6 +301,14 @@ $statusMap = [
     'closed'    => ['label' => 'Κλειστή',      'class' => 'bg-secondary'],
     'draft'     => ['label' => 'Πρόχειρο',     'class' => 'bg-warning text-dark'],
     'cancelled' => ['label' => 'Ακυρωμένη',   'class' => 'bg-danger'],
+];
+
+$candidateStatusMap = [
+    'submitted' => ['label' => 'Submitted', 'class' => 'bg-primary'],
+    'under_review' => ['label' => 'Under Review', 'class' => 'bg-warning text-dark'],
+    'accepted' => ['label' => 'Accepted', 'class' => 'bg-success'],
+    'rejected' => ['label' => 'Rejected', 'class' => 'bg-danger'],
+    'withdrawn' => ['label' => 'Withdrawn', 'class' => 'bg-secondary'],
 ];
 
 function resolveAdminAvatarSrc(PDO $pdo, int $userId): string
@@ -315,6 +439,7 @@ $adminFavicon = $brandingContext['favicon'];
                 </a>
                 <ul class="nav nav-treeview">
                   <li class="nav-item"><a href="#applications" class="nav-link" onclick="switchTab('applications')"><i class="nav-icon bi bi-circle"></i><p>Αιτήσεις</p></a></li>
+                  <li class="nav-item"><a href="#candidate-applications" class="nav-link" onclick="switchTab('candidate-applications')"><i class="nav-icon bi bi-circle"></i><p>Submitted Applications</p></a></li>
                   <li class="nav-item"><a href="#schools" class="nav-link" onclick="switchTab('schools')"><i class="nav-icon bi bi-circle"></i><p>Σχολές</p></a></li>
                   <li class="nav-item"><a href="#departments" class="nav-link" onclick="switchTab('departments')"><i class="nav-icon bi bi-circle"></i><p>Τμήματα</p></a></li>
                   <li class="nav-item"><a href="#courses" class="nav-link" onclick="switchTab('courses')"><i class="nav-icon bi bi-circle"></i><p>Μαθήματα</p></a></li>
@@ -357,12 +482,23 @@ $adminFavicon = $brandingContext['favicon'];
 
         <div class="app-content">
           <div class="container-fluid">
+            <?php if ($flashMsg !== ''): ?>
+            <div class="alert alert-<?= htmlspecialchars($flashType, ENT_QUOTES, 'UTF-8') ?> alert-dismissible fade show shadow-sm" role="alert">
+              <?= htmlspecialchars($flashMsg, ENT_QUOTES, 'UTF-8') ?>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php endif; ?>
 
             <!-- Tabs Navigation -->
             <ul class="nav admin-tabs" id="recruitTabs" role="tablist">
               <li class="nav-item">
                 <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#applications" id="tab-applications">
                   <i class="bi bi-file-earmark-text"></i>Αιτήσεις
+                </button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#candidate-applications" id="tab-candidate-applications">
+                  <i class="bi bi-people-fill"></i>Submitted Applications
                 </button>
               </li>
               <li class="nav-item">
@@ -467,6 +603,114 @@ $adminFavicon = $brandingContext['favicon'];
                               <input type="hidden" name="announcement_id" value="<?= $ann['id'] ?>">
                               <button type="submit" class="btn btn-sm btn-outline-danger" title="Διαγραφή"><i class="bi bi-trash"></i></button>
                             </form>
+                          </td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <?php endif; ?>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ===== TAB: CANDIDATE APPLICATIONS ===== -->
+              <div class="tab-pane fade" id="candidate-applications" role="tabpanel">
+                <div class="admin-table-card bg-body shadow-sm">
+                  <div class="admin-table-toolbar">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <div class="admin-table-search">
+                        <i class="bi bi-search"></i>
+                        <input type="text" id="candidateAppSearch" class="form-control form-control-sm" placeholder="Search candidate application..." />
+                      </div>
+                      <select id="candidateAppStatusFilter" class="form-select form-select-sm" style="width:auto;">
+                        <option value="">All statuses</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="under_review">Under Review</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="withdrawn">Withdrawn</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="candidateAppTable">
+                      <thead class="table-light">
+                        <tr>
+                          <th>#</th>
+                          <th>Candidate</th>
+                          <th>Announcement</th>
+                          <th>Course</th>
+                          <th>Submitted At</th>
+                          <th>Status</th>
+                          <th>Feedback</th>
+                          <th class="text-end">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <?php if (empty($candidateApplications)): ?>
+                        <tr>
+                          <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-4 d-block mb-1"></i>No submitted applications found.
+                          </td>
+                        </tr>
+                        <?php else: ?>
+                        <?php foreach ($candidateApplications as $ca):
+                            $statusMeta = $candidateStatusMap[$ca['status']] ?? ['label' => $ca['status'], 'class' => 'bg-secondary'];
+                            $candidateName = trim((string)$ca['first_name'] . ' ' . (string)$ca['last_name']);
+                            $canReview = in_array((string)$ca['status'], ['submitted', 'under_review'], true);
+                            $submittedAt = !empty($ca['submitted_at']) ? date('d/m/Y H:i', strtotime((string)$ca['submitted_at'])) : '—';
+                            $courseText = trim((string)($ca['course_code'] ?? '') . ' - ' . (string)($ca['course_name'] ?? ''));
+                        ?>
+                        <tr data-status="<?= htmlspecialchars((string)$ca['status'], ENT_QUOTES, 'UTF-8') ?>">
+                          <td class="text-secondary small">#<?= (int)$ca['id'] ?></td>
+                          <td>
+                            <div class="fw-semibold"><?= htmlspecialchars($candidateName, ENT_QUOTES, 'UTF-8') ?></div>
+                            <div class="small text-secondary"><?= htmlspecialchars((string)$ca['email'], ENT_QUOTES, 'UTF-8') ?></div>
+                          </td>
+                          <td>
+                            <div class="fw-semibold"><?= htmlspecialchars((string)$ca['ann_title'], ENT_QUOTES, 'UTF-8') ?></div>
+                            <div class="small text-secondary"><?= htmlspecialchars((string)($ca['period_name'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></div>
+                          </td>
+                          <td>
+                            <div><?= htmlspecialchars(($courseText !== '' && $courseText !== '-') ? $courseText : '—', ENT_QUOTES, 'UTF-8') ?></div>
+                            <div class="small text-secondary"><?= htmlspecialchars((string)($ca['dept_name'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></div>
+                          </td>
+                          <td class="small text-secondary"><?= htmlspecialchars($submittedAt, ENT_QUOTES, 'UTF-8') ?></td>
+                          <td><span class="badge <?= htmlspecialchars((string)$statusMeta['class'], ENT_QUOTES, 'UTF-8') ?> rounded-pill px-3"><?= htmlspecialchars((string)$statusMeta['label'], ENT_QUOTES, 'UTF-8') ?></span></td>
+                          <td class="small text-secondary" style="max-width:280px;">
+                            <?php if (trim((string)($ca['feedback'] ?? '')) !== ''): ?>
+                            <span title="<?= htmlspecialchars((string)$ca['feedback'], ENT_QUOTES, 'UTF-8') ?>">
+                              <?= htmlspecialchars((string)$ca['feedback'], ENT_QUOTES, 'UTF-8') ?>
+                            </span>
+                            <?php else: ?>
+                            —
+                            <?php endif; ?>
+                          </td>
+                          <td class="text-end">
+                            <?php if ($canReview): ?>
+                            <form method="POST" class="d-inline">
+                              <input type="hidden" name="action" value="review_candidate_application">
+                              <input type="hidden" name="application_id" value="<?= (int)$ca['id'] ?>">
+                              <input type="hidden" name="review_status" value="under_review">
+                              <button type="submit" class="btn btn-sm btn-outline-warning me-1" <?= $ca['status'] === 'under_review' ? 'disabled' : '' ?> title="Set Under Review">
+                                <i class="bi bi-hourglass-split"></i>
+                              </button>
+                            </form>
+                            <form method="POST" class="d-inline" onsubmit="return confirm('Accept this application?');">
+                              <input type="hidden" name="action" value="review_candidate_application">
+                              <input type="hidden" name="application_id" value="<?= (int)$ca['id'] ?>">
+                              <input type="hidden" name="review_status" value="accepted">
+                              <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Accept">
+                                <i class="bi bi-check-lg"></i>
+                              </button>
+                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Reject with feedback"
+                              onclick="openRejectModal(<?= (int)$ca['id'] ?>, <?= htmlspecialchars(json_encode($candidateName), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode((string)$ca['ann_title']), ENT_QUOTES) ?>)">
+                              <i class="bi bi-x-lg"></i>
+                            </button>
+                            <?php else: ?>
+                            <span class="text-secondary small">No actions</span>
+                            <?php endif; ?>
                           </td>
                         </tr>
                         <?php endforeach; ?>
@@ -880,6 +1124,34 @@ $adminFavicon = $brandingContext['favicon'];
       </div>
     </div>
 
+    <!-- Reject Candidate Application Modal -->
+    <div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form method="POST">
+            <input type="hidden" name="action" value="review_candidate_application">
+            <input type="hidden" name="application_id" id="rejectApplicationId" value="0">
+            <input type="hidden" name="review_status" value="rejected">
+            <div class="modal-header">
+              <h5 class="modal-title">Reject Application</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="small text-secondary mb-3" id="rejectModalContext"></div>
+              <div class="mb-0">
+                <label class="form-label fw-semibold">Feedback <span class="text-danger">*</span></label>
+                <textarea class="form-control" name="feedback" id="rejectFeedback" rows="4" maxlength="1500" required placeholder="Explain why this application is rejected..."></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-danger"><i class="bi bi-x-circle me-1"></i>Reject</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- School Modal -->
     <div class="modal fade" id="schoolModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog"><div class="modal-content">
@@ -1032,6 +1304,8 @@ $adminFavicon = $brandingContext['favicon'];
         // Search filter
         document.getElementById('appSearch').addEventListener('input', filterTable);
         document.getElementById('appStatusFilter').addEventListener('change', filterTable);
+        document.getElementById('candidateAppSearch').addEventListener('input', filterCandidateApplications);
+        document.getElementById('candidateAppStatusFilter').addEventListener('change', filterCandidateApplications);
         document.getElementById('schoolSearch').addEventListener('input', filterSchools);
         document.getElementById('departmentSearch').addEventListener('input', filterDepartments);
         document.getElementById('courseSearch').addEventListener('input', filterCourses);
@@ -1040,6 +1314,18 @@ $adminFavicon = $brandingContext['favicon'];
           const search = document.getElementById('appSearch').value.toLowerCase();
           const status = document.getElementById('appStatusFilter').value;
           document.querySelectorAll('#appTable tbody tr[data-status]').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const rowStatus = row.dataset.status;
+            const matchText = text.includes(search);
+            const matchStatus = !status || rowStatus === status;
+            row.style.display = matchText && matchStatus ? '' : 'none';
+          });
+        }
+
+        function filterCandidateApplications() {
+          const search = document.getElementById('candidateAppSearch').value.toLowerCase();
+          const status = document.getElementById('candidateAppStatusFilter').value;
+          document.querySelectorAll('#candidateAppTable tbody tr[data-status]').forEach(row => {
             const text = row.textContent.toLowerCase();
             const rowStatus = row.dataset.status;
             const matchText = text.includes(search);
@@ -1119,6 +1405,14 @@ $adminFavicon = $brandingContext['favicon'];
         const sel = document.getElementById('evalAnnSelect');
         sel.value = annId || '';
         new bootstrap.Modal(document.getElementById('evalModal')).show();
+      }
+
+      function openRejectModal(applicationId, candidateName, announcementTitle) {
+        document.getElementById('rejectApplicationId').value = String(applicationId || 0);
+        document.getElementById('rejectFeedback').value = '';
+        document.getElementById('rejectModalContext').textContent =
+          `Candidate: ${candidateName || '-'} | Announcement: ${announcementTitle || '-'}`;
+        new bootstrap.Modal(document.getElementById('rejectModal')).show();
       }
 
       function openSchoolModal(id, name) {
