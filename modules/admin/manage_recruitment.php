@@ -551,6 +551,12 @@ $adminFavicon = $brandingContext['favicon'];
                         <option value="closed">Κλειστή</option>
                         <option value="cancelled">Ακυρωμένη</option>
                       </select>
+                      <select id="appSort" class="form-select form-select-sm" style="width:auto;">
+                        <option value="title_asc">Ταξινόμηση: Τίτλος Α-Ω</option>
+                        <option value="title_desc">Ταξινόμηση: Τίτλος Ω-Α</option>
+                        <option value="status_asc">Κατάσταση Α-Ω</option>
+                        <option value="school_asc">Σχολή Α-Ω</option>
+                      </select>
                     </div>
                     <button class="btn btn-success btn-sm" onclick="openNewModal()">
                       <i class="bi bi-plus-lg me-1"></i>Νέα Αίτηση
@@ -578,11 +584,11 @@ $adminFavicon = $brandingContext['favicon'];
                         ?>
                         <tr data-status="<?= htmlspecialchars($ann['status']) ?>">
                           <td class="text-secondary small"><?= str_pad($i + 1, 3, '0', STR_PAD_LEFT) ?></td>
-                          <td class="fw-semibold"><?= htmlspecialchars($ann['title']) ?></td>
-                          <td><?= htmlspecialchars($ann['school_name'] ?? '—') ?></td>
-                          <td><?= htmlspecialchars($ann['dept_name'] ?? '—') ?></td>
+                          <td class="fw-semibold" data-sort-value="<?= htmlspecialchars(mb_strtolower((string)$ann['title']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ann['title']) ?></td>
+                          <td data-sort-value="<?= htmlspecialchars(mb_strtolower((string)($ann['school_name'] ?? '—')), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ann['school_name'] ?? '—') ?></td>
+                          <td data-sort-value="<?= htmlspecialchars(mb_strtolower((string)($ann['dept_name'] ?? '—')), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ann['dept_name'] ?? '—') ?></td>
                           <td><?= htmlspecialchars($ann['evaluators'] ?? '—') ?></td>
-                          <td><span class="badge <?= $s['class'] ?> rounded-pill px-3"><?= $s['label'] ?></span></td>
+                          <td data-sort-value="<?= htmlspecialchars(mb_strtolower((string)$s['label']), ENT_QUOTES, 'UTF-8') ?>"><span class="badge <?= $s['class'] ?> rounded-pill px-3"><?= $s['label'] ?></span></td>
                           <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary me-1" title="Επεξεργασία"
                               onclick="openEditModal(<?= htmlspecialchars(json_encode([
@@ -634,6 +640,12 @@ $adminFavicon = $brandingContext['favicon'];
                         <option value="rejected">Rejected</option>
                         <option value="withdrawn">Withdrawn</option>
                       </select>
+                      <select id="candidateAppSort" class="form-select form-select-sm" style="width:auto;">
+                        <option value="submitted_desc">Ταξινόμηση: Πιο πρόσφατες</option>
+                        <option value="submitted_asc">Ταξινόμηση: Παλαιότερες</option>
+                        <option value="candidate_asc">Υποψήφιος Α-Ω</option>
+                        <option value="status_asc">Κατάσταση Α-Ω</option>
+                      </select>
                     </div>
                   </div>
                   <div class="table-responsive">
@@ -667,7 +679,7 @@ $adminFavicon = $brandingContext['favicon'];
                         ?>
                         <tr data-status="<?= htmlspecialchars((string)$ca['status'], ENT_QUOTES, 'UTF-8') ?>">
                           <td class="text-secondary small">#<?= (int)$ca['id'] ?></td>
-                          <td>
+                          <td data-sort-value="<?= htmlspecialchars(mb_strtolower($candidateName), ENT_QUOTES, 'UTF-8') ?>">
                             <div class="fw-semibold"><?= htmlspecialchars($candidateName, ENT_QUOTES, 'UTF-8') ?></div>
                             <div class="small text-secondary"><?= htmlspecialchars((string)$ca['email'], ENT_QUOTES, 'UTF-8') ?></div>
                           </td>
@@ -679,8 +691,8 @@ $adminFavicon = $brandingContext['favicon'];
                             <div><?= htmlspecialchars(($courseText !== '' && $courseText !== '-') ? $courseText : '—', ENT_QUOTES, 'UTF-8') ?></div>
                             <div class="small text-secondary"><?= htmlspecialchars((string)($ca['dept_name'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></div>
                           </td>
-                          <td class="small text-secondary"><?= htmlspecialchars($submittedAt, ENT_QUOTES, 'UTF-8') ?></td>
-                          <td><span class="badge <?= htmlspecialchars((string)$statusMeta['class'], ENT_QUOTES, 'UTF-8') ?> rounded-pill px-3"><?= htmlspecialchars((string)$statusMeta['label'], ENT_QUOTES, 'UTF-8') ?></span></td>
+                          <td class="small text-secondary" data-sort-value="<?= htmlspecialchars((string)strtotime((string)($ca['submitted_at'] ?? '')), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($submittedAt, ENT_QUOTES, 'UTF-8') ?></td>
+                          <td data-sort-value="<?= htmlspecialchars(mb_strtolower((string)$statusMeta['label']), ENT_QUOTES, 'UTF-8') ?>"><span class="badge <?= htmlspecialchars((string)$statusMeta['class'], ENT_QUOTES, 'UTF-8') ?> rounded-pill px-3"><?= htmlspecialchars((string)$statusMeta['label'], ENT_QUOTES, 'UTF-8') ?></span></td>
                           <td class="small text-secondary" style="max-width:280px;">
                             <?php if (trim((string)($ca['feedback'] ?? '')) !== ''): ?>
                             <span title="<?= htmlspecialchars((string)$ca['feedback'], ENT_QUOTES, 'UTF-8') ?>">
@@ -734,9 +746,15 @@ $adminFavicon = $brandingContext['favicon'];
               <div class="tab-pane fade" id="schools" role="tabpanel">
                 <div class="admin-table-card bg-body shadow-sm">
                   <div class="admin-table-toolbar">
-                    <div class="admin-table-search">
-                      <i class="bi bi-search"></i>
-                      <input type="text" class="form-control form-control-sm" id="schoolSearch" placeholder="Αναζήτηση σχολής..." />
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <div class="admin-table-search">
+                        <i class="bi bi-search"></i>
+                        <input type="text" class="form-control form-control-sm" id="schoolSearch" placeholder="Αναζήτηση σχολής..." />
+                      </div>
+                      <select id="schoolSort" class="form-select form-select-sm" style="width:auto;">
+                        <option value="name_asc">Ταξινόμηση: Όνομα Α-Ω</option>
+                        <option value="name_desc">Ταξινόμηση: Όνομα Ω-Α</option>
+                      </select>
                     </div>
                     <button class="btn btn-success btn-sm" onclick="openSchoolModal(0,'')">
                       <i class="bi bi-plus-lg me-1"></i>Νέα Σχολή
@@ -751,7 +769,7 @@ $adminFavicon = $brandingContext['favicon'];
                         <?php foreach ($schools as $i => $school): ?>
                         <tr data-school-row="true">
                           <td><?= $i + 1 ?></td>
-                          <td class="fw-semibold"><?= htmlspecialchars($school['name']) ?></td>
+                          <td class="fw-semibold" data-sort-value="<?= htmlspecialchars(mb_strtolower((string)$school['name']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($school['name']) ?></td>
                           <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary me-1" onclick="openSchoolModal(<?= $school['id'] ?>, <?= htmlspecialchars(json_encode($school['name']), ENT_QUOTES) ?>)"><i class="bi bi-pencil"></i></button>
                             <form method="POST" style="display:inline;" onsubmit="return confirm('Διαγραφή σχολής;');">
@@ -775,9 +793,15 @@ $adminFavicon = $brandingContext['favicon'];
               <div class="tab-pane fade" id="departments" role="tabpanel">
                 <div class="admin-table-card bg-body shadow-sm">
                   <div class="admin-table-toolbar">
-                    <div class="admin-table-search">
-                      <i class="bi bi-search"></i>
-                      <input type="text" class="form-control form-control-sm" id="departmentSearch" placeholder="Αναζήτηση τμήματος..." />
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <div class="admin-table-search">
+                        <i class="bi bi-search"></i>
+                        <input type="text" class="form-control form-control-sm" id="departmentSearch" placeholder="Αναζήτηση τμήματος..." />
+                      </div>
+                      <select id="departmentSort" class="form-select form-select-sm" style="width:auto;">
+                        <option value="name_asc">Ταξινόμηση: Τμήμα Α-Ω</option>
+                        <option value="school_asc">Ταξινόμηση: Σχολή Α-Ω</option>
+                      </select>
                     </div>
                     <button class="btn btn-success btn-sm" onclick="openDeptModal(0,'',0)">
                       <i class="bi bi-plus-lg me-1"></i>Νέο Τμήμα
@@ -794,8 +818,8 @@ $adminFavicon = $brandingContext['favicon'];
                         foreach ($departments as $i => $dept): ?>
                         <tr data-department-row="true">
                           <td><?= $i + 1 ?></td>
-                          <td class="fw-semibold"><?= htmlspecialchars($dept['name']) ?></td>
-                          <td><?= htmlspecialchars($schoolById[$dept['school_id']] ?? '—') ?></td>
+                          <td class="fw-semibold" data-sort-value="<?= htmlspecialchars(mb_strtolower((string)$dept['name']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($dept['name']) ?></td>
+                          <td data-sort-value="<?= htmlspecialchars(mb_strtolower((string)($schoolById[$dept['school_id']] ?? '—')), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($schoolById[$dept['school_id']] ?? '—') ?></td>
                           <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary me-1" onclick="openDeptModal(<?= $dept['id'] ?>, <?= htmlspecialchars(json_encode($dept['name']), ENT_QUOTES) ?>, <?= $dept['school_id'] ?>)"><i class="bi bi-pencil"></i></button>
                             <form method="POST" style="display:inline;" onsubmit="return confirm('Διαγραφή τμήματος;');">
@@ -819,9 +843,15 @@ $adminFavicon = $brandingContext['favicon'];
               <div class="tab-pane fade" id="courses" role="tabpanel">
                 <div class="admin-table-card bg-body shadow-sm">
                   <div class="admin-table-toolbar">
-                    <div class="admin-table-search">
-                      <i class="bi bi-search"></i>
-                      <input type="text" class="form-control form-control-sm" id="courseSearch" placeholder="Αναζήτηση μαθήματος..." />
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <div class="admin-table-search">
+                        <i class="bi bi-search"></i>
+                        <input type="text" class="form-control form-control-sm" id="courseSearch" placeholder="Αναζήτηση μαθήματος..." />
+                      </div>
+                      <select id="courseSort" class="form-select form-select-sm" style="width:auto;">
+                        <option value="name_asc">Ταξινόμηση: Μάθημα Α-Ω</option>
+                        <option value="department_asc">Ταξινόμηση: Τμήμα Α-Ω</option>
+                      </select>
                     </div>
                     <button class="btn btn-success btn-sm" onclick="openCourseModal(0,'',0)">
                       <i class="bi bi-plus-lg me-1"></i>Νέο Μάθημα
@@ -838,8 +868,8 @@ $adminFavicon = $brandingContext['favicon'];
                         foreach ($courses as $i => $course): ?>
                         <tr data-course-row="true">
                           <td><?= $i + 1 ?></td>
-                          <td class="fw-semibold"><?= htmlspecialchars($course['name']) ?></td>
-                          <td><?= htmlspecialchars($deptById[$course['department_id']] ?? '—') ?></td>
+                          <td class="fw-semibold" data-sort-value="<?= htmlspecialchars(mb_strtolower((string)$course['name']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($course['name']) ?></td>
+                          <td data-sort-value="<?= htmlspecialchars(mb_strtolower((string)($deptById[$course['department_id']] ?? '—')), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($deptById[$course['department_id']] ?? '—') ?></td>
                           <td class="text-end">
                             <button class="btn btn-sm btn-outline-primary me-1" onclick="openCourseModal(<?= $course['id'] ?>, <?= htmlspecialchars(json_encode($course['name']), ENT_QUOTES) ?>, <?= $course['department_id'] ?>)"><i class="bi bi-pencil"></i></button>
                             <form method="POST" style="display:inline;" onsubmit="return confirm('Διαγραφή μαθήματος;');">
@@ -1313,11 +1343,90 @@ $adminFavicon = $brandingContext['favicon'];
         // Search filter
         document.getElementById('appSearch').addEventListener('input', filterTable);
         document.getElementById('appStatusFilter').addEventListener('change', filterTable);
+        document.getElementById('appSort').addEventListener('change', function () {
+          sortTableRows('#appTable', 'tr[data-status]', getAppSortConfig());
+          filterTable();
+        });
         document.getElementById('candidateAppSearch').addEventListener('input', filterCandidateApplications);
         document.getElementById('candidateAppStatusFilter').addEventListener('change', filterCandidateApplications);
+        document.getElementById('candidateAppSort').addEventListener('change', function () {
+          sortTableRows('#candidateAppTable', 'tr[data-status]', getCandidateSortConfig());
+          filterCandidateApplications();
+        });
         document.getElementById('schoolSearch').addEventListener('input', filterSchools);
+        document.getElementById('schoolSort').addEventListener('change', function () {
+          sortTableRows('#schoolTable', 'tr[data-school-row]', getSchoolSortConfig());
+          filterSchools();
+        });
         document.getElementById('departmentSearch').addEventListener('input', filterDepartments);
+        document.getElementById('departmentSort').addEventListener('change', function () {
+          sortTableRows('#departmentTable', 'tr[data-department-row]', getDepartmentSortConfig());
+          filterDepartments();
+        });
         document.getElementById('courseSearch').addEventListener('input', filterCourses);
+        document.getElementById('courseSort').addEventListener('change', function () {
+          sortTableRows('#courseTable', 'tr[data-course-row]', getCourseSortConfig());
+          filterCourses();
+        });
+
+        function sortTableRows(tableSelector, rowSelector, config) {
+          const tbody = document.querySelector(tableSelector + ' tbody');
+          if (!tbody) return;
+          const rows = Array.from(tbody.querySelectorAll(rowSelector));
+          rows.sort(function (a, b) {
+            const aCell = a.children[config.index];
+            const bCell = b.children[config.index];
+            const aValue = (aCell && aCell.dataset.sortValue ? aCell.dataset.sortValue : (aCell ? aCell.textContent : '')).trim().toLowerCase();
+            const bValue = (bCell && bCell.dataset.sortValue ? bCell.dataset.sortValue : (bCell ? bCell.textContent : '')).trim().toLowerCase();
+
+            if (config.numeric) {
+              return config.direction * ((Number(aValue) || 0) - (Number(bValue) || 0));
+            }
+
+            return config.direction * aValue.localeCompare(bValue, 'el');
+          });
+          rows.forEach(function (row) {
+            tbody.appendChild(row);
+          });
+        }
+
+        function getAppSortConfig() {
+          switch (document.getElementById('appSort').value) {
+            case 'title_desc': return { index: 1, direction: -1, numeric: false };
+            case 'status_asc': return { index: 5, direction: 1, numeric: false };
+            case 'school_asc': return { index: 2, direction: 1, numeric: false };
+            default: return { index: 1, direction: 1, numeric: false };
+          }
+        }
+
+        function getCandidateSortConfig() {
+          switch (document.getElementById('candidateAppSort').value) {
+            case 'submitted_asc': return { index: 4, direction: 1, numeric: true };
+            case 'candidate_asc': return { index: 1, direction: 1, numeric: false };
+            case 'status_asc': return { index: 5, direction: 1, numeric: false };
+            default: return { index: 4, direction: -1, numeric: true };
+          }
+        }
+
+        function getSchoolSortConfig() {
+          return {
+            index: 1,
+            direction: document.getElementById('schoolSort').value === 'name_desc' ? -1 : 1,
+            numeric: false
+          };
+        }
+
+        function getDepartmentSortConfig() {
+          return document.getElementById('departmentSort').value === 'school_asc'
+            ? { index: 2, direction: 1, numeric: false }
+            : { index: 1, direction: 1, numeric: false };
+        }
+
+        function getCourseSortConfig() {
+          return document.getElementById('courseSort').value === 'department_asc'
+            ? { index: 2, direction: 1, numeric: false }
+            : { index: 1, direction: 1, numeric: false };
+        }
 
         function filterTable() {
           const search = document.getElementById('appSearch').value.toLowerCase();
@@ -1375,6 +1484,11 @@ $adminFavicon = $brandingContext['favicon'];
 
         populateDepartmentOptions('', '');
         populateCourseOptions('', '');
+        sortTableRows('#appTable', 'tr[data-status]', getAppSortConfig());
+        sortTableRows('#candidateAppTable', 'tr[data-status]', getCandidateSortConfig());
+        sortTableRows('#schoolTable', 'tr[data-school-row]', getSchoolSortConfig());
+        sortTableRows('#departmentTable', 'tr[data-department-row]', getDepartmentSortConfig());
+        sortTableRows('#courseTable', 'tr[data-course-row]', getCourseSortConfig());
       });
 
       function switchTab(tabId) {
