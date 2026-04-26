@@ -48,8 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ann_id  = (int)($_POST['announcement_id'] ?? 0);
         $eval_id = (int)($_POST['evaluator_id'] ?? 0);
         if ($ann_id > 0 && $eval_id > 0) {
-            $stmt = $pdo->prepare("INSERT IGNORE INTO application_evaluators (announcement_id, evaluator_id) VALUES (?,?)");
-            $stmt->execute([$ann_id, $eval_id]);
+            $check = $pdo->prepare("SELECT id FROM users WHERE id = ? AND role = 'evaluator'");
+            $check->execute([$eval_id]);
+            if ($check->fetch()) {
+                $stmt = $pdo->prepare("INSERT IGNORE INTO application_evaluators (announcement_id, evaluator_id) VALUES (?,?)");
+                $stmt->execute([$ann_id, $eval_id]);
+            }
         }
         header('Location: manage_recruitment.php#applications');
         exit;
@@ -249,7 +253,7 @@ $schools    = $pdo->query("SELECT id, name FROM schools ORDER BY name")->fetchAl
 $departments= $pdo->query("SELECT id, name, school_id FROM departments ORDER BY name")->fetchAll();
 $courses    = $pdo->query("SELECT id, name, department_id FROM courses ORDER BY name")->fetchAll();
 $periods    = $pdo->query("SELECT id, name, start_date, end_date, status, description FROM recruitment_periods ORDER BY start_date DESC")->fetchAll();
-$evalUsers  = $pdo->query("SELECT id, first_name, last_name FROM users ORDER BY last_name, first_name")->fetchAll();
+$evalUsers  = $pdo->query("SELECT id, first_name, last_name FROM users WHERE role = 'evaluator' ORDER BY last_name, first_name")->fetchAll();
 
 $evalAssignments = $pdo->query("
     SELECT ae.id AS ae_id, ja.title AS ann_title, u.first_name, u.last_name, ae.created_at
