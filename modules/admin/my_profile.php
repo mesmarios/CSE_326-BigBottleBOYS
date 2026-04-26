@@ -18,6 +18,57 @@ function respondJson(array $payload, int $statusCode = 200): void
     exit;
 }
 
+function getUsersTableColumns(PDO $pdo): array
+{
+    static $columns = null;
+
+    if (is_array($columns)) {
+        return $columns;
+    }
+
+    $stmt = $pdo->query('SHOW COLUMNS FROM users');
+    $columns = [];
+
+    foreach ($stmt->fetchAll() as $row) {
+        if (isset($row['Field'])) {
+            $columns[] = (string)$row['Field'];
+        }
+    }
+
+    return $columns;
+}
+
+function userColumnExists(PDO $pdo, string $column): bool
+{
+    return in_array($column, getUsersTableColumns($pdo), true);
+}
+
+function avatarPublicUrlFromRelativePath(?string $relativePath): ?string
+{
+    $normalizedPath = ltrim(str_replace('\\', '/', trim((string)$relativePath)), '/');
+    if ($normalizedPath === '' || !str_starts_with($normalizedPath, 'uploads/profile_pics/')) {
+        return null;
+    }
+
+    $absoluteBaseDir = realpath(__DIR__ . '/../../uploads/profile_pics');
+    if ($absoluteBaseDir === false) {
+        return null;
+    }
+
+    $absoluteFilePath = realpath(__DIR__ . '/../../' . $normalizedPath);
+    if ($absoluteFilePath === false || !is_file($absoluteFilePath)) {
+        return null;
+    }
+
+    if (strpos($absoluteFilePath, $absoluteBaseDir . DIRECTORY_SEPARATOR) !== 0) {
+        return null;
+    }
+
+    $fileVersion = (int)@filemtime($absoluteFilePath) ?: time();
+    $encodedPath = implode('/', array_map('rawurlencode', explode('/', $normalizedPath)));
+    return '../../' . $encodedPath . '?v=' . $fileVersion;
+}
+
 function isValidStrongPassword(string $password): bool
 {
     return strlen($password) >= 8
@@ -27,7 +78,7 @@ function isValidStrongPassword(string $password): bool
         && preg_match('/[!@#$%^&*()_+\-=]/', $password) === 1;
 }
 
-    function buildAvatarSrc(?string $binary, ?string $mimeType, int $userId = 0): string
+    function buildAvatarSrc(?string $binary, ?string $mimeType, int $userId = 0, ?string $storedPath = null): string
     {
       if ($binary) {
         $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -36,6 +87,11 @@ function isValidStrongPassword(string $password): bool
           : 'image/jpeg';
 
         return 'data:' . $safeMimeType . ';base64,' . base64_encode($binary);
+      }
+
+      $storedUrl = avatarPublicUrlFromRelativePath($storedPath);
+      if ($storedUrl !== null) {
+        return $storedUrl;
       }
 
       if ($userId > 0) {
@@ -289,24 +345,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               respondJson(['success' => false, 'error' => 'Δεν ήταν δυνατή η ανάγνωση της εικόνας.'], 500);
             }
 
+            $relativeAvatarPath = 'uploads/profile_pics/' . basename($targetPath);
+            $setParts = ['profilepic = :profilepic'];
+            if (userColumnExists($pdo, 'profilepic_mime')) {
+              $setParts[] = 'profilepic_mime = :profilepic_mime';
+            }
+            if (userColumnExists($pdo, 'profilepic_path')) {
+              $setParts[] = 'profilepic_path = :profilepic_path';
+            }
+            if (userColumnExists($pdo, 'updated_at')) {
+              $setParts[] = 'updated_at = NOW()';
+            }
+
             $updateAvatarStmt = $pdo->prepare(
-              '
-              UPDATE users
-              SET profilepic = :profilepic,
-                profilepic_mime = :profilepic_mime,
-                updated_at = NOW()
-              WHERE id = :id
-              '
+              'UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = :id'
             );
             $updateAvatarStmt->bindValue(':profilepic', $binaryData, PDO::PARAM_LOB);
-            $updateAvatarStmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
+            if (userColumnExists($pdo, 'profilepic_mime')) {
+              $updateAvatarStmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
+            }
+            if (userColumnExists($pdo, 'profilepic_path')) {
+              $updateAvatarStmt->bindValue(':profilepic_path', $relativeAvatarPath, PDO::PARAM_STR);
+            }
             $updateAvatarStmt->bindValue(':id', $adminId, PDO::PARAM_INT);
             $updateAvatarStmt->execute();
 
             respondJson([
               'success' => true,
               'message' => 'Η φωτογραφία προφίλ ενημερώθηκε επιτυχώς.',
-              'avatar_src' => buildAvatarSrc($binaryData, (string)$detectedMimeType, $adminId),
+              'avatar_src' => buildAvatarSrc($binaryData, (string)$detectedMimeType, $adminId, $relativeAvatarPath),
             ]);
           }
 
@@ -316,13 +383,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$adminSelectColumns = [
+    'id',
+    'first_name',
+    'last_name',
+    'email',
+    'phone',
+    'address',
+    'dob',
+    'role',
+    'created_at',
+    'profilepic',
+    'profilepic_mime',
+];
+if (userColumnExists($pdo, 'profilepic_path')) {
+    $adminSelectColumns[] = 'profilepic_path';
+}
+
 $adminStmt = $pdo->prepare(
-    '
-  SELECT id, first_name, last_name, email, phone, address, dob, role, created_at, profilepic, profilepic_mime
-    FROM users
-    WHERE id = :id
-    LIMIT 1
-    '
+    'SELECT ' . implode(', ', $adminSelectColumns) . '
+     FROM users
+     WHERE id = :id
+     LIMIT 1'
 );
 $adminStmt->execute([':id' => $adminId]);
 $adminUser = $adminStmt->fetch() ?: [];
@@ -351,7 +433,8 @@ $adminDobDisplay = formatDateDisplay($adminDob !== '' ? $adminDob : null);
 $adminAvatarSrc = buildAvatarSrc(
   isset($adminUser['profilepic']) ? (string)$adminUser['profilepic'] : null,
   isset($adminUser['profilepic_mime']) ? (string)$adminUser['profilepic_mime'] : null,
-  $adminId
+  $adminId,
+  isset($adminUser['profilepic_path']) ? (string)$adminUser['profilepic_path'] : null
 );
 $brandingContext = adminGetBrandingContext($pdo);
 $adminBrandText = $brandingContext['brand_text'];

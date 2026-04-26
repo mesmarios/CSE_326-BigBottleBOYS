@@ -61,6 +61,7 @@ CREATE TABLE users (
     summary          TEXT          NULL,
     profilepic       MEDIUMBLOB    NULL,
     profilepic_mime  VARCHAR(100)  NULL,
+    profilepic_path  VARCHAR(500)  NULL,
     role             ENUM('admin','hr','evaluator','candidate','ee_hired') NOT NULL DEFAULT 'candidate',
     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

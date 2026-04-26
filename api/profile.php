@@ -62,7 +62,39 @@ function userColumnExists(PDO $pdo, string $column): bool {
     return in_array($column, getUsersTableColumns($pdo), true);
 }
 
-function resolveAvatarFileUrl(int $userId): ?string {
+function avatarPublicUrlFromRelativePath(string $relativePath): ?string {
+    $normalizedPath = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
+    if ($normalizedPath === '' || !str_starts_with($normalizedPath, 'uploads/profile_pics/')) {
+        return null;
+    }
+
+    $absoluteBaseDir = realpath(__DIR__ . '/../uploads/profile_pics');
+    if ($absoluteBaseDir === false) {
+        return null;
+    }
+
+    $absoluteFilePath = realpath(__DIR__ . '/../' . $normalizedPath);
+    if ($absoluteFilePath === false || !is_file($absoluteFilePath)) {
+        return null;
+    }
+
+    if (strpos($absoluteFilePath, $absoluteBaseDir . DIRECTORY_SEPARATOR) !== 0) {
+        return null;
+    }
+
+    $version = @filemtime($absoluteFilePath) ?: time();
+    $encodedPath = implode('/', array_map('rawurlencode', explode('/', $normalizedPath)));
+    return '../../' . $encodedPath . '?v=' . $version;
+}
+
+function resolveAvatarFileUrl(int $userId, ?string $storedPath = null): ?string {
+    if (is_string($storedPath) && trim($storedPath) !== '') {
+        $storedUrl = avatarPublicUrlFromRelativePath($storedPath);
+        if ($storedUrl !== null) {
+            return $storedUrl;
+        }
+    }
+
     if ($userId <= 0) {
         return null;
     }
@@ -199,16 +231,53 @@ function handleAvatarUpload(PDO $pdo, int $userId): void {
         return;
     }
 
-    $binaryData = file_get_contents($tmpPath);
+    $extByMime = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    ];
+    $extension = $extByMime[(string)$detectedMimeType] ?? 'jpg';
+    $avatarDir = __DIR__ . '/../uploads/profile_pics';
+    if (!is_dir($avatarDir) && !@mkdir($avatarDir, 0775, true) && !is_dir($avatarDir)) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Unable to create profile image directory']);
+        return;
+    }
+
+    $existingFiles = glob($avatarDir . '/user_' . $userId . '.*');
+    if (is_array($existingFiles)) {
+        foreach ($existingFiles as $existingFile) {
+            @unlink($existingFile);
+        }
+    }
+
+    $targetPath = $avatarDir . '/user_' . $userId . '.' . $extension;
+    $savedToFile = move_uploaded_file($tmpPath, $targetPath);
+    if (!$savedToFile) {
+        $savedToFile = @copy($tmpPath, $targetPath);
+    }
+
+    if (!$savedToFile) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Unable to save image file on server']);
+        return;
+    }
+
+    $binaryData = file_get_contents($targetPath);
     if ($binaryData === false || $binaryData === '') {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Unable to read image data']);
         return;
     }
 
+    $relativeAvatarPath = 'uploads/profile_pics/' . basename($targetPath);
     $setParts = ['profilepic = :profilepic'];
     if (userColumnExists($pdo, 'profilepic_mime')) {
         $setParts[] = 'profilepic_mime = :profilepic_mime';
+    }
+    if (userColumnExists($pdo, 'profilepic_path')) {
+        $setParts[] = 'profilepic_path = :profilepic_path';
     }
     if (userColumnExists($pdo, 'updated_at')) {
         $setParts[] = 'updated_at = NOW()';
@@ -221,33 +290,16 @@ function handleAvatarUpload(PDO $pdo, int $userId): void {
     if (userColumnExists($pdo, 'profilepic_mime')) {
         $stmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
     }
+    if (userColumnExists($pdo, 'profilepic_path')) {
+        $stmt->bindValue(':profilepic_path', $relativeAvatarPath, PDO::PARAM_STR);
+    }
     $stmt->bindValue(':id', $userId, PDO::PARAM_INT);
     $stmt->execute();
 
-    // Best-effort filesystem sync for legacy code paths; DB remains the source of truth.
-    $extByMime = [
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'image/gif' => 'gif',
-        'image/webp' => 'webp',
-    ];
-    $extension = $extByMime[(string)$detectedMimeType] ?? 'jpg';
-    $avatarDir = __DIR__ . '/../uploads/profile_pics';
-    if (is_dir($avatarDir) || @mkdir($avatarDir, 0775, true) || is_dir($avatarDir)) {
-        $existingFiles = glob($avatarDir . '/user_' . $userId . '.*');
-        if (is_array($existingFiles)) {
-            foreach ($existingFiles as $existingFile) {
-                @unlink($existingFile);
-            }
-        }
-
-        $targetPath = $avatarDir . '/user_' . $userId . '.' . $extension;
-        @copy($tmpPath, $targetPath);
-    }
-
     echo json_encode([
         'success' => true,
-        'avatar_src' => buildAvatarSrc($binaryData, (string)$detectedMimeType),
+        'avatar_src' => resolveAvatarFileUrl($userId, $relativeAvatarPath) ?? buildAvatarSrc($binaryData, (string)$detectedMimeType),
+        'avatar_path' => $relativeAvatarPath,
     ]);
 }
 
@@ -268,6 +320,7 @@ function handleGet(PDO $pdo, int $userId): void {
         'summary',
         'profilepic',
         'profilepic_mime',
+        'profilepic_path',
     ];
     $selectColumns = [];
     foreach ($candidateColumns as $column) {
@@ -286,6 +339,8 @@ function handleGet(PDO $pdo, int $userId): void {
     $stmt->execute([$userId]);
     $user = $stmt->fetch() ?: [];
 
+    $avatarFileUrl = resolveAvatarFileUrl($userId, isset($user['profilepic_path']) ? (string)$user['profilepic_path'] : null);
+
     echo json_encode([
         'success'    => true,
         'first_name' => $user['first_name'] ?? '',
@@ -301,9 +356,10 @@ function handleGet(PDO $pdo, int $userId): void {
             'experience'     => $user['experience'] !== null ? (string)$user['experience'] : '',
             'summary'        => $user['summary']        ?? '',
         ],
-        'avatar_src' => !empty($user['profilepic'])
-            ? buildAvatarSrc((string)$user['profilepic'], (string)($user['profilepic_mime'] ?? ''))
-            : (resolveAvatarFileUrl($userId) ?? null),
+        'avatar_src' => $avatarFileUrl
+            ?? (!empty($user['profilepic'])
+                ? buildAvatarSrc((string)$user['profilepic'], (string)($user['profilepic_mime'] ?? ''))
+                : null),
     ]);
 }
 
