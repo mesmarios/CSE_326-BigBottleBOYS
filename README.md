@@ -1,4 +1,11 @@
-# CSE 326 BigBottleBOYS
+# CSE_326 BigBottleBOYS
+
+Διαδικτυακή εφαρμογή διαχείρισης Ειδικών Επιστημόνων (ΕΕ) για το ΤΕΠΑΚ, υλοποιημένη στο πλαίσιο του μαθήματος `CSE 326`.
+
+Η εφαρμογή καλύπτει:
+- `Admin Module`
+- `Recruitment Module`
+- `Enrollment Module`
 
 ## Ομάδα
 
@@ -6,67 +13,137 @@
 - Μάριος Μεσαρίτης - Α.Φ.Τ. 27818
 - Μιχαλής Τσαδιώτης - Α.Φ.Τ. 28053
 
-## Κατανομή εργασίας
+## Περιγραφή Project
 
-- Μάριος Σιήττας (27432): dashboard/admin σελίδες, σύνδεση διεπαφών με δεδομένα βάσης, γενική ενοποίηση εφαρμογής.
-- Μάριος Μεσαρίτης (27818): authentication flow, keyword search, βελτιώσεις ασφάλειας, schema/seed προσαρμογές.
-- Μιχαλής Τσαδιώτης (28053): README, έλεγχοι ασφάλειας, τεκμηρίωση και υποστήριξη τελικής παράδοσης.
+Το σύστημα υποστηρίζει:
+- διαχείριση χρηστών και ρόλων
+- διαχείριση προκηρύξεων, σχολών, τμημάτων, μαθημάτων και περιόδων αιτήσεων
+- υποβολή και παρακολούθηση αιτήσεων υποψηφίων
+- βασική διαχείριση enrollment/LMS access για προσληφθέντες ΕΕ
+- dashboards και reports για admin και enrollment
 
-Η παραπάνω κατανομή βασίζεται στα commits του repository και στην τελική δομή παράδοσης.
+## Modules
 
-## Υποχρεωτική δομή για το παραδοτέο
+### 1. Admin Module
+- `Dashboard`
+- `Manage Users`
+- `Manage Recruitment`
+- `Configure System`
+- `Report`
+- `My Profile`
 
-- `database/schema.sql`
-- `database/seed.sql`
-- `includes/db.php`
-- `auth/register.php`
-- `auth/login.php`
-- `auth/logout.php`
-- `modules/dashboard.php`
-- `modules/list.php`
+### 2. Recruitment Module
+- `Dashboard`
+- `My Profile`
+- `My Applications`
+- `Application Status`
 
-Το repository περιέχει και επιπλέον αρχεία του project, αλλά τα παραπάνω είναι τα βασικά αρχεία που ζητά η εκφώνηση.
+### 3. Enrollment Module
+- `Dashboard`
+- `LMS Sync`
+- `Full Sync`
+- `Report`
 
-## Οδηγίες εγκατάστασης
+## Τεχνολογίες
 
-1. Εγκαταστήστε Apache, PHP και MySQL ή χρησιμοποιήστε XAMPP/LAMP.
-2. Τοποθετήστε τον φάκελο του project μέσα στο web root, π.χ.:
-   - XAMPP: `htdocs/`
-   - LAMP: `/var/www/html/`
-3. Δημιουργήστε τη βάση:
+- `PHP`
+- `MySQL / MariaDB`
+- `HTML5`
+- `CSS3`
+- `JavaScript`
+- `Bootstrap 5`
+- `AdminLTE`
+- `XAMPP`
 
-```sql
-CREATE DATABASE bigbrothers CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+## Δομή Repository
+
+```text
+CSE_326-BigBottleBOYS/
+├── api/                     # API endpoints
+├── assets/                  # CSS, JS, images
+├── auth/                    # auth routes
+├── database/                # schema, seed, DB docs
+├── enrollment/              # Enrollment module
+├── includes/                # shared guards, layout, helpers
+├── modules/
+│   ├── admin/               # Admin module
+│   ├── recruitmentModule/   # Recruitment module
+│   ├── dashboard.php        # legacy/required course file
+│   └── list.php             # legacy/required course file
+├── uploads/                 # uploaded files
+├── index.php                # landing page
+├── login.php                # root login
+├── register.php             # root register
+└── module-select.php        # module selection for admin/hr
 ```
 
-4. Κάντε import πρώτα το schema και μετά τα demo δεδομένα:
+## Database
+
+- Όνομα βάσης: `bigbrothers`
+- Schema file: `database/database.sql`
+- Seed file: `database/seed.sql`
+- PDO connection: `database/db.php`
+
+## Εγκατάσταση
+
+1. Τοποθέτησε το project μέσα στο `htdocs` του XAMPP.
+2. Άνοιξε `phpMyAdmin`.
+3. Κάνε import πρώτα το `database/database.sql`.
+4. Κάνε import μετά το `database/seed.sql`.
+
+Εναλλακτικά από terminal:
 
 ```bash
-mysql -u root -p bigbrothers < database/schema.sql
-mysql -u root -p bigbrothers < database/seed.sql
+mysql -u root < database/database.sql
+mysql -u root bigbrothers < database/seed.sql
 ```
-
-Demo password για τους seeded users: `Password123!`
-
-5. Ελέγξτε ότι το connection file χρησιμοποιεί τα σωστά credentials:
-   - αρχείο: `includes/db.php` -> φορτώνει το `database/db.php`
-   - βάση: `bigbrothers`
-   - host: `localhost`
-   - user: `root`
 
 ## Εκτέλεση
 
-Ανοίξτε στον browser το project και χρησιμοποιήστε τα υποχρεωτικά routes:
+Άνοιξε:
 
-- `http://localhost/CSE_326-BigBottleBOYS/auth/register.php`
-- `http://localhost/CSE_326-BigBottleBOYS/auth/login.php`
-- `http://localhost/CSE_326-BigBottleBOYS/modules/dashboard.php`
-- `http://localhost/CSE_326-BigBottleBOYS/modules/list.php`
+- `http://localhost/CSE_326-BigBottleBOYS/`
 
-## Σημειώσεις ασφάλειας
+Χρήσιμα routes:
 
-- Χρησιμοποιείται PDO με prepared statements.
-- Τα passwords αποθηκεύονται μόνο με `password_hash()`.
-- Η επαλήθευση σύνδεσης γίνεται με `password_verify()`.
-- Όλα τα redirects συνοδεύονται από `exit`.
-- Η έξοδος προς HTML γίνεται με `htmlspecialchars()` όπου εμφανίζονται δυναμικά δεδομένα.
+- `http://localhost/CSE_326-BigBottleBOYS/login.php`
+- `http://localhost/CSE_326-BigBottleBOYS/register.php`
+- `http://localhost/CSE_326-BigBottleBOYS/module-select.php`
+- `http://localhost/CSE_326-BigBottleBOYS/modules/admin/index.php`
+- `http://localhost/CSE_326-BigBottleBOYS/modules/recruitmentModule/index.php`
+- `http://localhost/CSE_326-BigBottleBOYS/enrollment/dashboard.php`
+
+## Demo Users
+
+Όλοι οι seeded χρήστες έχουν το ίδιο password:
+
+- `Demo1234!`
+
+Ενδεικτικοί λογαριασμοί:
+
+| Role | Email |
+|---|---|
+| `admin` | `admin@tepak.cy` |
+| `admin` | `admin2@tepak.cy` |
+| `admin` | `admin3@tepak.cy` |
+| `hr` | `hr@tepak.cy` |
+| `evaluator` | `eval.giorgos@tepak.cy` |
+| `evaluator` | `eval.christos@tepak.cy` |
+| `candidate` | `nikos.andreou@student.tepak.cy` |
+| `candidate` | `maria.christou@student.tepak.cy` |
+| `candidate` | `panagiotis.ioannou@student.tepak.cy` |
+| `ee_hired` | `sofia.mihail@tepak.cy` |
+| `ee_hired` | `andreas.petrou@tepak.cy` |
+
+Για πλήρη λίστα demo λογαριασμών δες το `database/seed.sql`.
+
+## Χρήσιμα Αρχεία Τεκμηρίωσης
+
+- [database/DATABASE_SUMMARY.md](./database/DATABASE_SUMMARY.md)
+- [database/FILE_INDEX.md](./database/FILE_INDEX.md)
+
+## Σημειώσεις
+
+- Η εφαρμογή χρησιμοποιεί κοινή βάση δεδομένων για όλα τα modules.
+- Η πρόσβαση στα modules ελέγχεται με βάση το `role` του χρήστη.
+- Η σύνδεση με Moodle στην παρούσα έκδοση λειτουργεί ως τοπικό simulation / integration layer για τις ανάγκες του project.
