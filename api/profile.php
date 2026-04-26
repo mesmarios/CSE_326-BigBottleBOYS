@@ -30,15 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
 }
 
-function buildAvatarSrc(string $binary, ?string $mimeType): string {
-    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    $safeMimeType = in_array((string)$mimeType, $allowedMimeTypes, true)
-        ? (string)$mimeType
-        : 'image/jpeg';
-
-    return 'data:' . $safeMimeType . ';base64,' . base64_encode($binary);
-}
-
 function getUsersTableColumns(PDO $pdo): array {
     static $columns = null;
 
@@ -264,32 +255,30 @@ function handleAvatarUpload(PDO $pdo, int $userId): void {
         return;
     }
 
-    $binaryData = file_get_contents($targetPath);
-    if ($binaryData === false || $binaryData === '') {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Unable to read image data']);
-        return;
-    }
-
     $relativeAvatarPath = 'uploads/profile_pics/' . basename($targetPath);
-    $setParts = ['profilepic = :profilepic'];
-    if (userColumnExists($pdo, 'profilepic_mime')) {
-        $setParts[] = 'profilepic_mime = :profilepic_mime';
-    }
+    $setParts = [];
     if (userColumnExists($pdo, 'profilepic_path')) {
         $setParts[] = 'profilepic_path = :profilepic_path';
+    }
+    if (userColumnExists($pdo, 'profilepic')) {
+        $setParts[] = 'profilepic = NULL';
+    }
+    if (userColumnExists($pdo, 'profilepic_mime')) {
+        $setParts[] = 'profilepic_mime = NULL';
     }
     if (userColumnExists($pdo, 'updated_at')) {
         $setParts[] = 'updated_at = NOW()';
     }
 
+    if ($setParts === []) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'No compatible avatar columns found']);
+        return;
+    }
+
     $stmt = $pdo->prepare(
         'UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = :id'
     );
-    $stmt->bindValue(':profilepic', $binaryData, PDO::PARAM_LOB);
-    if (userColumnExists($pdo, 'profilepic_mime')) {
-        $stmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
-    }
     if (userColumnExists($pdo, 'profilepic_path')) {
         $stmt->bindValue(':profilepic_path', $relativeAvatarPath, PDO::PARAM_STR);
     }
@@ -298,7 +287,7 @@ function handleAvatarUpload(PDO $pdo, int $userId): void {
 
     echo json_encode([
         'success' => true,
-        'avatar_src' => resolveAvatarFileUrl($userId, $relativeAvatarPath) ?? buildAvatarSrc($binaryData, (string)$detectedMimeType),
+        'avatar_src' => resolveAvatarFileUrl($userId, $relativeAvatarPath),
         'avatar_path' => $relativeAvatarPath,
     ]);
 }
@@ -318,8 +307,6 @@ function handleGet(PDO $pdo, int $userId): void {
         'specialization',
         'experience',
         'summary',
-        'profilepic',
-        'profilepic_mime',
         'profilepic_path',
     ];
     $selectColumns = [];
@@ -356,10 +343,7 @@ function handleGet(PDO $pdo, int $userId): void {
             'experience'     => $user['experience'] !== null ? (string)$user['experience'] : '',
             'summary'        => $user['summary']        ?? '',
         ],
-        'avatar_src' => $avatarFileUrl
-            ?? (!empty($user['profilepic'])
-                ? buildAvatarSrc((string)$user['profilepic'], (string)($user['profilepic_mime'] ?? ''))
-                : null),
+        'avatar_src' => $avatarFileUrl,
     ]);
 }
 

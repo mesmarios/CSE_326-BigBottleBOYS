@@ -59,8 +59,6 @@ CREATE TABLE users (
     specialization   VARCHAR(200)  NULL,
     experience       INT           NULL,
     summary          TEXT          NULL,
-    profilepic       MEDIUMBLOB    NULL,
-    profilepic_mime  VARCHAR(100)  NULL,
     profilepic_path  VARCHAR(500)  NULL,
     role             ENUM('admin','hr','evaluator','candidate','ee_hired') NOT NULL DEFAULT 'candidate',
     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

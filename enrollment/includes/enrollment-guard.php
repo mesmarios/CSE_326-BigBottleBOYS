@@ -31,13 +31,18 @@ if (!function_exists('enrollResolveAvatarSrc')) {
             return $fallback;
         }
         try {
-            $stmt = $pdo->prepare('SELECT profilepic, profilepic_mime FROM users WHERE id = :id LIMIT 1');
+            $stmt = $pdo->prepare('SELECT profilepic_path FROM users WHERE id = :id LIMIT 1');
             $stmt->execute([':id' => $userId]);
             $row = $stmt->fetch();
-            if (is_array($row) && !empty($row['profilepic'])) {
-                $mime = in_array((string)($row['profilepic_mime'] ?? ''), ['image/jpeg','image/png','image/gif','image/webp'], true)
-                    ? (string)$row['profilepic_mime'] : 'image/jpeg';
-                return 'data:' . $mime . ';base64,' . base64_encode((string)$row['profilepic']);
+            $storedPath = ltrim(str_replace('\\', '/', (string)($row['profilepic_path'] ?? '')), '/');
+            if ($storedPath !== '' && str_starts_with($storedPath, 'uploads/profile_pics/')) {
+                $avatarBase = realpath(dirname(__DIR__, 2) . '/uploads/profile_pics');
+                $avatarAbs = realpath(dirname(__DIR__, 2) . '/' . $storedPath);
+                if ($avatarBase !== false && $avatarAbs !== false && is_file($avatarAbs)
+                    && strpos($avatarAbs, $avatarBase . DIRECTORY_SEPARATOR) === 0) {
+                    $encodedPath = implode('/', array_map('rawurlencode', explode('/', $storedPath)));
+                    return '../' . $encodedPath . '?v=' . ((int)@filemtime($avatarAbs) ?: time());
+                }
             }
         } catch (Throwable $e) {}
         $matches = glob(dirname(__DIR__, 2) . '/uploads/profile_pics/user_' . $userId . '.*');

@@ -78,17 +78,8 @@ function isValidStrongPassword(string $password): bool
         && preg_match('/[!@#$%^&*()_+\-=]/', $password) === 1;
 }
 
-    function buildAvatarSrc(?string $binary, ?string $mimeType, int $userId = 0, ?string $storedPath = null): string
+    function buildAvatarSrc(?string $storedPath = null, int $userId = 0): string
     {
-      if ($binary) {
-        $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $safeMimeType = in_array((string)$mimeType, $allowedMimeTypes, true)
-          ? (string)$mimeType
-          : 'image/jpeg';
-
-        return 'data:' . $safeMimeType . ';base64,' . base64_encode($binary);
-      }
-
       $storedUrl = avatarPublicUrlFromRelativePath($storedPath);
       if ($storedUrl !== null) {
         return $storedUrl;
@@ -339,19 +330,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               ], 500);
             }
 
-            $binarySourcePath = $targetPath;
-            $binaryData = file_get_contents($binarySourcePath);
-            if ($binaryData === false || $binaryData === '') {
-              respondJson(['success' => false, 'error' => 'Δεν ήταν δυνατή η ανάγνωση της εικόνας.'], 500);
-            }
-
             $relativeAvatarPath = 'uploads/profile_pics/' . basename($targetPath);
-            $setParts = ['profilepic = :profilepic'];
-            if (userColumnExists($pdo, 'profilepic_mime')) {
-              $setParts[] = 'profilepic_mime = :profilepic_mime';
-            }
+            $setParts = [];
             if (userColumnExists($pdo, 'profilepic_path')) {
               $setParts[] = 'profilepic_path = :profilepic_path';
+            }
+            if (userColumnExists($pdo, 'profilepic')) {
+              $setParts[] = 'profilepic = NULL';
+            }
+            if (userColumnExists($pdo, 'profilepic_mime')) {
+              $setParts[] = 'profilepic_mime = NULL';
             }
             if (userColumnExists($pdo, 'updated_at')) {
               $setParts[] = 'updated_at = NOW()';
@@ -360,10 +348,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updateAvatarStmt = $pdo->prepare(
               'UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = :id'
             );
-            $updateAvatarStmt->bindValue(':profilepic', $binaryData, PDO::PARAM_LOB);
-            if (userColumnExists($pdo, 'profilepic_mime')) {
-              $updateAvatarStmt->bindValue(':profilepic_mime', (string)$detectedMimeType, PDO::PARAM_STR);
-            }
             if (userColumnExists($pdo, 'profilepic_path')) {
               $updateAvatarStmt->bindValue(':profilepic_path', $relativeAvatarPath, PDO::PARAM_STR);
             }
@@ -373,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             respondJson([
               'success' => true,
               'message' => 'Η φωτογραφία προφίλ ενημερώθηκε επιτυχώς.',
-              'avatar_src' => buildAvatarSrc($binaryData, (string)$detectedMimeType, $adminId, $relativeAvatarPath),
+              'avatar_src' => buildAvatarSrc($relativeAvatarPath, $adminId),
             ]);
           }
 
@@ -393,12 +377,8 @@ $adminSelectColumns = [
     'dob',
     'role',
     'created_at',
-    'profilepic',
-    'profilepic_mime',
+    'profilepic_path',
 ];
-if (userColumnExists($pdo, 'profilepic_path')) {
-    $adminSelectColumns[] = 'profilepic_path';
-}
 
 $adminStmt = $pdo->prepare(
     'SELECT ' . implode(', ', $adminSelectColumns) . '
@@ -431,10 +411,8 @@ $adminAddress = (string)($adminUser['address'] ?? '');
 $adminDob = (string)($adminUser['dob'] ?? '');
 $adminDobDisplay = formatDateDisplay($adminDob !== '' ? $adminDob : null);
 $adminAvatarSrc = buildAvatarSrc(
-  isset($adminUser['profilepic']) ? (string)$adminUser['profilepic'] : null,
-  isset($adminUser['profilepic_mime']) ? (string)$adminUser['profilepic_mime'] : null,
-  $adminId,
-  isset($adminUser['profilepic_path']) ? (string)$adminUser['profilepic_path'] : null
+  isset($adminUser['profilepic_path']) ? (string)$adminUser['profilepic_path'] : null,
+  $adminId
 );
 $brandingContext = adminGetBrandingContext($pdo);
 $adminBrandText = $brandingContext['brand_text'];
@@ -1024,3 +1002,5 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
     </script>
   </body>
 </html>
+
+

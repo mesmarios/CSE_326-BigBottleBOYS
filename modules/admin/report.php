@@ -124,17 +124,20 @@ function resolveAdminAvatarSrc(PDO $pdo, int $userId): string
   }
 
   try {
-    $stmt = $pdo->prepare('SELECT profilepic, profilepic_mime FROM users WHERE id = :id LIMIT 1');
+    $stmt = $pdo->prepare('SELECT profilepic_path FROM users WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $userId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (is_array($row) && !empty($row['profilepic'])) {
-      $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      $mime = in_array((string)($row['profilepic_mime'] ?? ''), $allowedMimeTypes, true)
-        ? (string)$row['profilepic_mime']
-        : 'image/jpeg';
-
-      return 'data:' . $mime . ';base64,' . base64_encode((string)$row['profilepic']);
+    $storedPath = ltrim(str_replace('\\', '/', (string)($row['profilepic_path'] ?? '')), '/');
+    if ($storedPath !== '' && str_starts_with($storedPath, 'uploads/profile_pics/')) {
+      $avatarBase = realpath(__DIR__ . '/../../uploads/profile_pics');
+      $avatarAbs = realpath(__DIR__ . '/../../' . $storedPath);
+      if ($avatarBase !== false && $avatarAbs !== false && is_file($avatarAbs)
+        && strpos($avatarAbs, $avatarBase . DIRECTORY_SEPARATOR) === 0) {
+        $fileVersion = (int)@filemtime($avatarAbs) ?: time();
+        $encodedPath = implode('/', array_map('rawurlencode', explode('/', $storedPath)));
+        return '../../' . $encodedPath . '?v=' . $fileVersion;
+      }
     }
   } catch (Throwable $e) {
     // Fallback to file path below.

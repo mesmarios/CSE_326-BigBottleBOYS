@@ -8,19 +8,26 @@ $stmt = $pdo->prepare('SELECT * FROM users WHERE id = :id');
 $stmt->execute([':id' => $_SESSION['user_id']]);
 $user = $stmt->fetch();
 
-$allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-$profileMimeType = in_array((string)($user['profilepic_mime'] ?? ''), $allowedMimeTypes, true)
-  ? (string)$user['profilepic_mime']
-  : 'image/jpeg';
+$profileFileUrl = null;
+$storedProfilePath = ltrim(str_replace('\\', '/', (string)($user['profilepic_path'] ?? '')), '/');
+if ($storedProfilePath !== '' && str_starts_with($storedProfilePath, 'uploads/profile_pics/')) {
+  $profileBaseDir = realpath(__DIR__ . '/../../uploads/profile_pics');
+  $profileAbsPath = realpath(__DIR__ . '/../../' . $storedProfilePath);
+  if ($profileBaseDir !== false && $profileAbsPath !== false && is_file($profileAbsPath)
+    && strpos($profileAbsPath, $profileBaseDir . DIRECTORY_SEPARATOR) === 0) {
+    $encodedProfilePath = implode('/', array_map('rawurlencode', explode('/', $storedProfilePath)));
+    $profileFileUrl = '../../' . $encodedProfilePath . '?v=' . ((int)@filemtime($profileAbsPath) ?: time());
+  }
+}
 
-$profileFileMatch = glob(__DIR__ . '/../../uploads/profile_pics/user_' . (int)($_SESSION['user_id'] ?? 0) . '.*');
-$profileFileUrl = (is_array($profileFileMatch) && $profileFileMatch !== [])
-  ? '../../uploads/profile_pics/' . rawurlencode(basename($profileFileMatch[0])) . '?v=' . ((int)@filemtime($profileFileMatch[0]) ?: time())
-  : null;
+if ($profileFileUrl === null) {
+  $profileFileMatch = glob(__DIR__ . '/../../uploads/profile_pics/user_' . (int)($_SESSION['user_id'] ?? 0) . '.*');
+  $profileFileUrl = (is_array($profileFileMatch) && $profileFileMatch !== [])
+    ? '../../uploads/profile_pics/' . rawurlencode(basename($profileFileMatch[0])) . '?v=' . ((int)@filemtime($profileFileMatch[0]) ?: time())
+    : null;
+}
 
-$profilePicSrc = (!empty($user['profilepic']))
-  ? 'data:' . $profileMimeType . ';base64,' . base64_encode($user['profilepic'])
-  : ($profileFileUrl ?: '../../recruitment/assets/images/user2-160x160.jpg');
+$profilePicSrc = $profileFileUrl ?: '../../recruitment/assets/images/user2-160x160.jpg';
 $profilePicSrcAttr = htmlspecialchars($profilePicSrc, ENT_QUOTES, 'UTF-8');
 $rawFullName = trim((string)($user['first_name'] ?? '') . ' ' . (string)($user['last_name'] ?? ''));
 $fullName    = htmlspecialchars($rawFullName, ENT_QUOTES, 'UTF-8');
