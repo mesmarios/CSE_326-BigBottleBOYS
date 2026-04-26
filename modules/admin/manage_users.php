@@ -560,7 +560,6 @@ function avatarInitials(string $f, string $l): string {
             <form id="userForm" method="POST" onsubmit="return validateUserForm()">
               <input type="hidden" id="userFormAction" name="action" value="add">
               <input type="hidden" id="userFormId" name="user_id" value="">
-              <input type="hidden" id="userRoleHidden" name="role" value="">
               <div class="row g-3">
                 <div class="col-12 d-none" id="userEditLockedNotice">
                   <div class="alert alert-info py-2 mb-0">
@@ -593,7 +592,7 @@ function avatarInitials(string $f, string $l): string {
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Ρόλος <span class="text-danger">*</span></label>
-                  <select class="form-select" id="userRole" required>
+                  <select class="form-select" id="userRole" name="role" required>
                     <option value="">Επιλέξτε ρόλο...</option>
                     <option value="admin">Admin</option>
                     <option value="hr">HR</option>
@@ -790,7 +789,6 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userUsername').readOnly = false;
         document.getElementById('userEmail').readOnly = false;
         document.getElementById('userRole').disabled = false;
-        document.getElementById('userRoleHidden').value = '';
         document.getElementById('passwordField').style.display = '';
         document.getElementById('confirmPasswordField').style.display = '';
         document.getElementById('changePasswordSection').style.display = 'none';
@@ -827,10 +825,9 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userExperience').value = u.experience ?? '';
         document.getElementById('userSummary').value   = u.summary    || '';
         document.getElementById('userRole').value      = u.role       || 'candidate';
-        document.getElementById('userRoleHidden').value = u.role      || 'candidate';
         document.getElementById('userUsername').readOnly = true;
         document.getElementById('userEmail').readOnly = true;
-        document.getElementById('userRole').disabled = true;
+        document.getElementById('userRole').disabled = false;
         // Κρύψε πεδία κωδικού για νέο χρήστη, δείξε την ενότητα αλλαγής κωδικού
         document.getElementById('passwordField').style.display = 'none';
         document.getElementById('confirmPasswordField').style.display = 'none';
