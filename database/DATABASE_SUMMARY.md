@@ -95,13 +95,13 @@ Password of users: Demo1234!
 |-------|-------|-------|
 | `admin` | admin@tepak.cy | Μάριος Μεσαρίτης |
 | `hr` | hr@tepak.cy | Ελένη Παπαδοπούλου |
-| `evaluator` | evaluator1@tepak.cy | Κώστας Νικολάου |
-| `evaluator` | evaluator2@tepak.cy | Άννα Γεωργίου |
-| `candidate` | candidate1@example.com | Γιώργης Παπαδάκης |
-| `candidate` | candidate2@example.com | Μαρία Σταύρου |
-| `candidate` | candidate3@example.com | Νίκος Χριστοδούλου |
-| `ee_hired` | ee1@tepak.cy | Σοφία Μιχαήλ |
-| `ee_hired` | ee2@tepak.cy | Ανδρέας Πέτρου |
+| `evaluator` | eval.giorgos@tepak.cy | Γιώργος Κωνσταντίνου |
+| `evaluator` | eval.christos@tepak.cy | Χρήστος Σταύρου |
+| `candidate` | nikos.andreou@student.tepak.cy | Νίκος Αντρέου |
+| `candidate` | maria.christou@student.tepak.cy | Μαρία Χρίστου |
+| `candidate` | panagiotis.ioannou@student.tepak.cy | Παναγιώτης Ιωάννου |
+| `ee_hired` | sofia.mihail@tepak.cy | Σοφία Μιχαήλ |
+| `ee_hired` | andreas.petrou@tepak.cy | Ανδρέας Πέτρου |
 
 ### Ακαδημαϊκά Δεδομένα
 - **2 Σχολές**: Μηχανικής & Τεχνολογίας, Επιστημών
