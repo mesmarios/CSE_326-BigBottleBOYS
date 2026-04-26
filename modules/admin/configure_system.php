@@ -483,68 +483,6 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                   </div>
                 </div>
 
-                <!-- Email Settings -->
-                <div class="config-card bg-body shadow-sm">
-                  <div class="config-card-header">
-                    <i class="bi bi-envelope text-danger"></i>
-                    Ρυθμίσεις Email (SMTP)
-                  </div>
-                  <div class="config-card-body">
-                    <form>
-                      <div class="row g-3">
-                        <div class="col-12">
-                          <div class="form-check form-switch mb-1">
-                            <input class="form-check-input" type="checkbox" id="smtpEnabled" checked />
-                            <label class="form-check-label fw-semibold" for="smtpEnabled">
-                              Αποστολή email ειδοποιήσεων
-                            </label>
-                          </div>
-                        </div>
-                        <div class="col-md-8">
-                          <label class="form-label fw-semibold">SMTP Server</label>
-                          <input type="text" class="form-control" value="smtp.university.gr" placeholder="smtp.example.gr" />
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label fw-semibold">Port</label>
-                          <input type="number" class="form-control" value="587" />
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">SMTP Username</label>
-                          <input type="text" class="form-control" value="noreply@university.gr" />
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">SMTP Password</label>
-                          <input type="password" class="form-control" value="••••••••" />
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">Email Αποστολέα</label>
-                          <input type="email" class="form-control" value="noreply@university.gr" />
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">Ονομ. Αποστολέα</label>
-                          <input type="text" class="form-control" value="CareerTrack System" />
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label fw-semibold">Κρυπτογράφηση</label>
-                          <select class="form-select">
-                            <option>Χωρίς</option>
-                            <option>SSL</option>
-                            <option selected>TLS</option>
-                          </select>
-                        </div>
-                        <div class="col-12">
-                          <button type="button" class="btn btn-primary" onclick="showSaveAlert()">
-                            <i class="bi bi-floppy me-1"></i>Αποθήκευση
-                          </button>
-                          <button type="button" class="btn btn-outline-secondary ms-2">
-                            <i class="bi bi-send me-1"></i>Αποστολή Δοκιμαστικού Email
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-
               </div>
 
               <!-- Right column: System Info + Quick Actions -->
@@ -577,10 +515,6 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                       <li class="list-group-item d-flex justify-content-between align-items-center py-2">
                         <span class="text-secondary small">Moodle</span>
                         <span class="badge bg-success rounded-pill">Συνδεδεμένο</span>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                        <span class="text-secondary small">SMTP</span>
-                        <span class="badge bg-success rounded-pill">Ενεργό</span>
                       </li>
                     </ul>
                   </div>
