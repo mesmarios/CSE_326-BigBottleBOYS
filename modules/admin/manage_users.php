@@ -425,7 +425,7 @@ function avatarInitials(string $f, string $l): string {
                 <div class="stat-card bg-body shadow-sm">
                   <div class="d-flex align-items-center gap-3">
                     <div class="stat-icon-wrap" style="background:#fef3c7;color:#b45309;"><i class="bi bi-person-plus-fill"></i></div>
-                    <div><div class="stat-value"><?= $newThisMonth ?></div><div class="stat-label">Νέοι τον Μήνα</div></div>
+                    <div><div class="stat-value"><?= $newThisMonth ?></div><div class="stat-label">Νέες Εγγραφές Μήνα</div></div>
                   </div>
                 </div>
               </div>
