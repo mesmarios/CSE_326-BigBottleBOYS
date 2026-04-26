@@ -84,6 +84,30 @@ function h(string $v): string { return htmlspecialchars($v, ENT_QUOTES, 'UTF-8')
       font-size: .82rem;
       color: #9aa3af;
     }
+    .module-select-logout {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .7rem 1.1rem;
+      border: 1px solid rgba(15, 76, 129, 0.14);
+      border-radius: 999px;
+      background: #fff;
+      color: #49617a;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 10px 24px rgba(15, 76, 129, 0.08);
+      transition: transform .18s ease, box-shadow .18s ease, color .18s ease, border-color .18s ease;
+    }
+    .module-select-logout:hover {
+      color: #0f4c81;
+      border-color: rgba(15, 76, 129, 0.28);
+      box-shadow: 0 14px 28px rgba(15, 76, 129, 0.12);
+      transform: translateY(-1px);
+      text-decoration: none;
+    }
+    .module-select-logout i {
+      font-size: .95rem;
+    }
   </style>
 </head>
 <body class="bg-body-tertiary">
@@ -163,7 +187,7 @@ function h(string $v): string { return htmlspecialchars($v, ENT_QUOTES, 'UTF-8')
 </div>
 
 <div class="module-select-footer">
-  <a href="logout.php" class="text-secondary text-decoration-none">
+  <a href="logout.php" class="module-select-logout">
     <i class="bi bi-box-arrow-right me-1"></i>Αποσύνδεση
   </a>
 </div>
