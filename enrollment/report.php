@@ -66,6 +66,75 @@ try {
 $chartLabels = json_encode(array_column($accessByCourse, 'course_name'));
 $chartData   = json_encode(array_map(fn($r) => (int)$r['count'], $accessByCourse));
 
+// ── Excel (CSV) Export ─────────────────────────────────────────────────────
+if (isset($_GET['export']) && $_GET['export'] === 'excel') {
+    $allEE = $pdo->query(
+        "SELECT u.first_name, u.last_name, u.email,
+                c.name AS course_name, c.code AS course_code,
+                la.status, la.granted_at
+         FROM users u
+         LEFT JOIN lms_access la ON la.user_id = u.id
+         LEFT JOIN courses c ON c.id = la.course_id
+         WHERE u.role = 'ee_hired'
+         ORDER BY u.last_name, u.first_name"
+    )->fetchAll();
+
+    $filename = 'enrollment_report_' . date('Y-m-d') . '.csv';
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+
+    $out = fopen('php://output', 'w');
+    // UTF-8 BOM για σωστή εμφάνιση ελληνικών στο Excel
+    fputs($out, "\xEF\xBB\xBF");
+
+    // === Σύνοψη ===
+    fputcsv($out, ['=== ΣΥΝΟΨΗ ===']);
+    fputcsv($out, ['Σύνολο ΕΕ', $totalEE]);
+    fputcsv($out, ['ΕΕ με Ενεργή Πρόσβαση Moodle', $activeAccess]);
+    fputcsv($out, ['ΕΕ χωρίς Πρόσβαση', max(0, $inactiveAccess)]);
+    fputcsv($out, ['Ημερομηνία Εξαγωγής', date('d/m/Y H:i')]);
+    fputcsv($out, []);
+
+    // === Λεπτομέρειες ΕΕ ===
+    fputcsv($out, ['=== ΛΕΠΤΟΜΕΡΕΙΕΣ ΧΡΗΣΤΩΝ ΕΕ ===']);
+    fputcsv($out, ['Επώνυμο', 'Όνομα', 'Email', 'Μάθημα', 'Κωδικός', 'Κατάσταση Πρόσβασης', 'Ημ/νία Χορήγησης']);
+    foreach ($allEE as $row) {
+        fputcsv($out, [
+            $row['last_name']   ?? '',
+            $row['first_name']  ?? '',
+            $row['email']       ?? '',
+            $row['course_name'] ?? '—',
+            $row['course_code'] ?? '—',
+            match ($row['status'] ?? '') {
+                'active'   => 'Ενεργή',
+                'inactive' => 'Ανενεργή',
+                default    => 'Χωρίς εγγραφή',
+            },
+            $row['granted_at'] ? date('d/m/Y H:i', strtotime($row['granted_at'])) : '—',
+        ]);
+    }
+    fputcsv($out, []);
+
+    // === Ενεργή Πρόσβαση ανά Μάθημα ===
+    fputcsv($out, ['=== ΕΝΕΡΓΗ ΠΡΟΣΒΑΣΗ ΑΝΑ ΜΑΘΗΜΑ ===']);
+    fputcsv($out, ['Μάθημα', 'Αριθμός ΕΕ']);
+    foreach ($accessByCourse as $row) {
+        fputcsv($out, [$row['course_name'], $row['count']]);
+    }
+    fputcsv($out, []);
+
+    // === Μαθήματα χωρίς ΕΕ ===
+    fputcsv($out, ['=== ΜΑΘΗΜΑΤΑ ΧΩΡΙΣ ΕΚΠΑΙΔΕΥΤΗ ΕΕ ===']);
+    fputcsv($out, ['Μάθημα', 'Τμήμα']);
+    foreach ($coursesNoInstructor as $row) {
+        fputcsv($out, [$row['name'], $row['dept_name'] ?? '—']);
+    }
+
+    fclose($out);
+    exit;
+}
+
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/sidebar.php';
 ?>
@@ -75,8 +144,11 @@ require_once __DIR__ . '/includes/sidebar.php';
     <div class="container-fluid">
       <div class="row">
         <div class="col-sm-6"><h3 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Report</h3></div>
-        <div class="col-sm-6">
-          <ol class="breadcrumb float-sm-end">
+        <div class="col-sm-6 d-flex align-items-center justify-content-sm-end gap-3">
+          <a href="report.php?export=excel" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel-fill me-1"></i>Download Stats
+          </a>
+          <ol class="breadcrumb mb-0">
             <li class="breadcrumb-item"><a href="dashboard.php">Dashboard</a></li>
             <li class="breadcrumb-item active">Report</li>
           </ol>
