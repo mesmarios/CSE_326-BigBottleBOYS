@@ -21,12 +21,10 @@ DELETE FROM recruitment_periods;
 DELETE FROM courses;
 DELETE FROM departments;
 DELETE FROM schools;
-DELETE FROM themes;
 DELETE FROM system_settings;
 DELETE FROM users;
 ALTER TABLE audit_logs            AUTO_INCREMENT = 1;
 ALTER TABLE enrollment_logs       AUTO_INCREMENT = 1;
-ALTER TABLE sync_schedules        AUTO_INCREMENT = 1;
 ALTER TABLE specialist_enrollments AUTO_INCREMENT = 1;
 ALTER TABLE lms_access            AUTO_INCREMENT = 1;
 ALTER TABLE notifications         AUTO_INCREMENT = 1;
@@ -39,7 +37,6 @@ ALTER TABLE recruitment_periods   AUTO_INCREMENT = 1;
 ALTER TABLE courses               AUTO_INCREMENT = 1;
 ALTER TABLE departments           AUTO_INCREMENT = 1;
 ALTER TABLE schools               AUTO_INCREMENT = 1;
-ALTER TABLE themes                AUTO_INCREMENT = 1;
 ALTER TABLE system_settings       AUTO_INCREMENT = 1;
 ALTER TABLE users                 AUTO_INCREMENT = 1;
 SET FOREIGN_KEY_CHECKS = 1;
@@ -481,13 +478,6 @@ INSERT INTO lms_access (user_id, course_id, status, moodle_user_id, granted_at) 
 INSERT INTO specialist_enrollments (user_id, course_id, lms_course_id, access_status, enrolled_at) VALUES
 (10, 1, 'moodle-course-42', 'active',   '2026-02-15 09:00:00'),
 (11, 3, 'moodle-course-17', 'inactive', NULL);
-
--- ============================================================================
--- SYNC SCHEDULES
--- ============================================================================
-INSERT INTO sync_schedules (name, sync_type, is_enabled, frequency_minutes) VALUES
-('Αυτόματος LMS Sync',    'auto_sync',  0, 60),
-('Full Moodle Sync',      'full_sync',  0, 1440);
 
 -- ============================================================================
 -- SYSTEM SETTINGS
