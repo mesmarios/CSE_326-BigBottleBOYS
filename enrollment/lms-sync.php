@@ -31,54 +31,13 @@ try {
 } catch (Throwable $e) {}
 
 // ── Handle POST actions (admin/hr only) ───────────────────────────────────
-$actionMsg  = null;
-$actionType = 'success';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_enrollment_role, ['admin','hr'], true)) {
-    $postAction = $_POST['lms_action'] ?? '';
-    $targetUser = (int)($_POST['target_user_id'] ?? 0);
-    $targetCourse = (int)($_POST['target_course_id'] ?? 0);
-
-    if ($postAction === 'enable' && $targetUser > 0 && $targetCourse > 0) {
-        try {
-            $pdo->prepare(
-                "INSERT INTO lms_access (user_id, course_id, status, granted_at)
-                 VALUES (?, ?, 'active', NOW())
-                 ON DUPLICATE KEY UPDATE status='active', granted_at=NOW(), revoked_at=NULL, updated_at=NOW()"
-            )->execute([$targetUser, $targetCourse]);
-            $actionMsg = 'Η πρόσβαση ενεργοποιήθηκε επιτυχώς.';
-        } catch (Throwable $e) {
-            $actionMsg = 'Σφάλμα κατά την ενεργοποίηση: ' . $e->getMessage();
-            $actionType = 'danger';
-        }
-    } elseif ($postAction === 'disable' && $targetUser > 0) {
-        try {
-            $pdo->prepare(
-                "UPDATE lms_access SET status='inactive', revoked_at=NOW(), updated_at=NOW() WHERE user_id=?"
-            )->execute([$targetUser]);
-            $actionMsg = 'Η πρόσβαση απενεργοποιήθηκε.';
-        } catch (Throwable $e) {
-            $actionMsg = 'Σφάλμα κατά την απενεργοποίηση.';
-            $actionType = 'danger';
-        }
-    } elseif ($postAction === 'change_course' && $targetUser > 0 && $targetCourse > 0) {
-        try {
-            $pdo->prepare(
-                "UPDATE lms_access SET course_id=?, status='active', granted_at=NOW(), revoked_at=NULL, updated_at=NOW()
-                 WHERE user_id=?
-                 LIMIT 1"
-            )->execute([$targetCourse, $targetUser]);
-            if ($pdo->lastInsertId() == 0 && $pdo->prepare("SELECT id FROM lms_access WHERE user_id=?")->execute([$targetUser]) === false) {
-                $pdo->prepare(
-                    "INSERT IGNORE INTO lms_access (user_id, course_id, status, granted_at) VALUES (?, ?, 'active', NOW())"
-                )->execute([$targetUser, $targetCourse]);
-            }
-            $actionMsg = 'Το μάθημα άλλαξε επιτυχώς.';
-        } catch (Throwable $e) {
-            $actionMsg = 'Σφάλμα κατά την αλλαγή μαθήματος.';
-            $actionType = 'danger';
-        }
-    }
+$actionMsg  = trim((string)($_GET['msg'] ?? ''));
+$actionType = (string)($_GET['type'] ?? 'success');
+if ($actionMsg === '') {
+    $actionMsg = null;
+}
+if (!in_array($actionType, ['success', 'danger', 'warning', 'info'], true)) {
+    $actionType = 'success';
 }
 
 // ── Data for ee_hired view ─────────────────────────────────────────────────
@@ -288,11 +247,11 @@ require_once __DIR__ . '/includes/sidebar.php';
                       </button>
                       <!-- Disable -->
                       <?php if ($isActive): ?>
-                      <form method="post" style="display:inline;">
+                      <form method="post" action="../api/enrollment.php" class="js-enrollment-api-form" style="display:inline;"
+                            data-confirm="Απενεργοποίηση πρόσβασης για <?= h($fullName) ?>;">
                         <input type="hidden" name="lms_action" value="disable">
                         <input type="hidden" name="target_user_id" value="<?= (int)$eu['id'] ?>">
-                        <button type="submit" class="btn btn-warning btn-sm"
-                                onclick="return confirm('Απενεργοποίηση πρόσβασης για <?= h($fullName) ?>;')">
+                        <button type="submit" class="btn btn-warning btn-sm">
                           <i class="bi bi-slash-circle"></i> Απενεργοποίηση
                         </button>
                       </form>
@@ -320,7 +279,7 @@ require_once __DIR__ . '/includes/sidebar.php';
       <div class="modal fade" id="enableModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
-            <form method="post">
+            <form method="post" action="../api/enrollment.php" class="js-enrollment-api-form">
               <input type="hidden" name="lms_action" value="enable">
               <input type="hidden" name="target_user_id" id="enableUserId">
               <div class="modal-header">
@@ -349,7 +308,7 @@ require_once __DIR__ . '/includes/sidebar.php';
       <div class="modal fade" id="changeCourseModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
-            <form method="post">
+            <form method="post" action="../api/enrollment.php" class="js-enrollment-api-form">
               <input type="hidden" name="lms_action" value="change_course">
               <input type="hidden" name="target_user_id" id="changeCourseUserId">
               <div class="modal-header">
@@ -421,6 +380,48 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
   }
+
+  function redirectWithFlash(type, message) {
+    var url = new URL(window.location.href);
+    url.searchParams.set('type', type);
+    url.searchParams.set('msg', message);
+    window.location.href = url.toString();
+  }
+
+  document.querySelectorAll('form.js-enrollment-api-form').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      var confirmText = form.getAttribute('data-confirm');
+      if (confirmText && !window.confirm(confirmText)) {
+        return;
+      }
+
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+
+      fetch(form.getAttribute('action') || '../api/enrollment.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new FormData(form)
+      })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.success) {
+          redirectWithFlash('success', data.message || 'Enrollment action completed.');
+          return;
+        }
+        redirectWithFlash('danger', (data && data.error) ? data.error : 'Enrollment action failed.');
+      })
+      .catch(function () {
+        redirectWithFlash('danger', 'Network error while calling enrollment API.');
+      })
+      .finally(function () {
+        if (submitBtn) submitBtn.disabled = false;
+      });
+    });
+  });
 });
 </script>
 </body>

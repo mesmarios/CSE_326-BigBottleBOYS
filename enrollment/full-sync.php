@@ -33,61 +33,13 @@ try {
     }
 } catch (Throwable $e) {}
 
-$actionMsg  = null;
-$actionType = 'success';
-
-// ── Handle POST ────────────────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $postAction = $_POST['sync_action'] ?? '';
-
-    if ($postAction === 'force_sync') {
-        // Simulated full sync: update all ee_hired users in lms_access
-        try {
-            $now    = date('Y-m-d H:i:s');
-            $eeIds  = $pdo->query("SELECT id FROM users WHERE role = 'ee_hired'")->fetchAll(\PDO::FETCH_COLUMN);
-            $synced = 0;
-
-            foreach ($eeIds as $uid) {
-                $exists = $pdo->prepare("SELECT id FROM lms_access WHERE user_id = ?")->execute([(int)$uid]);
-                // Just touch updated_at to simulate a sync ping
-                $pdo->prepare("UPDATE lms_access SET updated_at = NOW() WHERE user_id = ?")->execute([(int)$uid]);
-                $synced++;
-            }
-
-            $log = sprintf('[%s] Full sync completed. %d ΕΕ records processed.', $now, $synced);
-
-            $pdo->prepare(
-                "INSERT INTO system_settings (setting_key, setting_value, description) VALUES (?,?,?)
-                 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value), updated_at=NOW()"
-            )->execute(['lms_last_sync_at', $now, 'Τελευταίος συγχρονισμός Moodle (ISO timestamp)']);
-
-            $pdo->prepare(
-                "INSERT INTO system_settings (setting_key, setting_value, description) VALUES (?,?,?)
-                 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value), updated_at=NOW()"
-            )->execute(['lms_last_sync_log', $log, 'Log τελευταίου συγχρονισμού Moodle']);
-
-            $syncSettings['lms_last_sync_at']  = $now;
-            $syncSettings['lms_last_sync_log'] = $log;
-            $actionMsg = 'Full sync ολοκληρώθηκε επιτυχώς.';
-        } catch (Throwable $e) {
-            $actionMsg  = 'Σφάλμα κατά το sync: ' . $e->getMessage();
-            $actionType = 'danger';
-        }
-
-    } elseif ($postAction === 'toggle_auto') {
-        $newVal = ($syncSettings['lms_auto_sync_enabled'] === '1') ? '0' : '1';
-        try {
-            $pdo->prepare(
-                "INSERT INTO system_settings (setting_key, setting_value, description) VALUES (?,?,?)
-                 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value), updated_at=NOW()"
-            )->execute(['lms_auto_sync_enabled', $newVal, 'Αυτόματος συγχρονισμός Moodle (0=off, 1=on)']);
-            $syncSettings['lms_auto_sync_enabled'] = $newVal;
-            $actionMsg = 'Αυτόματος συγχρονισμός ' . ($newVal === '1' ? 'ενεργοποιήθηκε.' : 'απενεργοποιήθηκε.');
-        } catch (Throwable $e) {
-            $actionMsg  = 'Σφάλμα ενημέρωσης ρύθμισης.';
-            $actionType = 'danger';
-        }
-    }
+$actionType = (string)($_GET['type'] ?? 'success');
+$actionMsg  = trim((string)($_GET['msg'] ?? ''));
+if ($actionMsg === '') {
+    $actionMsg = null;
+}
+if (!in_array($actionType, ['success', 'danger', 'warning', 'info'], true)) {
+    $actionType = 'success';
 }
 
 $autoSync   = $syncSettings['lms_auto_sync_enabled'] === '1';
@@ -139,7 +91,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                 Εκτελεί άμεσα πλήρη συγχρονισμό όλων των χρηστών ΕΕ με το Moodle.
                 Χρησιμοποιείται για άμεση ενημέρωση εκτός χρονοδιαγράμματος.
               </p>
-              <form method="post" onsubmit="return confirm('Εκτέλεση full sync τώρα;')">
+              <form method="post" action="../api/enrollment.php" class="js-enrollment-api-form"
+                    data-confirm="Εκτέλεση full sync τώρα;">
                 <input type="hidden" name="sync_action" value="force_sync">
                 <button type="submit" class="btn btn-primary btn-lg">
                   <i class="bi bi-cloud-arrow-up-fill me-2"></i>Force Full Sync Now
@@ -172,7 +125,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <span class="badge text-bg-secondary fs-6"><i class="bi bi-slash-circle me-1"></i>Ανενεργός</span>
                 <?php endif; ?>
               </div>
-              <form method="post">
+              <form method="post" action="../api/enrollment.php" class="js-enrollment-api-form">
                 <input type="hidden" name="sync_action" value="toggle_auto">
                 <button type="submit" class="btn btn-<?= $autoSync ? 'warning' : 'success' ?>">
                   <i class="bi bi-toggle-<?= $autoSync ? 'off' : 'on' ?> me-2"></i>
@@ -219,6 +172,48 @@ document.addEventListener('DOMContentLoaded', function () {
   if (sw && OverlayScrollbarsGlobal?.OverlayScrollbars) {
     OverlayScrollbarsGlobal.OverlayScrollbars(sw, { scrollbars: { theme:'os-theme-light', autoHide:'leave', clickScroll:true } });
   }
+
+  function redirectWithFlash(type, message) {
+    var url = new URL(window.location.href);
+    url.searchParams.set('type', type);
+    url.searchParams.set('msg', message);
+    window.location.href = url.toString();
+  }
+
+  document.querySelectorAll('form.js-enrollment-api-form').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      var confirmText = form.getAttribute('data-confirm');
+      if (confirmText && !window.confirm(confirmText)) {
+        return;
+      }
+
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+
+      fetch(form.getAttribute('action') || '../api/enrollment.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new FormData(form)
+      })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.success) {
+          redirectWithFlash('success', data.message || 'Sync action completed.');
+          return;
+        }
+        redirectWithFlash('danger', (data && data.error) ? data.error : 'Sync action failed.');
+      })
+      .catch(function () {
+        redirectWithFlash('danger', 'Network error while calling enrollment API.');
+      })
+      .finally(function () {
+        if (submitBtn) submitBtn.disabled = false;
+      });
+    });
+  });
 });
 </script>
 </body>
