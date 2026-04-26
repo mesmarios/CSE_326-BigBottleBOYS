@@ -90,6 +90,72 @@ function uploadErrorMessage(int $uploadError): string {
     };
 }
 
+function isValidStrongPassword(string $password): bool {
+    return strlen($password) >= 8
+        && preg_match('/[A-Z]/', $password) === 1
+        && preg_match('/[a-z]/', $password) === 1
+        && preg_match('/[0-9]/', $password) === 1
+        && preg_match('/[!@#$%^&*()_+\-=]/', $password) === 1;
+}
+
+function handlePasswordChange(PDO $pdo, int $userId): void {
+    $currentPassword = (string)($_POST['current_password'] ?? '');
+    $newPassword = (string)($_POST['new_password'] ?? '');
+    $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+
+    if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Συμπληρώστε όλα τα πεδία κωδικού.']);
+        return;
+    }
+
+    if ($newPassword !== $confirmPassword) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Ο νέος κωδικός και η επιβεβαίωση δεν ταιριάζουν.']);
+        return;
+    }
+
+    if (!isValidStrongPassword($newPassword)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Ο νέος κωδικός δεν καλύπτει όλες τις απαιτήσεις ασφαλείας.']);
+        return;
+    }
+
+    $passwordStmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = :id LIMIT 1');
+    $passwordStmt->execute([':id' => $userId]);
+    $passwordRow = $passwordStmt->fetch();
+
+    if (!$passwordRow || !password_verify($currentPassword, (string)$passwordRow['password_hash'])) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Ο τρέχων κωδικός δεν είναι σωστός.']);
+        return;
+    }
+
+    if (password_verify($newPassword, (string)$passwordRow['password_hash'])) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Ο νέος κωδικός πρέπει να είναι διαφορετικός από τον τρέχοντα.']);
+        return;
+    }
+
+    $updates = ['password_hash = :password_hash'];
+    if (userColumnExists($pdo, 'updated_at')) {
+        $updates[] = 'updated_at = NOW()';
+    }
+
+    $updateStmt = $pdo->prepare(
+        'UPDATE users SET ' . implode(', ', $updates) . ' WHERE id = :id'
+    );
+    $updateStmt->execute([
+        ':password_hash' => password_hash($newPassword, PASSWORD_DEFAULT),
+        ':id' => $userId,
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Ο κωδικός πρόσβασης άλλαξε επιτυχώς.',
+    ]);
+}
+
 function handleAvatarUpload(PDO $pdo, int $userId): void {
     if (!isset($_FILES['avatar']) || !is_array($_FILES['avatar'])) {
         http_response_code(422);
@@ -245,6 +311,11 @@ function handleGet(PDO $pdo, int $userId): void {
 function handlePost(PDO $pdo, int $userId): void {
     if (isset($_POST['action']) && $_POST['action'] === 'update_avatar') {
         handleAvatarUpload($pdo, $userId);
+        return;
+    }
+
+    if (isset($_POST['action']) && $_POST['action'] === 'change_password') {
+        handlePasswordChange($pdo, $userId);
         return;
     }
 

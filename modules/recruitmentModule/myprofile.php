@@ -161,6 +161,72 @@ $profileData = [
                   </div>
                 </div>
 
+                <!-- ── Password Card ──────────────────────────── -->
+                <div class="card profile-card mb-4">
+                  <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0"><i class="bi bi-lock-fill me-2 text-warning"></i>Αλλαγή Κωδικού Πρόσβασης</h5>
+                  </div>
+                  <div class="card-body">
+                    <div id="passwordAlert" class="alert d-none py-2 mb-3" role="alert" aria-live="polite"></div>
+                    <form id="passwordForm" novalidate>
+                      <div class="row g-3">
+                        <div class="col-md-6 col-xl-4">
+                          <label class="form-label fw-semibold">Τρέχων Κωδικός <span class="text-danger">*</span></label>
+                          <div class="input-group">
+                            <input type="password" class="form-control" id="currentPassword" placeholder="Τρέχων κωδικός" autocomplete="current-password">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('currentPassword', this)" aria-label="Εμφάνιση κωδικού">
+                              <i class="bi bi-eye"></i>
+                            </button>
+                          </div>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                          <label class="form-label fw-semibold">Νέος Κωδικός <span class="text-danger">*</span></label>
+                          <div class="input-group">
+                            <input type="password" class="form-control" id="newPassword" placeholder="Τουλάχιστον 8 χαρακτήρες" autocomplete="new-password" oninput="checkPwdStrength(this.value)">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('newPassword', this)" aria-label="Εμφάνιση κωδικού">
+                              <i class="bi bi-eye"></i>
+                            </button>
+                          </div>
+                          <div class="mt-1" id="pwdStrengthWrap" style="display:none;">
+                            <div class="progress" style="height:4px;">
+                              <div class="progress-bar" id="pwdStrengthBar" style="width:0%"></div>
+                            </div>
+                            <small id="pwdStrengthText" class="text-secondary"></small>
+                          </div>
+                        </div>
+                        <div class="col-md-6 col-xl-4">
+                          <label class="form-label fw-semibold">Επιβεβαίωση Νέου Κωδικού <span class="text-danger">*</span></label>
+                          <div class="input-group">
+                            <input type="password" class="form-control" id="confirmPassword" placeholder="Επαναλάβετε νέο κωδικό" autocomplete="new-password">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('confirmPassword', this)" aria-label="Εμφάνιση επιβεβαίωσης κωδικού">
+                              <i class="bi bi-eye"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div class="col-12">
+                          <div class="border rounded p-3 bg-body-tertiary">
+                            <p class="small fw-semibold mb-2 text-secondary">Απαιτήσεις κωδικού:</p>
+                            <ul class="list-unstyled mb-0 small text-secondary" id="pwdReqs">
+                              <li id="req-length"><i class="bi bi-circle me-2"></i>Τουλάχιστον 8 χαρακτήρες</li>
+                              <li id="req-upper"><i class="bi bi-circle me-2"></i>Ένα κεφαλαίο γράμμα</li>
+                              <li id="req-lower"><i class="bi bi-circle me-2"></i>Ένα πεζό γράμμα</li>
+                              <li id="req-number"><i class="bi bi-circle me-2"></i>Έναν αριθμό</li>
+                              <li id="req-special"><i class="bi bi-circle me-2"></i>Έναν ειδικό χαρακτήρα (!@#$%)</li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div class="col-12">
+                          <button type="button" class="btn btn-warning" onclick="changePassword()">
+                            <i class="bi bi-lock me-1"></i>Αλλαγή Κωδικού
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+
               </div><!-- /.col -->
             </div><!-- /.row -->
           </div><!-- /.container-fluid -->

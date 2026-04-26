@@ -3,6 +3,15 @@ require_once 'database/db.php';
 
 $errors = [];
 
+function isValidStrongPassword(string $password): bool
+{
+    return strlen($password) >= 8
+        && preg_match('/[A-Z]/', $password) === 1
+        && preg_match('/[a-z]/', $password) === 1
+        && preg_match('/[0-9]/', $password) === 1
+        && preg_match('/[!@#$%^&*()_+\-=]/', $password) === 1;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $first_name = trim($_POST['first_name'] ?? '');
     $last_name  = trim($_POST['last_name']  ?? '');
@@ -22,7 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Το τηλέφωνο πρέπει να αρχίζει με +357 και να ακολουθούν 8 ψηφία (π.χ. +35799123456).';
         }
     }
-    if (strlen($password) < 8) $errors[] = 'Κωδικός τουλάχιστον 8 χαρακτήρες.';
+    if (!isValidStrongPassword($password)) {
+        $errors[] = 'Ο κωδικός πρέπει να καλύπτει όλες τις απαιτήσεις ασφαλείας.';
+    }
     if ($password !== $confirm) $errors[] = 'Οι κωδικοί δεν ταιριάζουν.';
 
     // Έλεγχος αν υπάρχει ήδη το email
@@ -86,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php $authCssVersion = @filemtime(__DIR__ . '/authent.css') ?: time(); ?>
     <link href="authent.css?v=<?= $authCssVersion ?>" rel="stylesheet">
 </head>
-<body class="auth-page">
+<body class="auth-page register-page">
 
 <div class="auth-wrapper">
 
@@ -96,10 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="assets/images/17780_100tepak-logo.png" alt="ΤΕΠΑΚ Logo">
         </div>
         <header class="auth-left-content">
-            <div class="auth-left-stars">
-                <span class="stars">★★★★★</span>
-                <span>5.0 · από 200+ χρήστες</span>
-            </div>
             <h1>Διαχείριση<br>Ειδικών Επιστημόνων<br>ΤΕΠΑΚ</h1>
             <p>Δημιουργήστε λογαριασμό και αποκτήστε πρόσβαση στο σύστημα υποβολής αιτήσεων.</p>
         </header>
@@ -121,19 +128,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </ul>
         <?php endif; ?>
 
-        <form method="POST" class="auth-form">
+        <form method="POST" class="auth-form auth-form-register" id="registerForm">
             <!-- Όνομα + Επώνυμο -->
             <div class="row g-2 mb-2">
                 <div class="col-6">
                     <label class="form-label">Όνομα <span class="required">*</span></label>
                     <input type="text" name="first_name" class="form-control"
                            placeholder="π.χ. Γιάννης"
+                           required
                            value="<?= htmlspecialchars($_POST['first_name'] ?? '') ?>">
                 </div>
                 <div class="col-6">
                     <label class="form-label">Επώνυμο <span class="required">*</span></label>
                     <input type="text" name="last_name" class="form-control"
                            placeholder="π.χ. Παπαδόπουλος"
+                           required
                            value="<?= htmlspecialchars($_POST['last_name'] ?? '') ?>">
                 </div>
             </div>
@@ -143,6 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label class="form-label">Email <span class="required">*</span></label>
                 <input type="email" name="email" class="form-control"
                        placeholder="email@παράδειγμα.com"
+                       required
                        value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
             </div>
 
@@ -168,16 +178,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- Κωδικός -->
             <div class="mb-2">
                 <label class="form-label">Κωδικός <span class="required">*</span></label>
-                <input type="password" name="password" class="form-control"
-                       placeholder="Δημιουργήστε κωδικό">
-                <div class="form-hint">Τουλάχιστον 8 χαρακτήρες.</div>
+                <div class="input-group">
+                    <input type="password" name="password" class="form-control" id="registerPassword"
+                           placeholder="Δημιουργήστε κωδικό"
+                           oninput="checkPwdStrength(this.value)"
+                           autocomplete="new-password"
+                           required
+                           aria-label="Δημιουργήστε κωδικό">
+                    <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('registerPassword', this)" aria-label="Εμφάνιση κωδικού">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+                <div class="mt-1" id="pwdStrengthWrap" style="visibility:hidden;">
+                    <div class="progress" style="height:4px;">
+                        <div class="progress-bar" id="pwdStrengthBar" style="width:0%"></div>
+                    </div>
+                    <small id="pwdStrengthText" class="text-secondary"></small>
+                </div>
             </div>
 
             <!-- Επιβεβαίωση -->
             <div class="mb-2">
                 <label class="form-label">Επιβεβαίωση Κωδικού <span class="required">*</span></label>
-                <input type="password" name="confirm" class="form-control"
-                       placeholder="Επαναλάβετε τον κωδικό">
+                <div class="input-group">
+                    <input type="password" name="confirm" class="form-control" id="registerConfirm"
+                           placeholder="Επαναλάβετε τον κωδικό"
+                           autocomplete="new-password"
+                           required
+                           aria-label="Επαναλάβετε τον κωδικό">
+                    <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('registerConfirm', this)" aria-label="Εμφάνιση επιβεβαίωσης κωδικού">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="password-requirements mb-2">
+                <p class="small fw-semibold mb-2 text-secondary">Απαιτήσεις κωδικού:</p>
+                <ul class="list-unstyled mb-0 small text-secondary" id="pwdReqs">
+                    <li id="req-length"><i class="bi bi-circle me-2"></i>Τουλάχιστον 8 χαρακτήρες</li>
+                    <li id="req-upper"><i class="bi bi-circle me-2"></i>Ένα κεφαλαίο γράμμα</li>
+                    <li id="req-lower"><i class="bi bi-circle me-2"></i>Ένα πεζό γράμμα</li>
+                    <li id="req-number"><i class="bi bi-circle me-2"></i>Έναν αριθμό</li>
+                    <li id="req-special"><i class="bi bi-circle me-2"></i>Έναν ειδικό χαρακτήρα (!@#$%)</li>
+                </ul>
+                <div class="small mt-2" id="passwordMatchText" aria-live="polite"></div>
             </div>
 
             <button type="submit" class="btn-auth">
@@ -193,5 +237,111 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function togglePwd(fieldId, btn) {
+        var inp = document.getElementById(fieldId);
+        var icon = btn.querySelector('i');
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+            btn.setAttribute('aria-label', 'Απόκρυψη κωδικού');
+        } else {
+            inp.type = 'password';
+            icon.className = 'bi bi-eye';
+            btn.setAttribute('aria-label', 'Εμφάνιση κωδικού');
+        }
+    }
+
+    function getPasswordScore(val) {
+        return [
+            val.length >= 8,
+            /[A-Z]/.test(val),
+            /[a-z]/.test(val),
+            /[0-9]/.test(val),
+            /[!@#$%^&*()_+\-=]/.test(val)
+        ].filter(Boolean).length;
+    }
+
+    function checkPwdStrength(val) {
+        var wrap = document.getElementById('pwdStrengthWrap');
+        var bar  = document.getElementById('pwdStrengthBar');
+        var txt  = document.getElementById('pwdStrengthText');
+        if (!val) {
+            wrap.style.visibility = 'hidden';
+            resetPwdRequirements();
+            updatePasswordMatch();
+            return;
+        }
+        wrap.style.visibility = 'visible';
+
+        var score = 0;
+        var setReq = function (id, ok) {
+            var el = document.getElementById(id);
+            el.querySelector('i').className = ok ? 'bi bi-check-circle-fill me-2 text-success' : 'bi bi-circle me-2';
+            el.className = ok ? 'text-success' : '';
+            if (ok) score++;
+        };
+
+        setReq('req-length',  val.length >= 8);
+        setReq('req-upper',   /[A-Z]/.test(val));
+        setReq('req-lower',   /[a-z]/.test(val));
+        setReq('req-number',  /[0-9]/.test(val));
+        setReq('req-special', /[!@#$%^&*()_+\-=]/.test(val));
+
+        var widths  = ['20%', '40%', '60%', '80%', '100%'];
+        var colors  = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#16a34a'];
+        var labels  = ['Πολύ αδύναμος', 'Αδύναμος', 'Μέτριος', 'Ισχυρός', 'Πολύ ισχυρός'];
+
+        bar.style.width = widths[score - 1] || '0%';
+        bar.style.backgroundColor = colors[score - 1] || '#ef4444';
+        txt.textContent = labels[score - 1] || '';
+        txt.style.color = colors[score - 1] || '';
+        updatePasswordMatch();
+    }
+
+    function resetPwdRequirements() {
+        ['req-length', 'req-upper', 'req-lower', 'req-number', 'req-special'].forEach(function (id) {
+            var el = document.getElementById(id);
+            el.querySelector('i').className = 'bi bi-circle me-2';
+            el.className = '';
+        });
+    }
+
+    function updatePasswordMatch() {
+        var pwd = document.getElementById('registerPassword').value;
+        var conf = document.getElementById('registerConfirm').value;
+        var matchText = document.getElementById('passwordMatchText');
+
+        if (!conf) {
+            matchText.textContent = '';
+            matchText.className = 'small';
+            return true;
+        }
+
+        if (pwd === conf) {
+            matchText.textContent = 'Οι κωδικοί ταιριάζουν.';
+            matchText.className = 'small text-success';
+            return true;
+        }
+
+        matchText.textContent = 'Οι κωδικοί δεν ταιριάζουν.';
+        matchText.className = 'small text-danger';
+        return false;
+    }
+
+    document.getElementById('registerConfirm').addEventListener('input', updatePasswordMatch);
+
+    document.getElementById('registerForm').addEventListener('submit', function (event) {
+        var pwd = document.getElementById('registerPassword').value;
+        var conf = document.getElementById('registerConfirm').value;
+        checkPwdStrength(pwd);
+
+        if (getPasswordScore(pwd) < 5 || pwd !== conf) {
+            event.preventDefault();
+            updatePasswordMatch();
+            document.getElementById('registerPassword').focus();
+        }
+    });
+</script>
 </body>
 </html>

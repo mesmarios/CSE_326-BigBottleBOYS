@@ -70,6 +70,23 @@ function showProfileMessage(message, type = 'danger') {
   }, 4000);
 }
 
+function showPasswordMessage(message, type = 'danger') {
+  const box = document.getElementById('passwordAlert');
+  if (!box) return;
+
+  const icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
+  box.innerHTML = `<i class="bi bi-${icon} me-2"></i>${escapeHtml(message)}`;
+  box.className = `alert alert-${type} py-2 mb-3`;
+  box.classList.remove('d-none');
+}
+
+function hidePasswordMessage() {
+  const box = document.getElementById('passwordAlert');
+  if (!box) return;
+  box.classList.add('d-none');
+  box.textContent = '';
+}
+
 /* ── Show a simple inline save-feedback message ───────────────── */
 function showSaveFeedback(btn, success) {
   const original = btn.textContent;
@@ -288,6 +305,133 @@ editBtn.addEventListener('click', async function () {
     }
   }
 });
+
+function isStrongPassword(value) {
+  return value.length >= 8
+    && /[A-Z]/.test(value)
+    && /[a-z]/.test(value)
+    && /[0-9]/.test(value)
+    && /[!@#$%^&*()_+\-=]/.test(value);
+}
+
+function togglePwd(fieldId, btn) {
+  const input = document.getElementById(fieldId);
+  const icon = btn.querySelector('i');
+  if (!input || !icon) return;
+
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'bi bi-eye-slash';
+    btn.setAttribute('aria-label', 'Απόκρυψη κωδικού');
+  } else {
+    input.type = 'password';
+    icon.className = 'bi bi-eye';
+    btn.setAttribute('aria-label', 'Εμφάνιση κωδικού');
+  }
+}
+
+function checkPwdStrength(value) {
+  const wrap = document.getElementById('pwdStrengthWrap');
+  const bar = document.getElementById('pwdStrengthBar');
+  const text = document.getElementById('pwdStrengthText');
+  if (!wrap || !bar || !text) return;
+
+  if (!value) {
+    wrap.style.display = 'none';
+    resetPwdRequirements();
+    return;
+  }
+
+  wrap.style.display = 'block';
+  let score = 0;
+  const setReq = (id, ok) => {
+    const item = document.getElementById(id);
+    if (!item) return;
+    const icon = item.querySelector('i');
+    if (icon) {
+      icon.className = ok ? 'bi bi-check-circle-fill me-2 text-success' : 'bi bi-circle me-2';
+    }
+    item.className = ok ? 'text-success' : '';
+    if (ok) score++;
+  };
+
+  setReq('req-length', value.length >= 8);
+  setReq('req-upper', /[A-Z]/.test(value));
+  setReq('req-lower', /[a-z]/.test(value));
+  setReq('req-number', /[0-9]/.test(value));
+  setReq('req-special', /[!@#$%^&*()_+\-=]/.test(value));
+
+  const widths = ['20%', '40%', '60%', '80%', '100%'];
+  const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#16a34a'];
+  const labels = ['Πολύ αδύναμος', 'Αδύναμος', 'Μέτριος', 'Ισχυρός', 'Πολύ ισχυρός'];
+
+  bar.style.width = widths[score - 1] || '0%';
+  bar.style.backgroundColor = colors[score - 1] || '#ef4444';
+  text.textContent = labels[score - 1] || '';
+  text.style.color = colors[score - 1] || '';
+}
+
+function resetPwdRequirements() {
+  ['req-length', 'req-upper', 'req-lower', 'req-number', 'req-special'].forEach((id) => {
+    const item = document.getElementById(id);
+    if (!item) return;
+    const icon = item.querySelector('i');
+    if (icon) icon.className = 'bi bi-circle me-2';
+    item.className = '';
+  });
+}
+
+async function changePassword() {
+  hidePasswordMessage();
+
+  const currentPassword = document.getElementById('currentPassword')?.value || '';
+  const newPassword = document.getElementById('newPassword')?.value || '';
+  const confirmPassword = document.getElementById('confirmPassword')?.value || '';
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    showPasswordMessage('Συμπληρώστε όλα τα πεδία κωδικού.');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    showPasswordMessage('Ο νέος κωδικός και η επιβεβαίωση δεν ταιριάζουν.');
+    return;
+  }
+
+  if (!isStrongPassword(newPassword)) {
+    showPasswordMessage('Ο νέος κωδικός δεν καλύπτει όλες τις απαιτήσεις ασφαλείας.');
+    checkPwdStrength(newPassword);
+    return;
+  }
+
+  const payload = new URLSearchParams();
+  payload.append('action', 'change_password');
+  payload.append('current_password', currentPassword);
+  payload.append('new_password', newPassword);
+  payload.append('confirm_password', confirmPassword);
+
+  try {
+    const response = await fetch(`${API_BASE}/profile.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: payload.toString(),
+    });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      showPasswordMessage(result.error || 'Αποτυχία αλλαγής κωδικού.');
+      return;
+    }
+
+    document.getElementById('passwordForm')?.reset();
+    const wrap = document.getElementById('pwdStrengthWrap');
+    if (wrap) wrap.style.display = 'none';
+    resetPwdRequirements();
+    showPasswordMessage(result.message || 'Ο κωδικός άλλαξε επιτυχώς.', 'success');
+  } catch (error) {
+    showPasswordMessage('Παρουσιάστηκε σφάλμα κατά την αλλαγή κωδικού.');
+  }
+}
 
 /* ── Academic / Professional section ─────────────────────────── */
 const DEGREE_OPTIONS = [
