@@ -1,6 +1,10 @@
 <?php
 session_start();
 require_once 'database/db.php';
+require_once 'includes/admin-branding.php';
+
+$brandingContext = adminGetBrandingContext($pdo, 'assets/images');
+$loginFavicon = $brandingContext['favicon'] ?? null;
 
 function defaultDashboardForRole(string $role): string
 {
@@ -58,6 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Σύνδεση — Σύστημα Διαχείρισης ΕΕ</title>
+    <?php if (!empty($loginFavicon)): ?>
+    <link rel="icon" href="<?= htmlspecialchars($loginFavicon, ENT_QUOTES, 'UTF-8') ?>">
+    <?php endif; ?>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css" rel="stylesheet">
     <?php $authCssVersion = @filemtime(__DIR__ . '/authent.css') ?: time(); ?>

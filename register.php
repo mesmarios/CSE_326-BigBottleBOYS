@@ -1,5 +1,9 @@
 <?php
 require_once 'database/db.php';
+require_once 'includes/admin-branding.php';
+
+$brandingContext = adminGetBrandingContext($pdo, 'assets/images');
+$registerFavicon = $brandingContext['favicon'] ?? null;
 
 $errors = [];
 
@@ -89,6 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Εγγραφή — Σύστημα Διαχείρισης ΕΕ</title>
+    <?php if (!empty($registerFavicon)): ?>
+    <link rel="icon" href="<?= htmlspecialchars($registerFavicon, ENT_QUOTES, 'UTF-8') ?>">
+    <?php endif; ?>
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->

@@ -31,10 +31,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'db_backup') {
 // General settings save
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_general_settings') {
     $appName = trim((string)($_POST['app_name'] ?? ''));
-    $appSlogan = trim((string)($_POST['app_slogan'] ?? ''));
-    $appDescription = trim((string)($_POST['app_description'] ?? ''));
-    $adminEmail = trim((string)($_POST['admin_email'] ?? ''));
-    $supportPhone = trim((string)($_POST['support_phone'] ?? ''));
 
     if ($appName === '') {
         $_SESSION['configure_system_flash'] = [
@@ -45,22 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         exit;
     }
 
-    if ($adminEmail === '' || !filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
-        $_SESSION['configure_system_flash'] = [
-            'type' => 'danger',
-            'message' => 'Το email διαχειριστή δεν είναι έγκυρο.',
-        ];
-        header('Location: configure_system.php');
-        exit;
-    }
-
     try {
         adminSaveGeneralSettings($pdo, [
             'app_name' => $appName,
-            'app_slogan' => $appSlogan,
-            'app_description' => $appDescription,
-            'admin_email' => $adminEmail,
-            'support_phone' => $supportPhone,
         ]);
 
         $_SESSION['configure_system_flash'] = [
@@ -331,22 +314,6 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                           <label class="form-label fw-semibold">Όνομα Εφαρμογής <span class="text-danger">*</span></label>
                           <input type="text" class="form-control" name="app_name" value="<?= htmlspecialchars((string)$generalSettings['app_name'], ENT_QUOTES, 'UTF-8') ?>" required />
                           <div class="form-text">Το όνομα που εμφανίζεται στην κεφαλίδα και τον τίτλο.</div>
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">Υπότιτλος / Slogan</label>
-                          <input type="text" class="form-control" name="app_slogan" value="<?= htmlspecialchars((string)$generalSettings['app_slogan'], ENT_QUOTES, 'UTF-8') ?>" />
-                        </div>
-                        <div class="col-12">
-                          <label class="form-label fw-semibold">Περιγραφή Εφαρμογής</label>
-                          <textarea class="form-control" rows="2" name="app_description"><?= htmlspecialchars((string)$generalSettings['app_description'], ENT_QUOTES, 'UTF-8') ?></textarea>
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">Email Διαχειριστή <span class="text-danger">*</span></label>
-                          <input type="email" class="form-control" name="admin_email" value="<?= htmlspecialchars((string)$generalSettings['admin_email'], ENT_QUOTES, 'UTF-8') ?>" required />
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label fw-semibold">Τηλέφωνο Υποστήριξης</label>
-                          <input type="tel" class="form-control" name="support_phone" value="<?= htmlspecialchars((string)$generalSettings['support_phone'], ENT_QUOTES, 'UTF-8') ?>" />
                         </div>
                         <div class="col-12">
                           <button type="submit" class="btn btn-primary">

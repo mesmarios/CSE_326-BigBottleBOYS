@@ -4,6 +4,8 @@
 // Optionally define $extra_head (string of <style>/<link>/<script> tags) before including to inject
 // page-specific head content.
 require_once __DIR__ . '/maintenance-mode.php';
+require_once __DIR__ . '/../database/db.php';
+require_once __DIR__ . '/admin-branding.php';
 
 // ── Session & Auth guard (must run before ANY output) ──────────────────────
 if (session_status() === PHP_SESSION_NONE) {
@@ -17,6 +19,12 @@ $projectPrefix = $projectName . '/';
 if (str_starts_with($currentPath, $projectPrefix)) {
     $currentPath = substr($currentPath, strlen($projectPrefix));
 }
+
+$currentDir = trim(str_replace('\\', '/', dirname($currentPath)), './');
+$depth = $currentDir === '' ? 0 : count(array_filter(explode('/', $currentDir), static fn($part) => $part !== ''));
+$assetPrefix = str_repeat('../', $depth);
+$layoutBrandingContext = adminGetBrandingContext($pdo, $assetPrefix . 'assets/images');
+$layoutFavicon = $layoutBrandingContext['favicon'] ?? null;
 
 if (!isset($_SESSION['user_id'])) {
   $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
@@ -70,6 +78,9 @@ if (isMaintenanceModeActive() && $_layoutRole !== 'admin') {
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#007bff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
+    <?php if (!empty($layoutFavicon)): ?>
+    <link rel="icon" href="<?= htmlspecialchars($layoutFavicon, ENT_QUOTES, 'UTF-8') ?>" />
+    <?php endif; ?>
     <!--end::Accessibility Meta Tags-->
     <!--begin::Primary Meta Tags-->
     <meta name="title" content="CareerTrack" />

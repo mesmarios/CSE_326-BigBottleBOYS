@@ -543,14 +543,6 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
 -- branding
 ('app_name',              'CareerTrack',
  'Όνομα εφαρμογής'),
-('app_slogan',            'Σύστημα Διαχείρισης ΕΕ',
- 'Υπότιτλος εφαρμογής'),
-('app_description',       'Σύστημα διαχείρισης αιτήσεων εκπαιδευτικού προσωπικού για ακαδημαϊκά ιδρύματα.',
- 'Περιγραφή εφαρμογής'),
-('admin_email',           'admin@tepak.cy',
- 'Email διαχειριστή'),
-('support_phone',         '+357 25 002500',
- 'Τηλέφωνο υποστήριξης'),
 ('institution_name',      'ΤΕΠΑΚ',
  'Όνομα ιδρύματος'),
 -- moodle
