@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $lastName = trim($_POST['last_name'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $phone = trim($_POST['phone'] ?? '') ?: null;
+            $address = trim($_POST['address'] ?? '') ?: null;
           $dobRaw = trim($_POST['dob'] ?? '');
           $dob = $dobRaw !== '' ? $dobRaw : null;
 
@@ -131,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     last_name = :last_name,
                     email = :email,
                     phone = :phone,
+                  address = :address,
                   dob = :dob,
                     updated_at = NOW()
                 WHERE id = :id
@@ -141,6 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':last_name' => $lastName,
                 ':email' => $email,
                 ':phone' => $phone,
+                ':address' => $address,
                 ':dob' => $dob,
                 ':id' => $adminId,
             ]);
@@ -156,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'full_name' => trim($firstName . ' ' . $lastName),
                     'email' => $email,
                     'phone' => $phone ?? '',
+                  'address' => $address ?? '',
                   'dob' => $dob ?? '',
                   'dob_display' => formatDateDisplay($dob),
                 ],
@@ -314,7 +318,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $adminStmt = $pdo->prepare(
     '
-  SELECT id, first_name, last_name, email, phone, dob, role, created_at, profilepic, profilepic_mime
+  SELECT id, first_name, last_name, email, phone, address, dob, role, created_at, profilepic, profilepic_mime
     FROM users
     WHERE id = :id
     LIMIT 1
@@ -341,6 +345,7 @@ $statsRow = $pdo->query(
 $adminFullName = trim((string)$adminUser['first_name'] . ' ' . (string)$adminUser['last_name']);
 $adminEmail = (string)($adminUser['email'] ?? '');
 $adminPhone = (string)($adminUser['phone'] ?? '');
+$adminAddress = (string)($adminUser['address'] ?? '');
 $adminDob = (string)($adminUser['dob'] ?? '');
 $adminDobDisplay = formatDateDisplay($adminDob !== '' ? $adminDob : null);
 $adminAvatarSrc = buildAvatarSrc(
@@ -534,6 +539,10 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
                         <span class="small" id="profilePhoneDisplay"><?= h($adminPhone !== '' ? $adminPhone : 'Δεν έχει οριστεί') ?></span>
                       </div>
                       <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="bi bi-geo-alt text-secondary" style="width:18px;"></i>
+                        <span class="small" id="profileAddressDisplay"><?= h($adminAddress !== '' ? $adminAddress : 'Δεν έχει οριστεί') ?></span>
+                      </div>
+                      <div class="d-flex align-items-center gap-2 mb-2">
                         <i class="bi bi-calendar-event text-secondary" style="width:18px;"></i>
                         <span class="small" id="profileDobDisplay"><?= h($adminDobDisplay) ?></span>
                       </div>
@@ -571,6 +580,10 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Τηλέφωνο</label>
                           <input type="tel" class="form-control" id="profilePhone" value="<?= h($adminPhone) ?>" />
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label fw-semibold">Διεύθυνση</label>
+                          <input type="text" class="form-control" id="profileAddress" value="<?= h($adminAddress) ?>" />
                         </div>
                         <div class="col-md-6">
                           <label class="form-label fw-semibold">Ημερομηνία Γέννησης</label>
@@ -756,6 +769,7 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
         var lastName  = document.getElementById('lastName').value.trim();
         var email     = document.getElementById('profileEmail').value.trim();
         var phone     = document.getElementById('profilePhone').value.trim();
+        var address   = document.getElementById('profileAddress').value.trim();
         var dob       = document.getElementById('profileDob').value.trim();
 
         if (!firstName || !lastName || !email) {
@@ -769,6 +783,7 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
         payload.append('last_name', lastName);
         payload.append('email', email);
         payload.append('phone', phone);
+        payload.append('address', address);
         payload.append('dob', dob);
 
         try {
@@ -792,6 +807,7 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
           document.getElementById('navUserName').textContent = result.profile.full_name;
           document.getElementById('profileEmailDisplay').textContent = result.profile.email;
           document.getElementById('profilePhoneDisplay').textContent = result.profile.phone || 'Δεν έχει οριστεί';
+          document.getElementById('profileAddressDisplay').textContent = result.profile.address || 'Δεν έχει οριστεί';
           document.getElementById('profileDobDisplay').textContent = result.profile.dob_display || '—';
           showAlert(result.message || 'Οι αλλαγές αποθηκεύτηκαν επιτυχώς.', 'success');
         } catch (error) {

@@ -49,92 +49,92 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- USERS  (all passwords = Demo1234!)
 -- ============================================================================
 INSERT INTO users
-    (id, username, email, password_hash, first_name, last_name, phone, role)
+    (id, username, email, password_hash, first_name, last_name, phone, address, dob, role)
 VALUES
 -- admin
 (1, 'admin_marios',   'admin@tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Μάριος', 'Μεσαρίτης', '+35799111001', 'admin'),
+ 'Μάριος', 'Μεσαρίτης', '+35799111001', 'Λεωφόρος Μακαρίου 12, Λεμεσός', '1988-03-14', 'admin'),
 
 (2, 'admin_shittas',  'admin2@tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Μάριος', 'Σιήττας', '+35799696969', 'admin'),
+ 'Μάριος', 'Σιήττας', '+35799696969', 'Οδός Ανεξαρτησίας 45, Λεμεσός', '1991-07-22', 'admin'),
 
 (3, 'admin_tsadiotis','admin3@tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Μιχάλης', 'Τσαδιώτης', '+35799676767', 'admin'),
+ 'Μιχάλης', 'Τσαδιώτης', '+35799676767', '25ης Μαρτίου 8, Λευκωσία', '1987-11-05', 'admin'),
 
 -- hr
 (4, 'hr_eleni',       'hr@tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Ελένη', 'Παπαδοπούλου', '+35799111002', 'hr'),
+ 'Ελένη', 'Παπαδοπούλου', '+35799111002', 'Αγίου Ανδρέου 102, Λεμεσός', '1990-02-18', 'hr'),
 
 -- evaluators
 (5, 'eval_giorgos',   'eval.giorgos@tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Γιώργος', 'Κωνσταντίνου', '+35799111003', 'evaluator'),
+ 'Γιώργος', 'Κωνσταντίνου', '+35799111003', 'Αρσινόης 17, Λευκωσία', '1985-09-09', 'evaluator'),
 
 (6, 'eval_christos',  'eval.christos@tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Χρήστος', 'Σταύρου', '+35799111004', 'evaluator'),
+ 'Χρήστος', 'Σταύρου', '+35799111004', 'Κέννεντυ 33, Πάφος', '1986-12-27', 'evaluator'),
 
 -- candidates
 (7, 'cand_nikos',     'nikos.andreou@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Νίκος', 'Αντρέου', '+35799222001', 'candidate'),
+ 'Νίκος', 'Αντρέου', '+35799222001', 'Ερμού 4, Λάρνακα', '2001-01-30', 'candidate'),
 
 (8, 'cand_maria',     'maria.christou@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Μαρία', 'Χρίστου', '+35799222002', 'candidate'),
+ 'Μαρία', 'Χρίστου', '+35799222002', 'Γρίβα Διγενή 61, Λευκωσία', '2000-06-12', 'candidate'),
 
 (9, 'cand_panagiotis','panagiotis.ioannou@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Παναγιώτης', 'Ιωάννου', '+35799222003', 'candidate'),
+ 'Παναγιώτης', 'Ιωάννου', '+35799222003', 'Αρχ. Μακαρίου Γ 78, Πάφος', '1999-10-03', 'candidate'),
 
 -- ee_hired (hired Special Scientists — have Enrollment Module access)
 (10, 'ee_sofia',       'sofia.mihail@tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Σοφία', 'Μιχαήλ', '+35799333001', 'ee_hired'),
+ 'Σοφία', 'Μιχαήλ', '+35799333001', 'Τσερίου 210, Στρόβολος', '1984-04-16', 'ee_hired'),
 
 (11, 'ee_andreas',     'andreas.petrou@tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Ανδρέας', 'Πέτρου', '+35799333002', 'ee_hired'),
+ 'Ανδρέας', 'Πέτρου', '+35799333002', 'Λάρνακος 55, Αγλαντζιά', '1983-08-24', 'ee_hired'),
 
 (12, 'cand_elena',     'elena.georgiou@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Έλενα', 'Γεωργίου', '+35799222004', 'candidate'),
+ 'Έλενα', 'Γεωργίου', '+35799222004', 'Κυριάκου Μάτση 9, Λευκωσία', '2002-05-08', 'candidate'),
 
 (13, 'cand_andreas',   'andreas.nikolaou@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Ανδρέας', 'Νικολάου', '+35799222005', 'candidate'),
+ 'Ανδρέας', 'Νικολάου', '+35799222005', 'Φιλελλήνων 26, Λάρνακα', '2001-12-19', 'candidate'),
 
 (14, 'cand_ioanna',    'ioanna.michael@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Ιωάννα', 'Μιχαήλ', '+35799222006', 'candidate'),
+ 'Ιωάννα', 'Μιχαήλ', '+35799222006', 'Θεμιστοκλή Δέρβη 14, Λευκωσία', '2003-03-27', 'candidate'),
 
 (15, 'cand_petros',    'petros.savva@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Πέτρος', 'Σάββα', '+35799222007', 'candidate'),
+ 'Πέτρος', 'Σάββα', '+35799222007', 'Βασιλέως Παύλου 40, Λεμεσός', '2000-09-14', 'candidate'),
 
 (16, 'cand_christina', 'christina.antoniou@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Χριστίνα', 'Αντωνίου', '+35799222008', 'candidate'),
+ 'Χριστίνα', 'Αντωνίου', '+35799222008', 'Ομήρου 7, Πάφος', '2002-11-02', 'candidate'),
 
 (17, 'cand_stavros',   'stavros.hadjis@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Σταύρος', 'Χατζής', '+35799222009', 'candidate'),
+ 'Σταύρος', 'Χατζής', '+35799222009', 'Ελευθερίας 88, Αραδίππου', '2001-04-21', 'candidate'),
 
 (18, 'cand_demetra',   'demetra.loizou@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Δήμητρα', 'Λοΐζου', '+35799222010', 'candidate'),
+ 'Δήμητρα', 'Λοΐζου', '+35799222010', 'Δημοκρατίας 19, Λακατάμια', '2000-07-29', 'candidate'),
 
 (19, 'cand_kyriakos',  'kyriakos.pavlou@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Κυριάκος', 'Παύλου', '+35799222011', 'candidate'),
+ 'Κυριάκος', 'Παύλου', '+35799222011', 'Αμμοχώστου 121, Λάρνακα', '1999-02-11', 'candidate'),
 
 (20, 'cand_antri',     'antri.charalambous@student.tepak.cy',
  '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
- 'Άντρη', 'Χαραλάμπους', '+35799222012', 'candidate');
+ 'Άντρη', 'Χαραλάμπους', '+35799222012', 'Σπύρου Κυπριανού 66, Γερμασόγεια', '2002-10-25', 'candidate');
 
 -- ============================================================================
 -- SCHOOLS
