@@ -1,7 +1,7 @@
 -- ============================================================================
 -- SEED DATA — bigbrothers
 -- All test-user passwords hash to: Demo1234!
--- Hash: $2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.
+-- Hash: $2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK
 -- ============================================================================
 
 USE bigbrothers;
@@ -53,43 +53,43 @@ INSERT INTO users
 VALUES
 -- admin
 (1, 'admin_marios',   'admin@tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Μάριος', 'Μεσαρίτης', '+35799111001', 'admin'),
 
 -- hr
 (2, 'hr_eleni',       'hr@tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Ελένη', 'Παπαδοπούλου', '+35799111002', 'hr'),
 
 -- evaluators
 (3, 'eval_giorgos',   'eval.giorgos@tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Γιώργος', 'Κωνσταντίνου', '+35799111003', 'evaluator'),
 
 (4, 'eval_christos',  'eval.christos@tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Χρήστος', 'Σταύρου', '+35799111004', 'evaluator'),
 
 -- candidates
 (5, 'cand_nikos',     'nikos.andreou@student.tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Νίκος', 'Αντρέου', '+35799222001', 'candidate'),
 
 (6, 'cand_maria',     'maria.christou@student.tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Μαρία', 'Χρίστου', '+35799222002', 'candidate'),
 
 (7, 'cand_panagiotis','panagiotis.ioannou@student.tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Παναγιώτης', 'Ιωάννου', '+35799222003', 'candidate'),
 
 -- ee_hired (hired Special Scientists — have Enrollment Module access)
 (8, 'ee_sofia',       'sofia.mihail@tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Σοφία', 'Μιχαήλ', '+35799333001', 'ee_hired'),
 
 (9, 'ee_andreas',     'andreas.petrou@tepak.cy',
- '$2y$12$0x2K4Ff6EJb7pMU6hMx85u19XZXrHoawsVVYovOIqaxCtwZpbU4l.',
+ '$2y$12$R3VOLS6.bYZ8LPCxYWRty.t4uLCHfZEoSRRCcR/sly1zPqLC8zXZK',
  'Ανδρέας', 'Πέτρου', '+35799333002', 'ee_hired');
 
 -- ============================================================================
