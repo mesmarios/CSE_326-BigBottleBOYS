@@ -62,10 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone   = trim($_POST['phone']      ?? '') ?: null;
         $role    = in_array($_POST['role'] ?? '', ['admin','hr','evaluator','candidate','ee_hired'], true) ? $_POST['role'] : 'candidate';
         $newPass = trim($_POST['new_password'] ?? '');
-
-        if ($currentAdminId > 0 && $id === $currentAdminId) {
-            header('Location: manage_users.php?msg=' . urlencode('Δεν μπορείτε να επεξεργαστείτε τον δικό σας λογαριασμό από αυτή τη σελίδα.') . '&mtype=danger');
-            exit;
+        $isSelfEdit = $currentAdminId > 0 && $id === $currentAdminId;
+        if ($isSelfEdit) {
+            // Keep current admin protected from accidental role changes while allowing profile updates.
+            $role = 'admin';
         }
 
         if ($id > 0 && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -442,8 +442,7 @@ function avatarInitials(string $f, string $l): string {
                           type="button"
                           class="btn btn-sm btn-outline-primary me-1"
                           onclick="openEditUserModal(<?= (int)$u['id'] ?>)"
-                          title="<?= $isCurrentAdmin ? 'Ο τρέχων διαχειριστής δεν μπορεί να επεξεργαστεί τον εαυτό του από αυτή τη σελίδα.' : 'Επεξεργασία' ?>"
-                          <?= $isCurrentAdmin ? 'disabled aria-disabled="true"' : '' ?>
+                          title="<?= $isCurrentAdmin ? 'Edit your account (delete remains blocked).' : 'Edit' ?>"
                         ><i class="bi bi-pencil"></i></button>
                         <form method="POST" class="d-inline delete-user-form" data-user-id="<?= (int)$u['id'] ?>" data-user-name="<?= escape(trim($u['first_name'] . ' ' . $u['last_name'])) ?>">
                           <input type="hidden" name="action" value="delete">
@@ -451,7 +450,7 @@ function avatarInitials(string $f, string $l): string {
                           <button
                             type="submit"
                             class="btn btn-sm btn-outline-danger"
-                            title="<?= $isCurrentAdmin ? 'Ο τρέχων διαχειριστής δεν μπορεί να διαγράψει τον εαυτό του.' : 'Διαγραφή' ?>"
+                            title="<?= $isCurrentAdmin ? 'You cannot delete your own account.' : 'Delete' ?>"
                             <?= $isCurrentAdmin ? 'disabled aria-disabled="true"' : '' ?>
                           >
                             <i class="bi bi-trash"></i>
@@ -745,3 +744,4 @@ function avatarInitials(string $f, string $l): string {
     </script>
   </body>
 </html>
+
