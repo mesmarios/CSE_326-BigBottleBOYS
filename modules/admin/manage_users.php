@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ln    = trim($_POST['last_name']  ?? '');
         $email = trim($_POST['email']      ?? '');
         $phone = trim($_POST['phone']      ?? '') ?: null;
-        $role  = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
+        $role  = in_array($_POST['role'] ?? '', ['admin','hr','evaluator','candidate','ee_hired'], true) ? $_POST['role'] : 'candidate';
         $pass  = $_POST['password'] ?? '';
         if ($fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL) && strlen($pass) >= 8) {
             $hash = password_hash($pass, PASSWORD_DEFAULT);
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ln      = trim($_POST['last_name']  ?? '');
         $email   = trim($_POST['email']      ?? '');
         $phone   = trim($_POST['phone']      ?? '') ?: null;
-        $role    = in_array($_POST['role'] ?? '', ['admin','user']) ? $_POST['role'] : 'user';
+        $role    = in_array($_POST['role'] ?? '', ['admin','hr','evaluator','candidate','ee_hired'], true) ? $_POST['role'] : 'candidate';
         $newPass = trim($_POST['new_password'] ?? '');
 
         if ($currentAdminId > 0 && $id === $currentAdminId) {
@@ -512,7 +512,10 @@ function avatarInitials(string $f, string $l): string {
                   <select class="form-select" id="userRole" name="role" required>
                     <option value="">Επιλέξτε ρόλο...</option>
                     <option value="admin">Admin</option>
-                    <option value="user">Χρήστης</option>
+                    <option value="hr">HR</option>
+                    <option value="evaluator">Αξιολογητής</option>
+                    <option value="candidate">Υποψήφιος</option>
+                    <option value="ee_hired">ΕΕ Μισθωμένος</option>
                   </select>
                 </div>
                 <!-- Πεδίο κωδικού για νέο χρήστη -->

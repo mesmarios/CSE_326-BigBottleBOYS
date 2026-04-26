@@ -31,17 +31,25 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-if (($_SESSION['role'] ?? '') === 'admin' && str_starts_with($currentPath, 'modules/recruitmentModule/')) {
+$_layoutRole = (string)($_SESSION['role'] ?? '');
+$_recruitmentAllowed = ['hr', 'evaluator', 'candidate'];
+
+if (!in_array($_layoutRole, $_recruitmentAllowed, true) && str_starts_with($currentPath, 'modules/recruitmentModule/')) {
     $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
     $basePath = strpos($scriptName, '/modules/') !== false
         ? strstr($scriptName, '/modules/', true)
         : rtrim(dirname($scriptName), '/');
-    header('Location: ' . rtrim($basePath, '/') . '/modules/admin/index.php');
+    $fallback = match ($_layoutRole) {
+        'admin'    => rtrim($basePath, '/') . '/modules/admin/index.php',
+        'ee_hired' => rtrim($basePath, '/') . '/enrollment/dashboard.php',
+        default    => rtrim($basePath, '/') . '/login.php',
+    };
+    header('Location: ' . $fallback);
     exit;
 }
 
 // Maintenance mode check — admins bypass
-if (isMaintenanceModeActive() && ($_SESSION['role'] ?? '') !== 'admin') {
+if (isMaintenanceModeActive() && $_layoutRole !== 'admin') {
     $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
     $basePath = strpos($scriptName, '/modules/') !== false
         ? strstr($scriptName, '/modules/', true)

@@ -70,7 +70,14 @@ function periodStatusMeta(string $status): array
 
 function roleLabel(string $role): string
 {
-    return $role === 'admin' ? 'Admin' : 'Χρήστης';
+    return match ($role) {
+        'admin'     => 'Admin',
+        'hr'        => 'HR',
+        'evaluator' => 'Αξιολογητής',
+        'candidate' => 'Υποψήφιος',
+        'ee_hired'  => 'ΕΕ (Μισθωμένος)',
+        default     => 'Χρήστης',
+    };
 }
 
 function notificationDestination(array $notification): array
@@ -552,6 +559,13 @@ $notificationsFooterDestination = $notifications !== [] ? notificationDestinatio
                 <a href="my_profile.php" class="nav-link">
                   <i class="nav-icon bi bi-person-circle"></i>
                   <p>My Profile</p>
+                </a>
+              </li>
+              <li class="nav-header">ΑΛΛΑΓΗ ΕΝΟΤΗΤΑΣ</li>
+              <li class="nav-item">
+                <a href="../../module-select.php" class="nav-link">
+                  <i class="nav-icon bi bi-grid-3x3-gap-fill"></i>
+                  <p>Switch Module</p>
                 </a>
               </li>
             </ul>

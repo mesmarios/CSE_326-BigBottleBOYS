@@ -19,31 +19,22 @@ function sanitizeLocalRedirect(?string $target): ?string
 
 function defaultDashboardForRole(string $role): string
 {
-    return $role === 'admin'
-        ? 'modules/admin/index.php'
-        : 'modules/recruitmentModule/index.php';
+    return match ($role) {
+        'admin', 'hr' => 'module-select.php',
+        'evaluator', 'candidate' => 'modules/recruitmentModule/index.php',
+        'ee_hired' => 'enrollment/dashboard.php',
+        default => 'login.php',
+    };
 }
 
-$errors     = [];
-$registered = isset($_GET['registered']) && $_GET['registered'] == 1;
+$errors       = [];
+$registered   = isset($_GET['registered']) && $_GET['registered'] == 1;
+$redirectTo   = null; // no longer used for redirect, kept to avoid template errors
 $requireAdmin = (isset($_GET['admin']) && $_GET['admin'] === '1')
     || (isset($_POST['require_admin']) && $_POST['require_admin'] === '1');
-$redirectTo = sanitizeLocalRedirect($_POST['redirect_to'] ?? $_GET['redirect'] ?? null);
 
 if (isset($_SESSION['user_id'], $_SESSION['role'])) {
-    $sessionRole = (string)$_SESSION['role'];
-    $sessionTarget = defaultDashboardForRole($sessionRole);
-
-    if ($sessionRole === 'admin' && ($redirectTo === null || str_starts_with($redirectTo, 'modules/recruitmentModule/'))) {
-        header('Location: ' . $sessionTarget);
-        exit;
-    }
-
-    if ($sessionRole !== 'admin' && $redirectTo !== null && str_starts_with($redirectTo, 'modules/admin/')) {
-        $redirectTo = null;
-    }
-
-    header('Location: ' . ($redirectTo ?? $sessionTarget));
+    header('Location: ' . defaultDashboardForRole((string)$_SESSION['role']));
     exit;
 }
 
@@ -65,8 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
-            if ($isAdmin && $user['role'] !== 'admin') {
-                $errors[] = 'Δεν έχετε δικαιώματα διαχειριστή.';
+            $privilegedRoles = ['admin', 'hr'];
+            if ($isAdmin && !in_array($user['role'], $privilegedRoles, true)) {
+                $errors[] = 'Δεν έχετε δικαιώματα διαχειριστή ή HR.';
             } else {
                 session_regenerate_id(true);
                 $_SESSION['user_id']    = $user['id'];
@@ -75,19 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['last_name']  = $user['last_name'];
                 $_SESSION['email']      = $user['email'];
 
-                $userRole = (string)($user['role'] ?? '');
-                $defaultTarget = defaultDashboardForRole($userRole);
-                $target = $redirectTo;
-
-                if ($userRole === 'admin' && ($target === null || str_starts_with($target, 'modules/recruitmentModule/'))) {
-                    $target = $defaultTarget;
-                }
-
-                if ($userRole !== 'admin' && $target !== null && str_starts_with($target, 'modules/admin/')) {
-                    $target = null;
-                }
-
-                header('Location: ' . ($target ?? $defaultTarget));
+                header('Location: ' . defaultDashboardForRole((string)$user['role']));
                 exit;
             }
         } else {

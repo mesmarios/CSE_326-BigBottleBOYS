@@ -40,6 +40,14 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                 <p>Application Status</p>
               </a>
             </li>
+            <?php if (($_SESSION['role'] ?? '') === 'hr'): ?>
+            <li class="nav-item" style="margin-top:.5rem;border-top:1px solid rgba(255,255,255,.1);padding-top:.5rem;">
+              <a href="../../module-select.php" class="nav-link">
+                <i class="nav-icon bi bi-grid-3x3-gap-fill"></i>
+                <p>Switch Module</p>
+              </a>
+            </li>
+            <?php endif; ?>
           </ul>
         </li>
       </ul>
