@@ -9,7 +9,6 @@ USE bigbrothers;
 SET FOREIGN_KEY_CHECKS = 0;
 DELETE FROM audit_logs;
 DELETE FROM enrollment_logs;
-DELETE FROM sync_schedules;
 DELETE FROM specialist_enrollments;
 DELETE FROM lms_access;
 DELETE FROM notifications;
