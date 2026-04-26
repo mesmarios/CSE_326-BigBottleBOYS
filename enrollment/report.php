@@ -36,7 +36,14 @@ try {
         "SELECT COUNT(DISTINCT user_id) FROM lms_access WHERE status = 'active'"
     )->fetchColumn();
 
-    $inactiveAccess = $totalEE - $activeAccess;
+    $inactiveAccess = (int)$pdo->query(
+        "SELECT COUNT(*) FROM users u
+         WHERE u.role = 'ee_hired'
+           AND NOT EXISTS (
+               SELECT 1 FROM lms_access la
+               WHERE la.user_id = u.id AND la.status = 'active'
+           )"
+    )->fetchColumn();
 
     // Courses with no instructor (no accepted ee_hired application for that course, as a proxy)
     $coursesNoInstructor = $pdo->query(
@@ -92,7 +99,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     fputcsv($out, ['=== ΣΥΝΟΨΗ ===']);
     fputcsv($out, ['Σύνολο ΕΕ', $totalEE]);
     fputcsv($out, ['ΕΕ με Ενεργή Πρόσβαση Moodle', $activeAccess]);
-    fputcsv($out, ['ΕΕ χωρίς Πρόσβαση', max(0, $inactiveAccess)]);
+    fputcsv($out, ['ΕΕ χωρίς Πρόσβαση', $inactiveAccess]);
     fputcsv($out, ['Ημερομηνία Εξαγωγής', date('d/m/Y H:i')]);
     fputcsv($out, []);
 
@@ -203,7 +210,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <i class="bi bi-slash-circle-fill"></i>
               </div>
               <div>
-                <div class="stat-value"><?= h(fmtN(max(0, $inactiveAccess))) ?></div>
+                <div class="stat-value"><?= h(fmtN($inactiveAccess)) ?></div>
                 <div class="stat-label">Χωρίς Πρόσβαση</div>
                 <div class="small text-secondary">ΕΕ χωρίς ενεργή πρόσβαση</div>
               </div>
