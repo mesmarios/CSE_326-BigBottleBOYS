@@ -8,7 +8,7 @@ require_once __DIR__ . '/../includes/admin-branding.php';
 
 $brandingContext = adminGetBrandingContext($pdo);
 $adminBrandText  = $brandingContext['brand_text'];
-$adminLogo       = $brandingContext['logo'];
+$adminLogo       = preg_replace('#^\.\./\.\./assets/#', '../assets/', (string)$brandingContext['logo']) ?? (string)$brandingContext['logo'];
 $adminFavicon    = $brandingContext['favicon'];
 
 $enrollFullName  = trim((string)(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')));
