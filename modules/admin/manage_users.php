@@ -9,6 +9,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $currentAdminId = (int)($_SESSION['user_id'] ?? 0);
 
+    $normalizeOptionalText = static function (string $key): ?string {
+        $value = trim($_POST[$key] ?? '');
+        return $value !== '' ? $value : null;
+    };
+
+    $normalizeOptionalDate = static function (string $key): ?string {
+        $value = trim($_POST[$key] ?? '');
+        if ($value === '') {
+            return null;
+        }
+
+        $dt = DateTime::createFromFormat('Y-m-d', $value);
+        return ($dt && $dt->format('Y-m-d') === $value) ? $value : null;
+    };
+
+    $normalizeOptionalInt = static function (string $key): ?int {
+        $value = trim($_POST[$key] ?? '');
+        if ($value === '') {
+            return null;
+        }
+
+        return ctype_digit($value) ? (int)$value : null;
+    };
+
     if ($action === 'delete') {
         $id = (int)($_POST['user_id'] ?? 0);
         if ($id <= 0) {
@@ -38,47 +62,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
     } elseif ($action === 'add') {
-        $fn    = trim($_POST['first_name'] ?? '');
-        $ln    = trim($_POST['last_name']  ?? '');
-        $email = trim($_POST['email']      ?? '');
-        $phone = trim($_POST['phone']      ?? '') ?: null;
-        $role  = in_array($_POST['role'] ?? '', ['admin','hr','evaluator','candidate','ee_hired'], true) ? $_POST['role'] : 'candidate';
-        $pass  = $_POST['password'] ?? '';
-        if ($fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL) && strlen($pass) >= 8) {
+        $username       = trim($_POST['username'] ?? '');
+        $fn             = trim($_POST['first_name'] ?? '');
+        $ln             = trim($_POST['last_name']  ?? '');
+        $email          = trim($_POST['email']      ?? '');
+        $phone          = $normalizeOptionalText('phone');
+        $address        = $normalizeOptionalText('address');
+        $dob            = $normalizeOptionalDate('dob');
+        $degree         = $normalizeOptionalText('degree');
+        $institution    = $normalizeOptionalText('institution');
+        $specialization = $normalizeOptionalText('specialization');
+        $experience     = $normalizeOptionalInt('experience');
+        $summary        = $normalizeOptionalText('summary');
+        $profilePicPath = $normalizeOptionalText('profilepic_path');
+        $role           = in_array($_POST['role'] ?? '', ['admin','hr','evaluator','candidate','ee_hired'], true) ? $_POST['role'] : 'candidate';
+        $pass           = $_POST['password'] ?? '';
+        if ($username && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL) && strlen($pass) >= 8) {
             $hash = password_hash($pass, PASSWORD_DEFAULT);
-            $pdo->prepare('INSERT INTO users (first_name,last_name,email,phone,role,password_hash) VALUES (?,?,?,?,?,?)')
-                ->execute([$fn, $ln, $email, $phone, $role, $hash]);
-            header('Location: manage_users.php?msg=' . urlencode('Ο χρήστης προστέθηκε επιτυχώς.') . '&mtype=success');
-            exit;
+            try {
+                $pdo->prepare('INSERT INTO users (username,email,password_hash,first_name,last_name,phone,address,dob,degree,institution,specialization,experience,summary,profilepic_path,role) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+                    ->execute([$username, $email, $hash, $fn, $ln, $phone, $address, $dob, $degree, $institution, $specialization, $experience, $summary, $profilePicPath, $role]);
+                header('Location: manage_users.php?msg=' . urlencode('Ο χρήστης προστέθηκε επιτυχώς.') . '&mtype=success');
+                exit;
+            } catch (Throwable $e) {
+                header('Location: manage_users.php?msg=' . urlencode('Αποτυχία προσθήκης χρήστη. Ελέγξτε αν το email ή το username χρησιμοποιούνται ήδη.') . '&mtype=danger');
+                exit;
+            }
         }
-        header('Location: manage_users.php?msg=' . urlencode('Σφάλμα: Ελέγξτε τα στοιχεία (email, κωδικός ≥8 χαρακτήρες).') . '&mtype=danger');
+        header('Location: manage_users.php?msg=' . urlencode('Σφάλμα: Συμπληρώστε username, έγκυρο email και κωδικό με τουλάχιστον 8 χαρακτήρες.') . '&mtype=danger');
         exit;
 
     } elseif ($action === 'edit') {
-        $id      = (int)($_POST['user_id'] ?? 0);
-        $fn      = trim($_POST['first_name'] ?? '');
-        $ln      = trim($_POST['last_name']  ?? '');
-        $email   = trim($_POST['email']      ?? '');
-        $phone   = trim($_POST['phone']      ?? '') ?: null;
-        $role    = in_array($_POST['role'] ?? '', ['admin','hr','evaluator','candidate','ee_hired'], true) ? $_POST['role'] : 'candidate';
-        $newPass = trim($_POST['new_password'] ?? '');
+        $id             = (int)($_POST['user_id'] ?? 0);
+        $username       = trim($_POST['username'] ?? '');
+        $fn             = trim($_POST['first_name'] ?? '');
+        $ln             = trim($_POST['last_name']  ?? '');
+        $email          = trim($_POST['email']      ?? '');
+        $phone          = $normalizeOptionalText('phone');
+        $address        = $normalizeOptionalText('address');
+        $dob            = $normalizeOptionalDate('dob');
+        $degree         = $normalizeOptionalText('degree');
+        $institution    = $normalizeOptionalText('institution');
+        $specialization = $normalizeOptionalText('specialization');
+        $experience     = $normalizeOptionalInt('experience');
+        $summary        = $normalizeOptionalText('summary');
+        $profilePicPath = $normalizeOptionalText('profilepic_path');
+        $role           = in_array($_POST['role'] ?? '', ['admin','hr','evaluator','candidate','ee_hired'], true) ? $_POST['role'] : 'candidate';
+        $newPass        = trim($_POST['new_password'] ?? '');
         $isSelfEdit = $currentAdminId > 0 && $id === $currentAdminId;
         if ($isSelfEdit) {
             // Keep current admin protected from accidental role changes while allowing profile updates.
             $role = 'admin';
         }
 
-        if ($id > 0 && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            if ($newPass !== '' && strlen($newPass) >= 8) {
-                $hash = password_hash($newPass, PASSWORD_DEFAULT);
-                $pdo->prepare('UPDATE users SET first_name=?,last_name=?,email=?,phone=?,role=?,password_hash=?,updated_at=NOW() WHERE id=?')
-                    ->execute([$fn, $ln, $email, $phone, $role, $hash, $id]);
-            } else {
-                $pdo->prepare('UPDATE users SET first_name=?,last_name=?,email=?,phone=?,role=?,updated_at=NOW() WHERE id=?')
-                    ->execute([$fn, $ln, $email, $phone, $role, $id]);
+        if ($id > 0 && $username && $fn && $ln && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            try {
+                if ($newPass !== '' && strlen($newPass) >= 8) {
+                    $hash = password_hash($newPass, PASSWORD_DEFAULT);
+                    $pdo->prepare('UPDATE users SET username=?,first_name=?,last_name=?,email=?,phone=?,address=?,dob=?,degree=?,institution=?,specialization=?,experience=?,summary=?,profilepic_path=?,role=?,password_hash=?,updated_at=NOW() WHERE id=?')
+                        ->execute([$username, $fn, $ln, $email, $phone, $address, $dob, $degree, $institution, $specialization, $experience, $summary, $profilePicPath, $role, $hash, $id]);
+                } else {
+                    $pdo->prepare('UPDATE users SET username=?,first_name=?,last_name=?,email=?,phone=?,address=?,dob=?,degree=?,institution=?,specialization=?,experience=?,summary=?,profilepic_path=?,role=?,updated_at=NOW() WHERE id=?')
+                        ->execute([$username, $fn, $ln, $email, $phone, $address, $dob, $degree, $institution, $specialization, $experience, $summary, $profilePicPath, $role, $id]);
+                }
+                header('Location: manage_users.php?msg=' . urlencode('Τα στοιχεία αποθηκεύτηκαν επιτυχώς.') . '&mtype=success');
+                exit;
+            } catch (Throwable $e) {
+                header('Location: manage_users.php?msg=' . urlencode('Αποτυχία ενημέρωσης χρήστη. Ελέγξτε αν το email ή το username χρησιμοποιούνται ήδη.') . '&mtype=danger');
+                exit;
             }
-            header('Location: manage_users.php?msg=' . urlencode('Τα στοιχεία αποθηκεύτηκαν επιτυχώς.') . '&mtype=success');
-            exit;
         }
         header('Location: manage_users.php?msg=' . urlencode('Σφάλμα: Ελέγξτε τα στοιχεία.') . '&mtype=danger');
         exit;
@@ -161,7 +213,7 @@ $adminLogo = $brandingContext['logo'];
 $adminFavicon = $brandingContext['favicon'];
 
 $stmt = $pdo->query(
-  "SELECT id, first_name, last_name, email, phone, role, created_at, profilepic_path
+  "SELECT id, username, first_name, last_name, email, phone, address, dob, degree, institution, specialization, experience, summary, profilepic_path, role, created_at, updated_at
      FROM users ORDER BY created_at DESC"
 );
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -390,7 +442,10 @@ function avatarInitials(string $f, string $l): string {
                   <select class="form-select form-select-sm" style="width:auto;" id="roleFilter">
                     <option value="">Όλοι οι ρόλοι</option>
                     <option value="admin">Admin</option>
-                    <option value="user">Χρήστης</option>
+                    <option value="hr">HR</option>
+                    <option value="evaluator">Αξιολογητής</option>
+                    <option value="candidate">Υποψήφιος</option>
+                    <option value="ee_hired">ΕΕ Μισθωμένος</option>
                   </select>
                 </div>
                 <button type="button" class="btn btn-primary btn-sm" onclick="openAddUserModal()">
@@ -421,7 +476,14 @@ function avatarInitials(string $f, string $l): string {
                         $avColor   = $isAdmin ? '#1d4ed8' : '#15803d';
                         $avatarSrc = resolveUserAvatarSrc($u);
                         $badgeCls  = $isAdmin ? 'badge-role-admin' : 'badge-role-applicant';
-                        $roleLabel = $isAdmin ? 'Admin' : 'Χρήστης';
+                        $roleLabel = match ($u['role']) {
+                            'admin' => 'Admin',
+                            'hr' => 'HR',
+                            'evaluator' => 'Αξιολογητής',
+                            'candidate' => 'Υποψήφιος',
+                            'ee_hired' => 'ΕΕ Μισθωμένος',
+                            default => 'Χρήστης',
+                        };
                         $fullName  = escape($u['first_name']) . ' ' . escape($u['last_name']);
                         $dateFmt   = date('d/m/Y', strtotime($u['created_at']));
                     ?>
@@ -498,7 +560,17 @@ function avatarInitials(string $f, string $l): string {
             <form id="userForm" method="POST" onsubmit="return validateUserForm()">
               <input type="hidden" id="userFormAction" name="action" value="add">
               <input type="hidden" id="userFormId" name="user_id" value="">
+              <input type="hidden" id="userRoleHidden" name="role" value="">
               <div class="row g-3">
+                <div class="col-12 d-none" id="userEditLockedNotice">
+                  <div class="alert alert-info py-2 mb-0">
+                    <i class="bi bi-lock me-1"></i>Κάποια πεδία είναι κλειδωμένα στην επεξεργασία γιατί θεωρούνται βασικά στοιχεία λογαριασμού.
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="userUsername" name="username" placeholder="π.χ. andreas.georgiou" required />
+                </div>
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Όνομα <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="userFirstName" name="first_name" placeholder="π.χ. Ανδρέας" required />
@@ -516,8 +588,12 @@ function avatarInitials(string $f, string $l): string {
                   <input type="tel" class="form-control" id="userPhone" name="phone" placeholder="+35799123456" />
                 </div>
                 <div class="col-md-6">
+                  <label class="form-label fw-semibold">Ημερομηνία Γέννησης</label>
+                  <input type="date" class="form-control" id="userDob" name="dob" />
+                </div>
+                <div class="col-md-6">
                   <label class="form-label fw-semibold">Ρόλος <span class="text-danger">*</span></label>
-                  <select class="form-select" id="userRole" name="role" required>
+                  <select class="form-select" id="userRole" required>
                     <option value="">Επιλέξτε ρόλο...</option>
                     <option value="admin">Admin</option>
                     <option value="hr">HR</option>
@@ -525,6 +601,39 @@ function avatarInitials(string $f, string $l): string {
                     <option value="candidate">Υποψήφιος</option>
                     <option value="ee_hired">ΕΕ Μισθωμένος</option>
                   </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Διεύθυνση</label>
+                  <textarea class="form-control" id="userAddress" name="address" rows="2" placeholder="π.χ. Λεωφόρος Μακαρίου 12, Λεμεσός"></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Highest Degree</label>
+                  <select class="form-select" id="userDegree" name="degree">
+                    <option value="">— Select degree —</option>
+                    <option value="High School Diploma">High School Diploma</option>
+                    <option value="Associate's Degree">Associate's Degree</option>
+                    <option value="Bachelor's Degree">Bachelor's Degree</option>
+                    <option value="Master's Degree">Master's Degree</option>
+                    <option value="Doctoral Degree (PhD)">Doctoral Degree (PhD)</option>
+                    <option value="Professional Degree (MD / JD / etc.)">Professional Degree (MD / JD / etc.)</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Institution of Graduation</label>
+                  <input type="text" class="form-control" id="userInstitution" name="institution" placeholder="e.g. University of Athens" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Field of Specialization</label>
+                  <input type="text" class="form-control" id="userSpecialization" name="specialization" placeholder="e.g. Computer Science" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Years of Professional Experience</label>
+                  <input type="number" min="0" max="60" class="form-control" id="userExperience" name="experience" placeholder="0" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Professional Summary</label>
+                  <textarea class="form-control" id="userSummary" name="summary" rows="5" maxlength="1500" placeholder="Briefly describe your professional background, key achievements, and motivation for applying…"></textarea>
                 </div>
                 <!-- Πεδίο κωδικού για νέο χρήστη -->
                 <div class="col-md-6" id="passwordField">
@@ -677,6 +786,11 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userForm').reset();
         document.getElementById('userFormAction').value = 'add';
         document.getElementById('userFormId').value = '';
+        document.getElementById('userEditLockedNotice').classList.add('d-none');
+        document.getElementById('userUsername').readOnly = false;
+        document.getElementById('userEmail').readOnly = false;
+        document.getElementById('userRole').disabled = false;
+        document.getElementById('userRoleHidden').value = '';
         document.getElementById('passwordField').style.display = '';
         document.getElementById('confirmPasswordField').style.display = '';
         document.getElementById('changePasswordSection').style.display = 'none';
@@ -699,11 +813,24 @@ function avatarInitials(string $f, string $l): string {
         document.getElementById('userForm').reset();
         document.getElementById('userFormAction').value = 'edit';
         document.getElementById('userFormId').value = id;
+        document.getElementById('userEditLockedNotice').classList.remove('d-none');
+        document.getElementById('userUsername').value  = u.username   || '';
         document.getElementById('userFirstName').value = u.first_name || '';
         document.getElementById('userLastName').value  = u.last_name  || '';
         document.getElementById('userEmail').value     = u.email      || '';
         document.getElementById('userPhone').value     = u.phone      || '';
-        document.getElementById('userRole').value      = u.role       || 'user';
+        document.getElementById('userDob').value       = u.dob        || '';
+        document.getElementById('userAddress').value   = u.address    || '';
+        document.getElementById('userDegree').value    = u.degree     || '';
+        document.getElementById('userInstitution').value = u.institution || '';
+        document.getElementById('userSpecialization').value = u.specialization || '';
+        document.getElementById('userExperience').value = u.experience ?? '';
+        document.getElementById('userSummary').value   = u.summary    || '';
+        document.getElementById('userRole').value      = u.role       || 'candidate';
+        document.getElementById('userRoleHidden').value = u.role      || 'candidate';
+        document.getElementById('userUsername').readOnly = true;
+        document.getElementById('userEmail').readOnly = true;
+        document.getElementById('userRole').disabled = true;
         // Κρύψε πεδία κωδικού για νέο χρήστη, δείξε την ενότητα αλλαγής κωδικού
         document.getElementById('passwordField').style.display = 'none';
         document.getElementById('confirmPasswordField').style.display = 'none';
@@ -751,4 +878,3 @@ function avatarInitials(string $f, string $l): string {
     </script>
   </body>
 </html>
-
