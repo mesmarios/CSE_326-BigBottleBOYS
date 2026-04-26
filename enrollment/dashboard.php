@@ -27,17 +27,8 @@ require_once __DIR__ . '/includes/sidebar.php';
 <main class="app-main">
   <div class="app-content-header">
     <div class="container-fluid">
-      <div class="row justify-content-center mt-2">
-        <div class="col-12 col-md-10 col-lg-8">
-          <div class="text-center py-1">
-            <h2 class="dashboard-hero-title mb-0">
-              <span class="dashboard-hero-pill">
-                <span class="dashboard-word-wrap"><span class="dashboard-word">Enrollment</span></span>
-                <span class="dashboard-word-wrap"><span class="dashboard-word">Dashboard</span></span>
-              </span>
-            </h2>
-          </div>
-        </div>
+      <div class="row">
+        <div class="col-12 text-center"><h3 class="mb-0"><i class="bi bi-mortarboard-fill me-2"></i>Enrollment Dashboard</h3></div>
       </div>
     </div>
   </div>

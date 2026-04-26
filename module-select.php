@@ -24,8 +24,12 @@ require_once __DIR__ . '/includes/admin-branding.php';
 
 $brandingContext = adminGetBrandingContext($pdo);
 $adminBrandText  = $brandingContext['brand_text'];
-$adminLogo       = $brandingContext['logo'];
 $adminFavicon    = $brandingContext['favicon'];
+
+// adminGetBrandingContext returns paths relative to modules/admin/ depth (../../assets/...)
+// module-select.php is at root so we fix to assets/...
+$adminLogo = (string)$brandingContext['logo'];
+$adminLogo = preg_replace('#^\.\./\.\./assets/#', 'assets/', $adminLogo) ?? $adminLogo;
 
 $fullName = trim((string)(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')));
 if ($fullName === '') {
