@@ -6,6 +6,39 @@
 
 USE bigbrothers;
 
+-- Keep schema in sync with API expectations for supporting document paths
+SET @col4_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'candidate_applications'
+      AND COLUMN_NAME = 'app_sup_path_4'
+);
+SET @sql_col4 := IF(
+    @col4_exists = 0,
+    'ALTER TABLE candidate_applications ADD COLUMN app_sup_path_4 VARCHAR(500) NULL AFTER app_sup_path_3',
+    'SELECT 1'
+);
+PREPARE stmt_col4 FROM @sql_col4;
+EXECUTE stmt_col4;
+DEALLOCATE PREPARE stmt_col4;
+
+SET @col5_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'candidate_applications'
+      AND COLUMN_NAME = 'app_sup_path_5'
+);
+SET @sql_col5 := IF(
+    @col5_exists = 0,
+    'ALTER TABLE candidate_applications ADD COLUMN app_sup_path_5 VARCHAR(500) NULL AFTER app_sup_path_4',
+    'SELECT 1'
+);
+PREPARE stmt_col5 FROM @sql_col5;
+EXECUTE stmt_col5;
+DEALLOCATE PREPARE stmt_col5;
+
 SET FOREIGN_KEY_CHECKS = 0;
 DELETE FROM audit_logs;
 DELETE FROM enrollment_logs;

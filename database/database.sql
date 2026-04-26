@@ -179,6 +179,8 @@ CREATE TABLE candidate_applications (
     app_sup_path_1      VARCHAR(500) NULL,
     app_sup_path_2      VARCHAR(500) NULL,
     app_sup_path_3      VARCHAR(500) NULL,
+    app_sup_path_4      VARCHAR(500) NULL,
+    app_sup_path_5      VARCHAR(500) NULL,
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (announcement_id) REFERENCES job_announcements(id) ON DELETE CASCADE,
