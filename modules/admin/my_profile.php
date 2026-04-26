@@ -272,7 +272,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               $savedToFile = @copy($tmpPath, $targetPath);
             }
 
-            $binarySourcePath = $savedToFile ? $targetPath : $tmpPath;
+            if (!$savedToFile) {
+              respondJson([
+                'success' => false,
+                'error' => 'Αδυναμία αποθήκευσης αρχείου εικόνας στον server. Ελέγξτε δικαιώματα φακέλου uploads/profile_pics.',
+              ], 500);
+            }
+
+            $binarySourcePath = $targetPath;
             $binaryData = file_get_contents($binarySourcePath);
             if ($binaryData === false || $binaryData === '') {
               respondJson(['success' => false, 'error' => 'Δεν ήταν δυνατή η ανάγνωση της εικόνας.'], 500);
@@ -441,6 +448,8 @@ $totalDepartments = (int)($statsRow['total_departments'] ?? 0);
               <li class="nav-item"><a href="report.php" class="nav-link"><i class="nav-icon bi bi-bar-chart"></i><p>Reports</p></a></li>
               <li class="nav-header">ΛΟΓΑΡΙΑΣΜΟΣ</li>
               <li class="nav-item"><a href="my_profile.php" class="nav-link active"><i class="nav-icon bi bi-person-circle"></i><p>My Profile</p></a></li>
+              <li class="nav-header">ΑΛΛΑΓΗ ΕΝΟΤΗΤΑΣ</li>
+              <li class="nav-item"><a href="../../module-select.php" class="nav-link"><i class="nav-icon bi bi-grid-3x3-gap-fill"></i><p>Switch Module</p></a></li>
             </ul>
           </nav>
         </div>
