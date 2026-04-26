@@ -438,12 +438,12 @@ $adminFavicon = $brandingContext['favicon'];
                   <p>Manage Recruitment<i class="nav-arrow bi bi-chevron-right"></i></p>
                 </a>
                 <ul class="nav nav-treeview">
-                  <li class="nav-item"><a href="#applications" class="nav-link" onclick="switchTab('applications')"><i class="nav-icon bi bi-circle"></i><p>Αιτήσεις</p></a></li>
-                  <li class="nav-item"><a href="#candidate-applications" class="nav-link" onclick="switchTab('candidate-applications')"><i class="nav-icon bi bi-circle"></i><p>Submitted Applications</p></a></li>
-                  <li class="nav-item"><a href="#schools" class="nav-link" onclick="switchTab('schools')"><i class="nav-icon bi bi-circle"></i><p>Σχολές</p></a></li>
-                  <li class="nav-item"><a href="#departments" class="nav-link" onclick="switchTab('departments')"><i class="nav-icon bi bi-circle"></i><p>Τμήματα</p></a></li>
-                  <li class="nav-item"><a href="#courses" class="nav-link" onclick="switchTab('courses')"><i class="nav-icon bi bi-circle"></i><p>Μαθήματα</p></a></li>
-                  <li class="nav-item"><a href="#period" class="nav-link" onclick="switchTab('period')"><i class="nav-icon bi bi-circle"></i><p>Περίοδος Αιτήσεων</p></a></li>
+                  <li class="nav-item"><a href="#applications" class="nav-link" onclick="return switchTab('applications')"><i class="nav-icon bi bi-circle"></i><p>Αιτήσεις</p></a></li>
+                  <li class="nav-item"><a href="#candidate-applications" class="nav-link" onclick="return switchTab('candidate-applications')"><i class="nav-icon bi bi-circle"></i><p>Submitted Applications</p></a></li>
+                  <li class="nav-item"><a href="#schools" class="nav-link" onclick="return switchTab('schools')"><i class="nav-icon bi bi-circle"></i><p>Σχολές</p></a></li>
+                  <li class="nav-item"><a href="#departments" class="nav-link" onclick="return switchTab('departments')"><i class="nav-icon bi bi-circle"></i><p>Τμήματα</p></a></li>
+                  <li class="nav-item"><a href="#courses" class="nav-link" onclick="return switchTab('courses')"><i class="nav-icon bi bi-circle"></i><p>Μαθήματα</p></a></li>
+                  <li class="nav-item"><a href="#period" class="nav-link" onclick="return switchTab('period')"><i class="nav-icon bi bi-circle"></i><p>Περίοδος Αιτήσεων</p></a></li>
                 </ul>
               </li>
               <li class="nav-item"><a href="configure_system.php" class="nav-link"><i class="nav-icon bi bi-gear"></i><p>Configure System</p></a></li>
@@ -1300,11 +1300,17 @@ $adminFavicon = $brandingContext['favicon'];
             scrollbars: { theme: 'os-theme-light', autoHide: 'leave', clickScroll: true }
           });
         }
-        const hash = window.location.hash;
-        if (hash) {
-          const tabBtn = document.querySelector('[data-bs-target="' + hash + '"]');
-          if (tabBtn) new bootstrap.Tab(tabBtn).show();
-        }
+        showTabFromHash();
+        window.addEventListener('hashchange', showTabFromHash);
+
+        document.querySelectorAll('#recruitTabs [data-bs-toggle="tab"]').forEach(tabBtn => {
+          tabBtn.addEventListener('shown.bs.tab', event => {
+            const target = event.target.getAttribute('data-bs-target');
+            if (target && window.location.hash !== target) {
+              history.replaceState(null, '', target);
+            }
+          });
+        });
 
         // Search filter
         document.getElementById('appSearch').addEventListener('input', filterTable);
@@ -1373,9 +1379,21 @@ $adminFavicon = $brandingContext['favicon'];
         populateCourseOptions('', '');
       });
 
+      function showTabFromHash() {
+        const hash = window.location.hash || '#applications';
+        const tabBtn = document.querySelector('[data-bs-target="' + hash + '"]');
+        if (tabBtn) {
+          new bootstrap.Tab(tabBtn).show();
+        }
+      }
+
       function switchTab(tabId) {
         const tabBtn = document.querySelector('[data-bs-target="#' + tabId + '"]');
-        if (tabBtn) { new bootstrap.Tab(tabBtn).show(); window.location.hash = '#' + tabId; }
+        if (tabBtn) {
+          new bootstrap.Tab(tabBtn).show();
+          history.replaceState(null, '', '#' + tabId);
+        }
+        return false;
       }
 
       function openNewModal() {
