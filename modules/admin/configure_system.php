@@ -483,15 +483,9 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                   </div>
                   <div class="config-card-body">
                     <div class="d-grid gap-2">
-                      <button type="button" class="btn btn-outline-secondary btn-sm text-start" disabled>
-                        <i class="bi bi-arrow-clockwise me-2 text-primary"></i>Εκκαθάριση Cache
-                      </button>
                       <a href="?action=db_backup" class="btn btn-outline-secondary btn-sm text-start">
                         <i class="bi bi-database me-2 text-success"></i>Δημιουργία Αντιγράφου DB
                       </a>
-                      <button type="button" class="btn btn-outline-secondary btn-sm text-start" disabled>
-                        <i class="bi bi-file-earmark-text me-2 text-info"></i>Λήψη Αρχείων Καταγραφής
-                      </button>
                     </div>
                     <hr class="my-3" />
                     <form method="POST" action="configure_system.php" id="maintenanceToggleForm">
