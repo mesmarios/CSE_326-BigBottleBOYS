@@ -49,7 +49,6 @@ const STAGES = [
   { key: 'Draft', label: 'Draft', icon: 'bi-pencil-square' },
   { key: 'Submitted', label: 'Submitted', icon: 'bi-send-fill' },
   { key: 'Under Review', label: 'Under\nReview', icon: 'bi-search' },
-  { key: 'Evaluation Completed', label: 'Evaluation\nCompleted', icon: 'bi-clipboard-check' },
   { key: 'Approved', label: 'Approved', icon: 'bi-patch-check-fill' },
 ];
 
@@ -65,7 +64,6 @@ function statusBadge(status) {
     Draft: ['badge-draft', 'bi-pencil-square'],
     Submitted: ['badge-submitted', 'bi-send'],
     'Under Review': ['badge-reviewing', 'bi-hourglass-split'],
-    'Evaluation Completed': ['badge-evaluated', 'bi-clipboard-check'],
     Approved: ['badge-approved', 'bi-check-circle-fill'],
     Rejected: ['badge-rejected', 'bi-x-circle-fill'],
   };
@@ -76,8 +74,8 @@ function statusBadge(status) {
 
 function buildStepper(status) {
   const rejected = status === 'Rejected';
-  const current = rejected ? stageIndex('Evaluation Completed') : stageIndex(status);
-  const stages = rejected ? [...STAGES.slice(0, 4), REJECTED_STAGE] : [...STAGES];
+  const stages = rejected ? [...STAGES.slice(0, 3), REJECTED_STAGE] : [...STAGES];
+  const current = rejected ? (stages.length - 1) : stageIndex(status);
 
   return stages.map((stage, index) => {
     let cssClass = index < current ? 'done' : (index === current ? 'current' : '');
@@ -86,7 +84,7 @@ function buildStepper(status) {
       cssClass = 'current rejected-step';
     }
 
-    if (!rejected && status === 'Approved' && index === 4) {
+    if (!rejected && status === 'Approved' && index === (stages.length - 1)) {
       cssClass = 'current approved-step done';
     }
 
@@ -131,22 +129,12 @@ function buildTimeline(submission) {
     });
   }
 
-  if (currentStage >= 3 || status === 'Rejected') {
-    events.push({
-      dot: 'dot-purple',
-      icon: 'bi-clipboard-check',
-      title: 'Evaluation Completed',
-      date: submission.updatedDate ? formatDateTime(submission.updatedDate) : '-',
-      description: 'The evaluation committee has completed its assessment.',
-    });
-  }
-
   if (status === 'Approved') {
     events.push({
       dot: 'dot-success',
       icon: 'bi-patch-check-fill',
       title: 'Application Approved',
-      date: submission.updatedDate ? formatDateTime(submission.updatedDate) : '-',
+      date: submission.reviewedDate ? formatDateTime(submission.reviewedDate) : (submission.updatedDate ? formatDateTime(submission.updatedDate) : '-'),
       description: 'Congratulations! Your application has been approved.',
     });
   }
@@ -156,7 +144,7 @@ function buildTimeline(submission) {
       dot: 'dot-danger',
       icon: 'bi-x-circle-fill',
       title: 'Application Rejected',
-      date: submission.updatedDate ? formatDateTime(submission.updatedDate) : '-',
+      date: submission.reviewedDate ? formatDateTime(submission.reviewedDate) : (submission.updatedDate ? formatDateTime(submission.updatedDate) : '-'),
       description: 'Unfortunately your application was not selected at this time.',
     });
   }
