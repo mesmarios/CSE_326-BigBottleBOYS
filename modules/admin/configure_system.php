@@ -497,24 +497,12 @@ $navAvatarSrc = resolveAdminAvatarSrc($pdo, (int)($_SESSION['user_id'] ?? 0));
                   <div class="config-card-body p-0">
                     <ul class="list-group list-group-flush">
                       <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                        <span class="text-secondary small">Έκδοση Εφαρμογής</span>
-                        <span class="badge bg-primary rounded-pill">v1.0.0</span>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center py-2">
                         <span class="text-secondary small">PHP Version</span>
                         <span class="fw-semibold small">8.2.x</span>
                       </li>
                       <li class="list-group-item d-flex justify-content-between align-items-center py-2">
                         <span class="text-secondary small">Database</span>
                         <span class="fw-semibold small">MySQL 8.0</span>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                        <span class="text-secondary small">Τελευταία Ενημέρωση</span>
-                        <span class="fw-semibold small">27/02/2026</span>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                        <span class="text-secondary small">Moodle</span>
-                        <span class="badge bg-success rounded-pill">Συνδεδεμένο</span>
                       </li>
                     </ul>
                   </div>
