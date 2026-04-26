@@ -2,36 +2,18 @@
 session_start();
 require_once 'database/db.php';
 
-function sanitizeLocalRedirect(?string $target): ?string
-{
-    if ($target === null) {
-        return null;
-    }
-
-    $target = trim($target);
-    if ($target === '' || str_contains($target, '://') || str_starts_with($target, '//')) {
-        return null;
-    }
-
-    $target = ltrim($target, '/');
-    return $target !== '' ? $target : null;
-}
-
 function defaultDashboardForRole(string $role): string
 {
     return match ($role) {
-        'admin', 'hr' => 'module-select.php',
-        'evaluator', 'candidate' => 'modules/recruitmentModule/index.php',
-        'ee_hired' => 'enrollment/dashboard.php',
-        default => 'login.php',
+        'admin', 'hr'              => 'module-select.php',
+        'evaluator', 'candidate'   => 'modules/recruitmentModule/index.php',
+        'ee_hired'                 => 'enrollment/dashboard.php',
+        default                    => 'login.php',
     };
 }
 
-$errors       = [];
-$registered   = isset($_GET['registered']) && $_GET['registered'] == 1;
-$redirectTo   = null; // no longer used for redirect, kept to avoid template errors
-$requireAdmin = (isset($_GET['admin']) && $_GET['admin'] === '1')
-    || (isset($_POST['require_admin']) && $_POST['require_admin'] === '1');
+$errors     = [];
+$registered = isset($_GET['registered']) && $_GET['registered'] == 1;
 
 if (isset($_SESSION['user_id'], $_SESSION['role'])) {
     header('Location: ' . defaultDashboardForRole((string)$_SESSION['role']));
@@ -46,7 +28,6 @@ if (isset($_SESSION['auth_error'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email']    ?? '');
     $password = $_POST['password']      ?? '';
-    $isAdmin  = isset($_POST['go_admin']) || $requireAdmin;
 
     if ($email === '' || $password === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Λανθασμένα στοιχεία σύνδεσης.';
@@ -56,20 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
-            $privilegedRoles = ['admin', 'hr'];
-            if ($isAdmin && !in_array($user['role'], $privilegedRoles, true)) {
-                $errors[] = 'Δεν έχετε δικαιώματα διαχειριστή ή HR.';
-            } else {
-                session_regenerate_id(true);
-                $_SESSION['user_id']    = $user['id'];
-                $_SESSION['role']       = $user['role'];
-                $_SESSION['first_name'] = $user['first_name'];
-                $_SESSION['last_name']  = $user['last_name'];
-                $_SESSION['email']      = $user['email'];
+            session_regenerate_id(true);
+            $_SESSION['user_id']    = $user['id'];
+            $_SESSION['role']       = $user['role'];
+            $_SESSION['first_name'] = $user['first_name'];
+            $_SESSION['last_name']  = $user['last_name'];
+            $_SESSION['email']      = $user['email'];
 
-                header('Location: ' . defaultDashboardForRole((string)$user['role']));
-                exit;
-            }
+            header('Location: ' . defaultDashboardForRole((string)$user['role']));
+            exit;
         } else {
             $errors[] = 'Λανθασμένα στοιχεία σύνδεσης.';
         }
@@ -91,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="auth-wrapper">
 
-    <!-- Left Panel (ίδιο με register) -->
+    <!-- Left Panel -->
     <div class="auth-left">
         <div class="auth-left-logo">
             <img src="assets/images/17780_100tepak-logo.png" alt="ΤΕΠΑΚ Logo">
@@ -112,9 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="assets/images/17780_100tepak-logo.png" alt="ΤΕΠΑΚ">
         </div>
         <h2>Σύνδεση</h2>
-        <p class="auth-subtitle">
-            <?= $requireAdmin ? 'Σύνδεση διαχειριστή με έγκυρα στοιχεία.' : 'Καλώς ήρθατε πίσω.' ?>
-        </p>
+        <p class="auth-subtitle">Καλώς ήρθατε πίσω.</p>
 
         <?php if ($registered): ?>
             <div class="auth-success">
@@ -131,8 +105,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" class="auth-form">
-            <input type="hidden" name="require_admin" value="<?= $requireAdmin ? '1' : '0' ?>">
-            <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($redirectTo ?? '') ?>">
             <div class="mb-4">
                 <label class="form-label login-label">Email <span class="required">*</span></label>
                 <input type="email" name="email" class="form-control form-control-login"
@@ -146,18 +118,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        placeholder="Εισάγετε τον κωδικό σας">
             </div>
 
-            <?php if ($requireAdmin): ?>
-                <button type="submit" name="go_admin" class="btn-auth btn-auth-login mb-3">
-                    <i class="bi bi-shield-lock me-2"></i>Σύνδεση Διαχειριστή
-                </button>
-            <?php else: ?>
-                <button type="submit" name="login" class="btn-auth btn-auth-login mb-3">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Σύνδεση Χρήστη
-                </button>
-                <button type="submit" name="go_admin" class="btn-auth-secondary btn-auth-secondary-login">
-                    <i class="bi bi-shield-lock me-2"></i>Σύνδεση Διαχειριστή
-                </button>
-            <?php endif; ?>
+            <button type="submit" class="btn-auth btn-auth-login mb-3">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Σύνδεση
+            </button>
         </form>
 
         <p class="auth-login-link">
