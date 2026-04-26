@@ -18,11 +18,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS enrollment_logs;
-DROP TABLE IF EXISTS sync_schedules;
 DROP TABLE IF EXISTS lms_access;
 DROP TABLE IF EXISTS specialist_enrollments;
 DROP TABLE IF EXISTS lms_users;
-DROP TABLE IF EXISTS lms_connections;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS application_responses;
 DROP TABLE IF EXISTS application_form_fields;
@@ -33,7 +31,6 @@ DROP TABLE IF EXISTS recruitment_periods;
 DROP TABLE IF EXISTS courses;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS schools;
-DROP TABLE IF EXISTS themes;
 DROP TABLE IF EXISTS system_settings;
 DROP TABLE IF EXISTS users;
 
@@ -234,37 +231,7 @@ CREATE TABLE system_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 12. THEMES
--- ============================================================================
-CREATE TABLE themes (
-    id              INT          PRIMARY KEY AUTO_INCREMENT,
-    name            VARCHAR(100) NOT NULL UNIQUE,
-    logo_url        VARCHAR(500),
-    primary_color   VARCHAR(7),
-    secondary_color VARCHAR(7),
-    description     TEXT,
-    is_active       TINYINT(1) DEFAULT 0,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 13. LMS CONNECTIONS  (Moodle server configuration)
--- ============================================================================
-CREATE TABLE lms_connections (
-    id          INT          PRIMARY KEY AUTO_INCREMENT,
-    name        VARCHAR(100) NOT NULL,
-    api_url     VARCHAR(500) NOT NULL,
-    api_key     VARCHAR(500) NOT NULL,
-    api_secret  VARCHAR(500),
-    status      ENUM('active','inactive','testing') DEFAULT 'inactive',
-    description TEXT,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 14. LMS ACCESS  (per-user, per-course Moodle access — Enrollment Module)
+-- 12. LMS ACCESS  (per-user, per-course Moodle access — Enrollment Module)
 -- ============================================================================
 CREATE TABLE lms_access (
     id             INT PRIMARY KEY AUTO_INCREMENT,
@@ -282,7 +249,7 @@ CREATE TABLE lms_access (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 15. SPECIALIST ENROLLMENTS  (detailed Moodle enrollment with LMS course ID)
+-- 13. SPECIALIST ENROLLMENTS  (detailed Moodle enrollment with LMS course ID)
 -- ============================================================================
 CREATE TABLE specialist_enrollments (
     id             INT          PRIMARY KEY AUTO_INCREMENT,
@@ -298,22 +265,7 @@ CREATE TABLE specialist_enrollments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 16. SYNC SCHEDULES
--- ============================================================================
-CREATE TABLE sync_schedules (
-    id                INT          PRIMARY KEY AUTO_INCREMENT,
-    name              VARCHAR(100) NOT NULL,
-    sync_type         ENUM('auto_sync','full_sync') DEFAULT 'auto_sync',
-    is_enabled        TINYINT(1)   DEFAULT 0,
-    frequency_minutes INT          DEFAULT 60,
-    last_sync_at      DATETIME     NULL,
-    next_sync_at      DATETIME     NULL,
-    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- 17. ENROLLMENT LOGS
+-- 14. ENROLLMENT LOGS
 -- ============================================================================
 CREATE TABLE enrollment_logs (
     id            INT          PRIMARY KEY AUTO_INCREMENT,
@@ -332,7 +284,7 @@ CREATE TABLE enrollment_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 18. NOTIFICATIONS
+-- 15. NOTIFICATIONS
 -- ============================================================================
 CREATE TABLE notifications (
     id                  INT          PRIMARY KEY AUTO_INCREMENT,
@@ -349,7 +301,7 @@ CREATE TABLE notifications (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- 19. AUDIT LOGS
+-- 16. AUDIT LOGS
 -- ============================================================================
 CREATE TABLE audit_logs (
     id          INT          PRIMARY KEY AUTO_INCREMENT,
@@ -394,3 +346,4 @@ CREATE INDEX idx_enroll_log_user   ON enrollment_logs(user_id);
 -- ============================================================================
 -- END OF DATABASE
 -- ============================================================================
+
