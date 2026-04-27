@@ -1,197 +1,202 @@
-# SPECIALIST MANAGEMENT SYSTEM — DATABASE SUMMARY
+# Database Summary
 
-Σύστημα Διαχείρισης Ειδικών Επιστημόνων (ΕΕ) — ΤΕΠΑΚ
+Σύνοψη της βάσης δεδομένων του project `CSE_326 BigBottleBOYS`.
 
----
+## Βασικά Στοιχεία
 
+- Όνομα βάσης: `bigbrothers`
+- Schema file: `database/database.sql`
+- Seed file: `database/seed.sql`
+- Connection file: `database/db.php`
 
-Password of users: Demo1234!
+## Κοινό Password Demo Χρηστών
 
-## Αρχεία Βάσης Δεδομένων
+Όλοι οι seeded χρήστες έχουν το ίδιο password:
 
-| Αρχείο | Περιεχόμενο |
-|--------|-------------|
-| `database/database.sql` | Πλήρες schema — δημιουργία DB + 19 tables + indexes |
-| `database/seed.sql` | Δεδομένα δοκιμής — 9 χρήστες, μαθήματα, αιτήσεις, κ.λπ. |
+- `Demo1234!`
 
-**Όνομα Βάσης:** `bigbrothers`  
-**Σύνδεση:** `c:\xampp\htdocs\CSE_326-BigBottleBOYS\database\db.php` (PDO)
+## Ρόλοι Χρηστών
 
----
+Ο ρόλος αποθηκεύεται στη στήλη `users.role` ως:
 
-## Εισαγωγή σε phpMyAdmin
+- `admin`
+- `hr`
+- `evaluator`
+- `candidate`
+- `ee_hired`
 
-1. Άνοιξε `http://localhost/phpmyadmin`
-2. Αν υπάρχει ήδη η βάση `bigbrothers`, διέγραψέ την (Drop)
-3. **Import** → επίλεξε `database/database.sql` → Go  
-   *(δημιουργεί τη βάση και όλους τους πίνακες)*
-4. **Import** → επίλεξε `database/seed.sql` → Go  
-   *(εισάγει τα δεδομένα δοκιμής)*
+## Redirect μετά το Login
 
----
+| Role | Redirect |
+|---|---|
+| `admin` | `module-select.php` |
+| `hr` | `module-select.php` |
+| `evaluator` | `modules/recruitmentModule/index.php` |
+| `candidate` | `modules/recruitmentModule/index.php` |
+| `ee_hired` | `enrollment/dashboard.php` |
 
-## Ρόλοι Χρηστών & Πρόσβαση
+## Πίνακες Βάσης
 
-Ο ρόλος αποθηκεύεται ως `ENUM` στη στήλη `users.role`. Δεν υπάρχουν ξεχωριστοί πίνακες roles/user_roles.
+Η βάση περιέχει `16` tables.
 
-| Ρόλος | Πού ανακατευθύνεται μετά το login | Πρόσβαση |
-|-------|-----------------------------------|----------|
-| `admin` | `module-select.php` | Admin Module + Enrollment Module |
-| `hr` | `module-select.php` | Recruitment Module + Enrollment Module |
-| `evaluator` | `modules/recruitmentModule/index.php` | Recruitment Module (αξιολόγηση μόνο) |
-| `candidate` | `modules/recruitmentModule/index.php` | Recruitment Module (υποβολή αιτήσεων) |
-| `ee_hired` | `enrollment/dashboard.php` | Enrollment Module (μόνο δική τους LMS πρόσβαση) |
+### Core Users
 
----
-
-## Πίνακες (19 συνολικά)
-
-### Χρήστες
 | Πίνακας | Περιγραφή |
-|---------|-----------|
-| `users` | Όλοι οι χρήστες — role ENUM('admin','hr','evaluator','candidate','ee_hired') |
+|---|---|
+| `users` | Όλοι οι χρήστες της εφαρμογής |
 
-### Ακαδημαϊκή Δομή
+### Academic Structure
+
 | Πίνακας | Περιγραφή |
-|---------|-----------|
-| `schools` | Σχολές ΤΕΠΑΚ |
-| `departments` | Τμήματα (FK → schools) |
-| `courses` | Μαθήματα με κωδικό, credits, semester (FK → departments) |
-
-### Recruitment Module
-| Πίνακας | Περιγραφή |
-|---------|-----------|
-| `recruitment_periods` | Περίοδοι προσλήψεων (planning/active/closed/archived) |
-| `job_announcements` | Προκηρύξεις θέσεων (FK → periods, schools, departments, courses) |
-| `application_evaluators` | Αξιολογητές ανά προκήρυξη |
-| `candidate_applications` | Αιτήσεις υποψηφίων (draft→submitted→under_review→accepted/rejected/withdrawn) |
-| `application_form_fields` | Δυναμικά πεδία φόρμας ανά προκήρυξη |
-| `application_responses` | Απαντήσεις υποψηφίων σε κάθε πεδίο |
-
-### Enrollment / LMS Module
-| Πίνακας | Περιγραφή |
-|---------|-----------|
-| `lms_connections` | Ρυθμίσεις Moodle server (api_url, api_key, status) |
-| `lms_access` | Πρόσβαση ανά χρήστη/μάθημα (active/inactive), UNIQUE(user_id, course_id) |
-| `specialist_enrollments` | Λεπτομερής εγγραφή ΕΕ σε Moodle (με lms_course_id) |
-| `sync_schedules` | Χρονοδιαγράμματα αυτόματου sync |
-| `enrollment_logs` | Log κάθε ενέργειας enrollment |
-
-### Σύστημα
-| Πίνακας | Περιγραφή |
-|---------|-----------|
-| `system_settings` | Κλειδί/τιμή ρυθμίσεων (app_name, moodle_url, maintenance_mode, κ.λπ.) |
-| `themes` | Θέματα εμφάνισης (logo, primary_color, secondary_color) |
-| `notifications` | Ειδοποιήσεις ανά χρήστη |
-| `audit_logs` | Πλήρες ιστορικό ενεργειών (user_id, action, entity, ip, user_agent) |
-
----
-
-## Δεδομένα Δοκιμής (seed.sql)
-
-### Χρήστες (9 σύνολο) — Κωδικός: `Demo1234!`
-
-| Ρόλος | Email | Όνομα |
-|-------|-------|-------|
-| `admin` | admin@tepak.cy | Μάριος Μεσαρίτης |
-| `hr` | hr@tepak.cy | Ελένη Παπαδοπούλου |
-| `evaluator` | eval.giorgos@tepak.cy | Γιώργος Κωνσταντίνου |
-| `evaluator` | eval.christos@tepak.cy | Χρήστος Σταύρου |
-| `candidate` | nikos.andreou@student.tepak.cy | Νίκος Αντρέου |
-| `candidate` | maria.christou@student.tepak.cy | Μαρία Χρίστου |
-| `candidate` | panagiotis.ioannou@student.tepak.cy | Παναγιώτης Ιωάννου |
-| `ee_hired` | sofia.mihail@tepak.cy | Σοφία Μιχαήλ |
-| `ee_hired` | andreas.petrou@tepak.cy | Ανδρέας Πέτρου |
-
-### Ακαδημαϊκά Δεδομένα
-- **2 Σχολές**: Μηχανικής & Τεχνολογίας, Επιστημών
-- **3 Τμήματα**: Πληροφορικής, Ηλεκτρολόγων, Μαθηματικών
-- **6 Μαθήματα**: CSE326, CSE315, CSE201, EEE301, MATH101, MATH202
+|---|---|
+| `schools` | Σχολές |
+| `departments` | Τμήματα ανά σχολή |
+| `courses` | Μαθήματα ανά τμήμα |
 
 ### Recruitment
-- **2 Περίοδοι προσλήψεων**: Περίοδος 2026 (active), Περίοδος 2025 (closed)
-- **6 Προκηρύξεις** κατανεμημένες στις δύο περιόδους
-- **5 Αιτήσεις** σε διάφορα στάδια (submitted, under_review, accepted, rejected)
 
-### LMS Access
-| Χρήστης | Μάθημα | Κατάσταση |
-|---------|--------|-----------|
-| Σοφία Μιχαήλ | CSE326 | `active` |
-| Ανδρέας Πέτρου | CSE315 | `inactive` |
+| Πίνακας | Περιγραφή |
+|---|---|
+| `recruitment_periods` | Περίοδοι αιτήσεων |
+| `job_announcements` | Αγγελίες / προκηρύξεις θέσεων |
+| `application_evaluators` | Ανάθεση αξιολογητών σε αγγελίες |
+| `candidate_applications` | Αιτήσεις υποψηφίων |
+| `application_form_fields` | Δυναμικά πεδία αίτησης |
+| `application_responses` | Απαντήσεις σε δυναμικά πεδία |
 
----
+### Enrollment / LMS
 
-## Αρχιτεκτονική (ER Διάγραμμα)
+| Πίνακας | Περιγραφή |
+|---|---|
+| `lms_access` | Πρόσβαση χρήστη σε μάθημα |
+| `specialist_enrollments` | Enrollment records για ΕΕ |
+| `enrollment_logs` | Log ενεργειών enrollment / sync |
 
+### System
+
+| Πίνακας | Περιγραφή |
+|---|---|
+| `system_settings` | System settings και branding |
+| `notifications` | Ειδοποιήσεις χρηστών |
+| `audit_logs` | Audit log ενεργειών |
+
+## Κύριες Σχέσεις
+
+- `departments.school_id -> schools.id`
+- `courses.department_id -> departments.id`
+- `job_announcements.period_id -> recruitment_periods.id`
+- `job_announcements.school_id -> schools.id`
+- `job_announcements.department_id -> departments.id`
+- `job_announcements.course_id -> courses.id`
+- `application_evaluators.announcement_id -> job_announcements.id`
+- `application_evaluators.evaluator_id -> users.id`
+- `candidate_applications.announcement_id -> job_announcements.id`
+- `candidate_applications.candidate_id -> users.id`
+- `candidate_applications.reviewed_by -> users.id`
+- `application_responses.application_id -> candidate_applications.id`
+- `application_responses.field_id -> application_form_fields.id`
+- `lms_access.user_id -> users.id`
+- `lms_access.course_id -> courses.id`
+- `specialist_enrollments.user_id -> users.id`
+- `specialist_enrollments.course_id -> courses.id`
+- `notifications.user_id -> users.id`
+- `audit_logs.user_id -> users.id`
+
+## Seed Data Overview
+
+### Demo Users
+
+Το `seed.sql` δημιουργεί `20` χρήστες:
+
+- `3 admin`
+- `1 hr`
+- `2 evaluator`
+- `12 candidate`
+- `2 ee_hired`
+
+### Ενδεικτικά Demo Emails
+
+| Role | Email |
+|---|---|
+| `admin` | `admin@tepak.cy` |
+| `admin` | `admin2@tepak.cy` |
+| `admin` | `admin3@tepak.cy` |
+| `hr` | `hr@tepak.cy` |
+| `evaluator` | `eval.giorgos@tepak.cy` |
+| `evaluator` | `eval.christos@tepak.cy` |
+| `candidate` | `nikos.andreou@student.tepak.cy` |
+| `candidate` | `maria.christou@student.tepak.cy` |
+| `candidate` | `panagiotis.ioannou@student.tepak.cy` |
+| `ee_hired` | `sofia.mihail@tepak.cy` |
+| `ee_hired` | `andreas.petrou@tepak.cy` |
+
+### Ακαδημαϊκά Δεδομένα
+
+Το seed περιλαμβάνει:
+
+- `3` σχολές
+- `5` τμήματα
+- `9` μαθήματα
+
+### Recruitment Δεδομένα
+
+Το seed περιλαμβάνει:
+
+- `3` recruitment periods
+- `15` job announcements
+- assignments evaluators
+- αιτήσεις σε καταστάσεις:
+  - `draft`
+  - `submitted`
+  - `under_review`
+  - `accepted`
+  - `rejected`
+  - `withdrawn`
+
+### Enrollment Δεδομένα
+
+Το seed περιλαμβάνει:
+
+- active / inactive records στο `lms_access`
+- αντίστοιχα records στο `specialist_enrollments`
+- sync settings στο `system_settings`
+
+## System Settings που υπάρχουν στο Seed
+
+| Key | Περιγραφή |
+|---|---|
+| `app_name` | Όνομα εφαρμογής |
+| `institution_name` | Όνομα ιδρύματος |
+| `moodle_url` | Moodle base URL |
+| `moodle_token` | Moodle token placeholder |
+| `lms_auto_sync_enabled` | Auto sync on/off |
+| `lms_last_sync_at` | Τελευταίος sync χρόνος |
+| `lms_last_sync_log` | Τελευταίο sync log |
+| `maintenance_mode` | Maintenance mode flag |
+
+## Import Οδηγίες
+
+### Με phpMyAdmin
+
+1. Δημιούργησε ή κάνε import τη βάση `bigbrothers`
+2. Κάνε import το `database/database.sql`
+3. Κάνε import το `database/seed.sql`
+
+### Με terminal
+
+```bash
+mysql -u root < database/database.sql
+mysql -u root bigbrothers < database/seed.sql
 ```
-┌──────────────────────────────────┐
-│             USERS                │
-│  id · username · email           │
-│  role ENUM(admin|hr|evaluator|   │
-│         candidate|ee_hired)      │
-│  password_hash · first_name ...  │
-└──┬───────────────────────────────┘
-   │
-   │ (candidate_id)           (evaluator_id)
-   │                               │
-   ▼                               │
-CANDIDATE_APPLICATIONS ◄───────────┘
-   │ (announcement_id)     APPLICATION_EVALUATORS
-   │
-   ▼
-JOB_ANNOUNCEMENTS ──── APPLICATION_FORM_FIELDS
-   │ (period_id)                   │
-   │ (school_id)         APPLICATION_RESPONSES
-   │ (department_id)
-   │ (course_id)
-   │
-   ├──► RECRUITMENT_PERIODS
-   ├──► SCHOOLS
-   ├──► DEPARTMENTS
-   └──► COURSES ◄──── LMS_ACCESS ◄──── USERS (ee_hired)
-                      SPECIALIST_ENROLLMENTS
 
-SYSTEM_SETTINGS   THEMES   NOTIFICATIONS   AUDIT_LOGS
-LMS_CONNECTIONS   SYNC_SCHEDULES   ENROLLMENT_LOGS
-```
+## Σημειώσεις
 
----
+- Το `seed.sql` μηδενίζει δεδομένα πριν επανεισάγει demo περιεχόμενο.
+- Η εφαρμογή βασίζεται σε κοινή βάση και στα 3 modules.
+- Οι demo χρήστες χρησιμοποιούν όλοι το ίδιο password για εύκολη παρουσίαση/demo.
 
-## Ασφάλεια
+## Ομάδα
 
-- **Password hashing**: `password_hash()` bcrypt cost 12
-- **SQL Injection**: PDO prepared statements παντού
-- **XSS**: `htmlspecialchars()` σε όλα τα output
-- **CSRF**: Προτείνεται token σε forms
-- **Audit log**: Κάθε ενέργεια καταγράφεται με IP + user_agent
-- **Maintenance mode**: Dual mechanism — `system_settings.maintenance_mode` (DB) + `maintenance.lock` (file fallback)
-
----
-
-## Δομή Φακέλων (σχετικά με βάση)
-
-```
-c:\xampp\htdocs\CSE_326-BigBottleBOYS\
-├── database/
-│   ├── database.sql          ← Schema (τρέξε πρώτο)
-│   ├── seed.sql              ← Δεδομένα (τρέξε δεύτερο)
-│   ├── db.php                ← PDO σύνδεση
-│   └── DATABASE_SUMMARY.md  ← Αυτό το αρχείο
-├── login.php
-├── register.php
-├── module-select.php         ← Επιλογή ενότητας (admin/hr)
-├── modules/
-│   ├── admin/                ← Admin Module
-│   └── recruitmentModule/   ← Recruitment Module
-└── enrollment/               ← Enrollment Module
-    ├── dashboard.php
-    ├── lms-sync.php
-    ├── full-sync.php
-    └── report.php
-```
-
----
-
-**Τελευταία ενημέρωση**: Απρίλιος 2026  
-**Βάση Δεδομένων**: `bigbrothers`  
-**Stack**: PHP + MariaDB (XAMPP) · AdminLTE v4 · Bootstrap 5.3.7
+- Μάριος Σιήττας - Α.Φ.Τ. 27432
+- Μάριος Μεσαρίτης - Α.Φ.Τ. 27818
+- Μιχαλής Τσαδιώτης - Α.Φ.Τ. 28053

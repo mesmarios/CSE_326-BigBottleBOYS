@@ -524,6 +524,11 @@ $notificationsFooterDestination = $notifications !== [] ? notificationDestinatio
                     </a>
                   </li>
                   <li class="nav-item">
+                    <a href="manage_recruitment.php#candidate-applications" class="nav-link">
+                      <i class="nav-icon bi bi-circle"></i><p>Submitted Applications</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
                     <a href="manage_recruitment.php#schools" class="nav-link">
                       <i class="nav-icon bi bi-circle"></i><p>Σχολές</p>
                     </a>

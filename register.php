@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->fetch()) $errors[] = 'Το email χρησιμοποιείται ήδη.';
     }
 
-    // Εγγραφή — role DEFAULT 'user' αυτόματα από τη βάση
+    // Εγγραφή — role DEFAULT 'candidate' αυτόματα από τη βάση
     if (empty($errors)) {
         $hash = password_hash($password, PASSWORD_DEFAULT);
 
