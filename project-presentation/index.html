@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CareerTrack TEPAK - Παρουσίαση Project</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="background-grid"></div>
+  <div class="background-orb orb-1"></div>
+  <div class="background-orb orb-2"></div>
+  <div class="background-orb orb-3"></div>
+  <div class="progress-bar" id="progressBar"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="../assets/images/17780_100tepak-logo.png" alt="TEPAK" class="brand-logo" />
+      <div>
+        <p class="brand-eyebrow">CSE 326 - BigBottleBOYS</p>
+        <h1>CareerTrack Platform</h1>
+      </div>
+    </div>
+
+    <nav class="topnav" id="topNav">
+      <a href="#hero">Αρχή</a>
+      <a href="#metrics">Στατιστικά</a>
+      <a href="#database">Βάση</a>
+      <a href="#roles">Ρόλοι</a>
+      <a href="#flow">Flow</a>
+      <a href="#enrollment">Enrollment</a>
+      <a href="#security">Security</a>
+      <a href="#api">API</a>
+    </nav>
+
+    <button class="menu-btn" id="menuBtn" aria-label="Μενού" aria-expanded="false" aria-controls="topNav">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <section class="presenter-banner" aria-label="Στοιχεία παρουσίασης">
+    <div class="banner-intro">
+      <p class="banner-label">Παρουσίαση πριν το live demo</p>
+      <h2>Σύντομο, καθαρό και τεχνικά τεκμηριωμένο walkthrough του CareerTrack με πραγματικά στοιχεία από την υλοποίηση.</h2>
+    </div>
+    <div class="presenter-grid">
+      <article class="presenter-item">
+        <span>Μάθημα</span>
+        <strong>CSE 326</strong>
+      </article>
+      <article class="presenter-item">
+        <span>Project</span>
+        <strong>Εφαρμογή Διαχείρισης Ειδικών Επιστημόνων</strong>
+      </article>
+      <article class="presenter-item">
+        <span>Ομάδα</span>
+        <strong>BigBottleBOYS</strong>
+      </article>
+      <article class="presenter-item presenter-item-wide">
+        <span>Members</span>
+        <strong class="member-stack">
+          <span>Μάριος Σιήττας (27432)</span>
+          <span>Μάριος Μεσαρίτης (27818)</span>
+          <span>Μιχαλής Τσαδιώτης (28053)</span>
+        </strong>
+      </article>
+      <article class="presenter-item presenter-item-wide">
+        <span>Διδάσκων</span>
+        <strong>Παπαγιάννης Πέτρος</strong>
+      </article>
+    </div>
+  </section>
+
+  <main>
+    <section class="hero panel visible" id="hero">
+      <div class="hero-text reveal">
+        <div class="chip">Admin + Recruitment + Enrollment σε ένα ενιαίο πληροφοριακό σύστημα</div>
+        <p class="hero-kicker">Executive Summary</p>
+        <h2>Από την εγγραφή χρήστη μέχρι την αίτηση, την αξιολόγηση και την πρόσβαση στο Moodle.</h2>
+        <p>
+          Η πλατφόρμα είναι web εφαρμογή σε PHP/MySQL με διακριτά modules ανά ρόλο, εξαγωγές δεδομένων,
+          maintenance mode, ειδοποιήσεις προς διαχειριστές, ροές συγχρονισμού enrollment και ασφαλή διαχείριση αρχείων.
+        </p>
+
+        <div class="hero-summary">
+          <span>5 ρόλοι χρηστών</span>
+          <span>16 πίνακες βάσης</span>
+          <span>End-to-end flow από την αίτηση έως το LMS access</span>
+        </div>
+
+        <div class="hero-actions">
+          <a href="#flow" class="btn btn-primary">Δες το Γενικό Flow</a>
+          <a href="#api" class="btn btn-secondary">REST API και Postman</a>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <strong data-counter="53300">53,300</strong>
+            <span>Γραμμές κώδικα συνολικά σε PHP, CSS, JS, SQL και τεκμηρίωση</span>
+          </article>
+          <article class="stat-card">
+            <strong data-counter="16">16</strong>
+            <span>Πίνακες στη βάση με 22 foreign keys</span>
+          </article>
+          <article class="stat-card">
+            <strong data-counter="5">5</strong>
+            <span>Ρόλοι με διαφορετικά permissions και διαφορετικά dashboard flows</span>
+          </article>
+        </div>
+      </div>
+
+      <div class="hero-visual reveal delay-1">
+        <div class="hero-stage floating">
+          <div class="hero-badge hero-badge-top">Realtime admin notifications</div>
+          <article class="glass-card logo-showcase">
+            <div class="showcase-ring"></div>
+            <img src="../assets/images/17780_100tepak-logo.png" alt="TEPAK logo" />
+          </article>
+          <article class="glass-card prototype-showcase">
+            <div class="prototype-frame">
+              <div class="proto-text">
+                <h4>Core Modules</h4>
+                <ul>
+                  <li>Admin: χρήστες, reports, ρυθμίσεις συστήματος</li>
+                  <li>Recruitment: candidate dashboard, αιτήσεις και statuses</li>
+                  <li>Enrollment: LMS sync, full sync και download stats</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+          <div class="hero-badge hero-badge-bottom">PDO + Sessions + Validation + Exports</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="metrics">
+      <div class="section-heading reveal">
+        <span class="section-index">01</span>
+        <div>
+          <p class="section-kicker">Κώδικας και Μετρήσεις</p>
+          <h3>Πόσο μεγάλο είναι το project και πώς κατανέμεται τεχνικά</h3>
+        </div>
+      </div>
+
+      <div class="cards-grid four-up">
+        <article class="glass-card reveal">
+          <h4>Σύνολο Αρχείων</h4>
+          <p>47 αρχεία PHP, 11 CSS, 7 JavaScript, 2 SQL και 3 αρχεία τεκμηρίωσης.</p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <h4>PHP</h4>
+          <p>13.675 γραμμές server-side λογικής για authentication, guards, API endpoints και pages.</p>
+        </article>
+        <article class="glass-card reveal delay-2">
+          <h4>Frontend</h4>
+          <p>38.204 γραμμές σε CSS και JavaScript για UI, components, interactions και responsive behavior.</p>
+        </article>
+        <article class="glass-card reveal">
+          <h4>Database + Docs</h4>
+          <p>930 γραμμές SQL για schema/seed και 491 γραμμές τεκμηρίωσης.</p>
+        </article>
+      </div>
+
+      <article class="glass-card reveal highlight-block">
+        <h4>Τι δείχνουν αυτοί οι αριθμοί</h4>
+        <p>
+          Δεν πρόκειται για ένα απλό demo interface. Είναι ολοκληρωμένο πληροφοριακό σύστημα με modular δομή,
+          API layer, role guards, reports και σαφές data lifecycle.
+        </p>
+      </article>
+    </section>
+
+    <section class="panel split" id="database">
+      <div class="section-heading reveal">
+        <span class="section-index">02</span>
+        <div>
+          <p class="section-kicker">Data Layer</p>
+          <h3>Βάση δεδομένων, πίνακες και μεταξύ τους σχέσεις</h3>
+        </div>
+      </div>
+
+      <div class="content-grid two-cols">
+        <article class="glass-card reveal">
+          <h4>16 πίνακες σε 5 domains</h4>
+          <ul class="feature-list compact">
+            <li>Users: users</li>
+            <li>Academic: schools, departments, courses</li>
+            <li>Recruitment: periods, announcements, applications, evaluators, form fields, responses</li>
+            <li>Enrollment: lms_access, specialist_enrollments, enrollment_logs</li>
+            <li>System: system_settings, notifications, audit_logs</li>
+          </ul>
+        </article>
+
+        <article class="glass-card reveal delay-1">
+          <h4>Πώς συνδέονται</h4>
+          <ul class="feature-list compact">
+            <li>school -> department -> course</li>
+            <li>period + school + department + course -> job_announcement</li>
+            <li>job_announcement + candidate -> candidate_application</li>
+            <li>candidate_application -> application_responses/files</li>
+            <li>user + course -> lms_access + specialist_enrollments</li>
+          </ul>
+        </article>
+      </div>
+
+      <article class="glass-card reveal">
+        <h4>Key Fact</h4>
+        <p>Οι 22 foreign keys επιβάλλουν referential integrity και αποτρέπουν orphan εγγραφές στη βάση.</p>
+      </article>
+    </section>
+
+    <section class="panel" id="roles">
+      <div class="section-heading reveal">
+        <span class="section-index">03</span>
+        <div>
+          <p class="section-kicker">Role-Based Access</p>
+          <h3>Τι βλέπει κάθε ρόλος αμέσως μετά το login</h3>
+        </div>
+      </div>
+
+      <div class="cards-grid four-up">
+        <article class="glass-card reveal">
+          <h4>admin</h4>
+          <p>Οδηγείται στο module-select και έχει πρόσβαση στο Admin και στο Enrollment module.</p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <h4>hr</h4>
+          <p>Οδηγείται στο module-select και έχει πρόσβαση στο Recruitment και στο Enrollment module.</p>
+        </article>
+        <article class="glass-card reveal delay-2">
+          <h4>evaluator</h4>
+          <p>Βλέπει το recruitment dashboard για αξιολόγηση και ενημέρωση αιτήσεων.</p>
+        </article>
+        <article class="glass-card reveal">
+          <h4>candidate / ee_hired</h4>
+          <p>Ο candidate ακολουθεί το recruitment flow, ενώ ο <code>ee_hired</code> αποκτά enrollment dashboard και πρόσβαση στο Moodle.</p>
+        </article>
+      </div>
+
+      <article class="glass-card reveal highlight-block">
+        <h4>Guards</h4>
+        <p>
+          Τα admin pages προστατεύονται με admin-only guards, το recruitment ελέγχει επιτρεπόμενους ρόλους
+          και το enrollment είναι διαθέσιμο μόνο στους <code>admin</code>, <code>hr</code> και <code>ee_hired</code>.
+        </p>
+      </article>
+    </section>
+
+    <section class="panel" id="flow">
+      <div class="section-heading reveal">
+        <span class="section-index">04</span>
+        <div>
+          <p class="section-kicker">Γενικό Flow</p>
+          <h3>Τι συμβαίνει από τη δημιουργία λογαριασμού μέχρι την τελική πρόσβαση</h3>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <article class="timeline-step reveal"><span>1</span><p>Ο χρήστης κάνει εγγραφή με validation σε email, τηλέφωνο και ισχυρό κωδικό.</p></article>
+        <article class="timeline-step reveal delay-1"><span>2</span><p>Μετά το login δημιουργείται session και γίνεται redirect με βάση τον ρόλο.</p></article>
+        <article class="timeline-step reveal delay-2"><span>3</span><p>Ο candidate βλέπει τις ανοιχτές προκηρύξεις και ξεκινά αίτηση τεσσάρων βημάτων.</p></article>
+        <article class="timeline-step reveal"><span>4</span><p>Η αίτηση μπορεί να αποθηκευτεί ως draft ή να γίνει submit μαζί με αρχεία, όπως CV και supporting documents.</p></article>
+        <article class="timeline-step reveal delay-1"><span>5</span><p>Με το submit δημιουργείται notification προς όλους τους admins.</p></article>
+        <article class="timeline-step reveal delay-2"><span>6</span><p>Admin, HR και evaluator βλέπουν την αίτηση και ενημερώνουν το status της.</p></article>
+        <article class="timeline-step reveal"><span>7</span><p>Ο candidate παρακολουθεί την πορεία μέσα από το Application Status και σχετικό timeline.</p></article>
+        <article class="timeline-step reveal delay-1"><span>8</span><p>Αν ο χρήστης γίνει <code>ee_hired</code>, ενεργοποιείται το enrollment flow και η πρόσβασή του στο Moodle.</p></article>
+      </div>
+    </section>
+
+    <section class="panel split" id="admin">
+      <div class="section-heading reveal">
+        <span class="section-index">05</span>
+        <div>
+          <p class="section-kicker">Admin Capabilities</p>
+          <h3>Διαχείριση χρηστών, reports, backup, maintenance και notifications</h3>
+        </div>
+      </div>
+
+      <div class="content-grid two-cols">
+        <article class="glass-card reveal">
+          <h4>Manage Users</h4>
+          <ul class="feature-list compact">
+            <li>Προσθήκη, επεξεργασία και διαγραφή χρήστη</li>
+            <li>Ενημέρωση ρόλου και profile στοιχείων</li>
+            <li>Password reset από admin με validation</li>
+            <li>Προβολή πλήρους καρτέλας χρήστη</li>
+          </ul>
+        </article>
+
+        <article class="glass-card reveal delay-1">
+          <h4>Configure System</h4>
+          <ul class="feature-list compact">
+            <li>Branding με logo και favicon</li>
+            <li>DB backup/copy σε SQL αρχείο με ένα click</li>
+            <li>Maintenance mode toggle για άμεση απομόνωση του συστήματος</li>
+            <li>Moodle settings panel</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="content-grid two-cols">
+        <article class="glass-card reveal">
+          <h4>Admin Notifications</h4>
+          <p>
+            Κάθε νέα αίτηση δημιουργεί εγγραφή στον πίνακα <code>notifications</code>.
+            Το admin dashboard εμφανίζει unread count, preview στο dropdown και action για "mark all as read".
+          </p>
+        </article>
+
+        <article class="glass-card reveal delay-1">
+          <h4>Reports & Excel</h4>
+          <p>
+            Το admin report module υποστηρίζει εξαγωγή σε Excel με στατιστικά αιτήσεων,
+            ποσοστά έγκρισης και απόρριψης, καθώς και φίλτρα ανά περίοδο.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="candidate">
+      <div class="section-heading reveal">
+        <span class="section-index">06</span>
+        <div>
+          <p class="section-kicker">Candidate Experience</p>
+          <h3>Υποβολή αιτήσεων, drafts, status tracking και profile management</h3>
+        </div>
+      </div>
+
+      <div class="cards-grid four-up">
+        <article class="glass-card reveal">
+          <h4>Dashboard</h4>
+          <p>Σύνοψη αιτήσεων με total, drafts, under review και upcoming deadlines.</p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <h4>My Applications</h4>
+          <p>Αναζήτηση προκηρύξεων, wizard τεσσάρων βημάτων και δυνατότητα draft ή submit.</p>
+        </article>
+        <article class="glass-card reveal delay-2">
+          <h4>Application Status</h4>
+          <p>Παρακολούθηση της τρέχουσας κατάστασης, του ιστορικού και του timeline αξιολόγησης.</p>
+        </article>
+        <article class="glass-card reveal">
+          <h4>My Profile</h4>
+          <p>Επεξεργασία προσωπικών και ακαδημαϊκών στοιχείων, αλλαγή κωδικού και avatar upload.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="enrollment">
+      <div class="section-heading reveal">
+        <span class="section-index">07</span>
+        <div>
+          <p class="section-kicker">Enrollment Dashboard</p>
+          <h3>LMS sync, full sync, reports και στατιστικά εξαγωγής</h3>
+        </div>
+      </div>
+
+      <div class="cards-grid four-up">
+        <article class="glass-card reveal">
+          <h4>LMS Sync</h4>
+          <p>Οι <code>admin</code> και <code>hr</code> μπορούν να ενεργοποιούν, να απενεργοποιούν ή να αλλάζουν μάθημα για χρήστες <code>ee_hired</code>.</p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <h4>EE_Hired View</h4>
+          <p>Ο <code>ee_hired</code> βλέπει αν έχει ενεργή πρόσβαση στο Moodle και το σχετικό link εισόδου.</p>
+        </article>
+        <article class="glass-card reveal delay-2">
+          <h4>Full Sync</h4>
+          <p>Υποστηρίζεται force full sync, auto-sync toggle και πλήρες ιστορικό από sync logs.</p>
+        </article>
+        <article class="glass-card reveal">
+          <h4>Report / Download Stats</h4>
+          <p>CSV export με UTF-8 BOM και ελληνικά headers, ώστε να ανοίγει σωστά στο Excel.</p>
+        </article>
+      </div>
+
+      <article class="glass-card reveal highlight-block">
+        <h4>Τι σημαίνει το "Download Stats"</h4>
+        <p>
+          Η λειτουργία παράγει αρχείο με συνοπτικά enrollment metrics, αναλυτική λίστα χρηστών
+          και κατανομή πρόσβασης ανά μάθημα. Είναι χρήσιμη για reporting και γρήγορο απολογισμό.
+        </p>
+      </article>
+    </section>
+
+    <section class="panel split" id="security">
+      <div class="section-heading reveal">
+        <span class="section-index">08</span>
+        <div>
+          <p class="section-kicker">Security & Data Safety</p>
+          <h3>PDO, sessions, sanitization, πολιτική κωδικών και ασφαλής διαχείριση αρχείων</h3>
+        </div>
+      </div>
+
+      <div class="content-grid two-cols">
+        <article class="glass-card reveal">
+          <h4>Πού φαίνεται η ασφάλεια στον κώδικα</h4>
+          <ul class="feature-list compact">
+            <li>PDO με prepared statements σε authentication, API και enrollment actions</li>
+            <li>Sessions με guards και role checks σε κάθε module</li>
+            <li><code>htmlspecialchars()</code> για ασφαλή εμφάνιση δυναμικών δεδομένων</li>
+            <li><code>password_hash()</code> και <code>password_verify()</code> για ασφαλή διαχείριση credentials</li>
+          </ul>
+        </article>
+
+        <article class="glass-card reveal delay-1">
+          <h4>Πολιτική ισχυρού κωδικού</h4>
+          <ul class="feature-list compact">
+            <li>Τουλάχιστον 8 χαρακτήρες</li>
+            <li>Τουλάχιστον 1 κεφαλαίο, 1 πεζό και 1 αριθμός</li>
+            <li>Τουλάχιστον 1 special character από προκαθορισμένο επιτρεπόμενο σύνολο</li>
+            <li>Έλεγχος τόσο client-side όσο και server-side</li>
+          </ul>
+        </article>
+      </div>
+
+      <article class="glass-card reveal">
+        <h4>Επιπλέον προστασία αρχείων</h4>
+        <p>
+          Τα αρχεία αιτήσεων κατεβαίνουν μόνο μετά από authorization check,
+          με έλεγχο ownership, προστασία από path traversal και whitelist σε MIME type και extension.
+        </p>
+      </article>
+    </section>
+
+    <section class="panel" id="responsive">
+      <div class="section-heading reveal">
+        <span class="section-index">09</span>
+        <div>
+          <p class="section-kicker">Mobile View + Desktop View</p>
+          <h3>Responsive behavior σε authentication, admin και recruitment pages</h3>
+        </div>
+      </div>
+
+      <div class="cards-grid four-up">
+        <article class="glass-card reveal">
+          <h4>Auth pages</h4>
+          <p>Media queries στο <code>authent.css</code> για breakpoints και stacked layout σε κινητό.</p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <h4>Admin UI</h4>
+          <p>Bootstrap/AdminLTE grid και breakpoints για tables, cards και sidebar behavior.</p>
+        </article>
+        <article class="glass-card reveal delay-2">
+          <h4>Recruitment pages</h4>
+          <p>Ξεχωριστά responsive styles για <code>index</code>, <code>myapplication</code>, <code>applicationstatus</code> και <code>myprofile</code>.</p>
+        </article>
+        <article class="glass-card reveal">
+          <h4>UX consistency</h4>
+          <p>Ίδια λογική πλοήγησης και feedback σε desktop, tablet και mobile.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel split" id="ops">
+      <div class="section-heading reveal">
+        <span class="section-index">10</span>
+        <div>
+          <p class="section-kicker">Operations</p>
+          <h3>Maintenance mode, exports και backup/copy της βάσης</h3>
+        </div>
+      </div>
+
+      <div class="content-grid two-cols">
+        <article class="glass-card reveal">
+          <h4>Maintenance mode με ένα κουμπί</h4>
+          <p>
+            Στο Configure System υπάρχει switch για "Λειτουργία Συντήρησης".
+            Μόνο ο admin κάνει bypass, ενώ όλοι οι υπόλοιποι οδηγούνται στη maintenance page.
+          </p>
+        </article>
+
+        <article class="glass-card reveal delay-1">
+          <h4>Copy Database</h4>
+          <p>
+            Η λειτουργία "Δημιουργία Αντιγράφου DB" κάνει export όλο το schema και τα data σε SQL file,
+            με <code>DROP</code>, <code>CREATE</code> και <code>INSERT</code> statements για επαναφορά.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="roadmap">
+      <div class="section-heading reveal">
+        <span class="section-index">11</span>
+        <div>
+          <p class="section-kicker">Future Roadmap</p>
+          <h3>Τι μπορεί να προστεθεί ως επόμενο βήμα εξέλιξης</h3>
+        </div>
+      </div>
+
+      <div class="roadmap-grid">
+        <article class="glass-card reveal">
+          <div class="roadmap-tag">Moodle Evolution</div>
+          <h4>Πλήρης Moodle integration</h4>
+          <p>
+            Το τρέχον layer είναι simulation/integration-ready. Επόμενο βήμα είναι πραγματικές REST κλήσεις,
+            token lifecycle, scheduler jobs και webhooks.
+          </p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <div class="roadmap-tag">Security Hardening</div>
+          <h4>Ενίσχυση ασφάλειας</h4>
+          <p>
+            Προσθήκη CSRF tokens, rate limiting σε login/API, optional 2FA και αυτοματοποιημένα backup jobs.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="api">
+      <div class="section-heading reveal">
+        <span class="section-index">12</span>
+        <div>
+          <p class="section-kicker">RESTful API + Postman</p>
+          <h3>Πώς κάναμε testing, ποια methods χρησιμοποιήσαμε και πού χρησιμοποιήθηκαν περισσότερο</h3>
+        </div>
+      </div>
+
+      <div class="cards-grid four-up">
+        <article class="glass-card reveal">
+          <h4>Postman</h4>
+          <p>Χρησιμοποιήσαμε Postman για API testing σε auth flows, enrollment actions και profile responses.</p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <h4>REST Methods</h4>
+          <p>Υλοποιήσαμε GET, POST, PUT και DELETE, για παράδειγμα στον enrollment API controller.</p>
+        </article>
+        <article class="glass-card reveal delay-2">
+          <h4>Τι χρησιμοποιήθηκε περισσότερο</h4>
+          <p>Περισσότερο χρησιμοποιήθηκαν GET και POST για retrieval και submit actions, ενώ PUT και DELETE κάλυψαν update και remove flows.</p>
+        </article>
+        <article class="glass-card reveal">
+          <h4>Session + Role check</h4>
+          <p>Σε κάθε request γίνεται έλεγχος session και role πριν εκτελεστεί οποιαδήποτε sensitive λειτουργία.</p>
+        </article>
+      </div>
+
+      <article class="glass-card reveal highlight-block">
+        <h4>API endpoints που δείχνουμε live</h4>
+        <ul class="feature-list compact">
+          <li><code>api/applications.php</code>: αιτήσεις candidate με GET και POST actions</li>
+          <li><code>api/enrollment.php</code>: LMS access και sync με GET, POST, PUT, DELETE</li>
+          <li><code>api/profile.php</code>: profile, password και avatar actions</li>
+          <li><code>api/notifications.php</code>: mark-as-read action για admin notifications</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="panel split" id="stack">
+      <div class="section-heading reveal">
+        <span class="section-index">13</span>
+        <div>
+          <p class="section-kicker">Stack και Styling</p>
+          <h3>Τι τεχνολογίες χρησιμοποιήσαμε και πώς στήσαμε το UI</h3>
+        </div>
+      </div>
+
+      <div class="content-grid two-cols">
+        <article class="glass-card reveal">
+          <h4>Γλώσσες / Εργαλεία</h4>
+          <ul class="feature-list compact">
+            <li>PHP για backend logic, guards και APIs</li>
+            <li>MySQL/MariaDB για schema, relations και reports</li>
+            <li>HTML5, CSS3, JavaScript</li>
+            <li>Bootstrap 5 + AdminLTE</li>
+          </ul>
+        </article>
+
+        <article class="glass-card reveal delay-1">
+          <h4>CSS και AdminLTE</h4>
+          <ul class="feature-list compact">
+            <li>Χρησιμοποιήσαμε AdminLTE για grid, sidebar, cards και components</li>
+            <li>Προσθέσαμε custom CSS για branding και module-specific σελίδες</li>
+            <li>Responsive breakpoints σε auth, admin, recruitment και enrollment views</li>
+            <li>Συνδυασμός utility classes και custom stylesheets</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="branches">
+      <div class="section-heading reveal">
+        <span class="section-index">14</span>
+        <div>
+          <p class="section-kicker">Git Workflow</p>
+          <h3>Πόσα branches χρησιμοποιήσαμε και γιατί</h3>
+        </div>
+      </div>
+
+      <div class="cards-grid four-up">
+        <article class="glass-card reveal">
+          <h4>11 local branches</h4>
+          <p>Feature και test branches για παράλληλη ανάπτυξη, χωρίς να διακόπτεται το main flow.</p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <h4>7 remote branches</h4>
+          <p>Shared branches στο origin για συνεργασία ομάδας, συγχρονισμό και review.</p>
+        </article>
+        <article class="glass-card reveal delay-2">
+          <h4>Γιατί branches</h4>
+          <p>Isolation ανά feature, όπως profile picture, dashboard, session fixes και testing.</p>
+        </article>
+        <article class="glass-card reveal">
+          <h4>Όφελος</h4>
+          <p>Καλύτερος έλεγχος merges, λιγότερα conflicts και ασφαλέστερες παραδόσεις.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="challenges">
+      <div class="section-heading reveal">
+        <span class="section-index">15</span>
+        <div>
+          <p class="section-kicker">Challenges που λύθηκαν</p>
+          <h3>Τεχνικά προβλήματα και λύσεις στην πράξη</h3>
+        </div>
+      </div>
+
+      <div class="cards-grid four-up">
+        <article class="glass-card reveal">
+          <h4>Role complexity</h4>
+          <p>Διαφορετικά redirects και permissions για 5 ρόλους, με guards και session checks.</p>
+        </article>
+        <article class="glass-card reveal delay-1">
+          <h4>File safety</h4>
+          <p>Uploads και downloads με validation τύπου αρχείου, path safety και ownership checks.</p>
+        </article>
+        <article class="glass-card reveal delay-2">
+          <h4>LMS synchronization</h4>
+          <p>Manual και auto-sync flows με logs, statuses και report export.</p>
+        </article>
+        <article class="glass-card reveal">
+          <h4>UI consistency</h4>
+          <p>Ενοποίηση διαφορετικών modules με κοινό design language πάνω σε Bootstrap/AdminLTE και custom styling.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel" id="lessons">
+      <div class="section-heading reveal">
+        <span class="section-index">16</span>
+        <div>
+          <p class="section-kicker">Γενική εικόνα - Τι μάθαμε</p>
+          <h3>Από full-stack ανάπτυξη μέχρι ομαδική οργάνωση project</h3>
+        </div>
+      </div>
+
+      <article class="glass-card reveal transcript-card">
+        <ul class="feature-list transcript-list compact">
+          <li>Πώς σχεδιάζεται ένα πλήρες σύστημα με database relations και διακριτά modules.</li>
+          <li>Πώς στήνεται REST-like API layer και πώς ελέγχεται με Postman.</li>
+          <li>Πώς εφαρμόζεται session-based authorization με role checks σε κάθε flow.</li>
+          <li>Πώς συνδυάζεται το AdminLTE και το Bootstrap με custom CSS για καθαρό UI.</li>
+          <li>Πώς οργανώνεται η ομαδική ανάπτυξη με branches, merges και σταδιακή παράδοση features.</li>
+        </ul>
+      </article>
+
+      <article class="glass-card reveal delay-1">
+        <h4>Σημείωση για το live demo</h4>
+        <p>
+          Σε αυτό το στάδιο παρουσιάζουμε τη δομή, τη λογική και τα βασικά features.
+          Αμέσως μετά ακολουθεί live walkthrough της εφαρμογής στο localhost ώστε να φανεί το end-to-end flow στην πράξη.
+        </p>
+      </article>
+    </section>
+  </main>
+
+  <button class="scroll-top" id="scrollTopBtn" aria-label="Επιστροφή στην κορυφή">↑</button>
+
+  <script src="script.js"></script>
+</body>
+</html>
