@@ -1,4 +1,5 @@
 <?php
+// Legacy auth/login (EL/EN): basic email+password login endpoint.
 session_start();
 
 require_once __DIR__ . '/../includes/db.php';
@@ -12,6 +13,7 @@ if (isset($_SESSION['user_id'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate user input before query execution.
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 

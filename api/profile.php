@@ -1,4 +1,6 @@
 <?php
+// API guide (EL/EN):
+// Profile endpoint for view/update profile, change password, and avatar upload.
 if (session_status() === PHP_SESSION_NONE) session_start();
 header('Content-Type: application/json; charset=utf-8');
 
@@ -12,6 +14,7 @@ require_once '../database/db.php';
 
 $userId = (int)$_SESSION['user_id'];
 
+// Method router: GET loads profile, POST updates profile/password/avatar.
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         handleGet($pdo, $userId);
@@ -122,6 +125,7 @@ function isValidStrongPassword(string $password): bool {
 }
 
 function handlePasswordChange(PDO $pdo, int $userId): void {
+    // Password hardening: verify current password before writing new hash.
     $currentPassword = (string)($_POST['current_password'] ?? '');
     $newPassword = (string)($_POST['new_password'] ?? '');
     $confirmPassword = (string)($_POST['confirm_password'] ?? '');
@@ -180,6 +184,7 @@ function handlePasswordChange(PDO $pdo, int $userId): void {
 }
 
 function handleAvatarUpload(PDO $pdo, int $userId): void {
+    // Upload hardening: verify upload status, MIME type, size, and safe destination.
     if (!isset($_FILES['avatar']) || !is_array($_FILES['avatar'])) {
         http_response_code(422);
         echo json_encode(['success' => false, 'error' => 'No image file selected']);
@@ -294,6 +299,7 @@ function handleAvatarUpload(PDO $pdo, int $userId): void {
 
 /* ── GET: return profile + academic data ─────────────────────────── */
 function handleGet(PDO $pdo, int $userId): void {
+    // Reads only compatible columns that exist in the current users schema.
     $availableColumns = getUsersTableColumns($pdo);
     $candidateColumns = [
         'first_name',
@@ -349,6 +355,7 @@ function handleGet(PDO $pdo, int $userId): void {
 
 /* ── POST: update user info + academic data ──────────────────────── */
 function handlePost(PDO $pdo, int $userId): void {
+    // POST supports 3 modes: avatar upload, password change, or JSON profile update.
     if (isset($_POST['action']) && $_POST['action'] === 'update_avatar') {
         handleAvatarUpload($pdo, $userId);
         return;

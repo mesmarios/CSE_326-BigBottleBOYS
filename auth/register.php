@@ -1,4 +1,5 @@
 <?php
+// Legacy auth/register (EL/EN): validates username/email/password and inserts user.
 
 require_once __DIR__ . '/../includes/db.php';
 
@@ -49,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($errors === []) {
+        // Password is hashed before storage.
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
         $stmt = $pdo->prepare(

@@ -1,4 +1,6 @@
 <?php
+// API guide (EL/EN):
+// Handles candidate applications actions (get, save_draft, submit, delete).
 if (session_status() === PHP_SESSION_NONE) session_start();
 header('Content-Type: application/json; charset=utf-8');
 
@@ -13,6 +15,7 @@ require_once '../database/db.php';
 $userId = (int)$_SESSION['user_id'];
 $action = $_GET['action'] ?? '';
 
+// Method router: GET reads data, POST changes state.
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     handleGet($pdo, $userId);
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -56,6 +59,7 @@ function getSupPaths(array $row): array {
 
 /* ── GET: list all applications for the current user ────────────── */
 function handleGet(PDO $pdo, int $userId): void {
+    // Security note: prepared statement + bound values to avoid SQL injection.
     $stmt = $pdo->prepare("
         SELECT
             ca.id,
@@ -146,6 +150,7 @@ function handleGet(PDO $pdo, int $userId): void {
 
 /* ── POST save_draft: create or update a draft (JSON body, no files) */
 function handleSaveDraft(PDO $pdo, int $userId): void {
+    // Draft API expects JSON body from fetch(..., { body: JSON.stringify(...) }).
     $body = json_decode(file_get_contents('php://input'), true);
     $announcementId = (int)($body['announcement_id'] ?? 0);
     if (!$announcementId) {
@@ -193,6 +198,7 @@ function handleSaveDraft(PDO $pdo, int $userId): void {
 
 /* ── POST submit: save form data + uploaded files, set status=submitted */
 function handleSubmit(PDO $pdo, int $userId): void {
+    // Final submit flow: optional files + DB upsert + admin notification.
     $announcementId = (int)($_POST['announcement_id'] ?? 0);
     if (!$announcementId) {
         echo json_encode(['success' => false, 'error' => 'Missing announcement_id']);
@@ -308,6 +314,7 @@ function handleSubmit(PDO $pdo, int $userId): void {
 
 /* ── Notify all admins about a new submitted application ─────────── */
 function notifyAdminsNewApplication(PDO $pdo, int $candidateId, int $announcementId, int $appId): void {
+    // Creates one notification row per admin user.
     try {
         $infoStmt = $pdo->prepare("
             SELECT u.first_name, u.last_name, ja.title AS job_title
@@ -344,6 +351,7 @@ function notifyAdminsNewApplication(PDO $pdo, int $candidateId, int $announcemen
 
 /* ── POST delete: remove a draft ────────────────────────────────── */
 function handleDelete(PDO $pdo, int $userId): void {
+    // Soft business rule: delete by candidate_id + announcement_id ownership.
     $body = json_decode(file_get_contents('php://input'), true);
     $announcementId = (int)($body['announcement_id'] ?? 0);
     if (!$announcementId) {

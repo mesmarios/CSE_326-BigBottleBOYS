@@ -1,4 +1,6 @@
 <?php
+// API guide (EL/EN):
+// Secure file download endpoint with ownership and safe-path checks.
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 if (empty($_SESSION['user_id'])) {
@@ -25,6 +27,7 @@ $stmt = $pdo->prepare("
     FROM candidate_applications
     WHERE id = ? AND candidate_id = ?
 ");
+// Candidate ownership check before serving any stored file path.
 $stmt->execute([$appId, $userId]);
 $row = $stmt->fetch();
 
@@ -62,6 +65,7 @@ $absPath = dirname(__DIR__) . '/' . $storedPath;
 // Prevent path traversal
 $realPath   = realpath($absPath);
 $uploadRoot = realpath(dirname(__DIR__) . '/uploads/');
+// Path traversal defense: real file must resolve inside uploads root.
 if (!$realPath || !$uploadRoot || strpos($realPath, $uploadRoot) !== 0) {
     http_response_code(403);
     exit('Forbidden');

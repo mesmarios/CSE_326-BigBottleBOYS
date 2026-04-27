@@ -7,6 +7,7 @@
 ================================================================= */
 
 const API_BASE = '../../api';
+// This page talks to profile API only: `${API_BASE}/profile.php`.
 
 const MONTHS = [
   'January','February','March','April','May','June',
@@ -47,6 +48,7 @@ function dobSelectsHTML(stored) {
 }
 
 function getProfileData() {
+  // Bootstrap data injected by PHP from DB-backed user/profile_data fields.
   return (window.CareerTrack && window.CareerTrack.profileData) || {};
 }
 
@@ -57,6 +59,7 @@ function escapeHtml(value) {
 }
 
 function showProfileMessage(message, type = 'danger') {
+  // Lightweight toast-like alert for profile/avatar actions.
   const box = document.getElementById('profileAvatarMessage');
   if (!box) return;
 
@@ -129,6 +132,7 @@ function showSaveFeedback(btn, success) {
 })();
 
 function applyAvatarToUI(src) {
+  // Keep avatar consistent in profile panel + navbar user menu.
   const profileImg = document.getElementById('profilePicSmallBox');
   if (profileImg) profileImg.src = src;
 

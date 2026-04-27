@@ -1,4 +1,5 @@
 <?php
+// Shared PDO bootstrap (EL/EN): included by pages that need DB access.
 // Αυτό το αρχείο γίνεται require_once σε κάθε σελίδα
 try {
  $pdo = new PDO(

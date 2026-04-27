@@ -3,6 +3,7 @@
  * Database Configuration File
  * Specialist Management System - TEPAK
  */
+// Central app config (EL/EN): DB constants, security helpers, shared settings.
 
 // Database connection settings
 define('DB_HOST', 'localhost');
@@ -98,6 +99,7 @@ function escape($text) {
  * @return string
  */
 function hashPassword($password) {
+    // Explicit bcrypt helper with configured cost.
     return password_hash($password, PASSWORD_BCRYPT, ['cost' => BCRYPT_COST]);
 }
 

@@ -1,4 +1,5 @@
 <?php
+// API guide (EL/EN): admin notifications endpoint (currently mark_all_read action).
 if (session_status() === PHP_SESSION_NONE) session_start();
 header('Content-Type: application/json; charset=utf-8');
 
@@ -13,6 +14,7 @@ require_once '../database/db.php';
 $action = $_GET['action'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'mark_all_read') {
+    // Bulk update unread notifications for current admin only.
     $adminId = (int)$_SESSION['user_id'];
     $stmt = $pdo->prepare("
         UPDATE notifications

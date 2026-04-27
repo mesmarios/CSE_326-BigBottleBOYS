@@ -17,6 +17,8 @@ let serverSubmissions = Array.isArray(BOOTSTRAP.submissions)
 
 const APPLICATIONS_API_URL = '../../api/applications.php';
 const PROFILE_API_URL = '../../api/profile.php';
+// Main API URLs used by this screen:
+// applications.php for drafts/submits, profile.php for user profile prefill.
 let currentUserData = normalizeApplicationUserData(BOOTSTRAP.user);
 
 /* ================================================================
@@ -62,6 +64,7 @@ function getApplicationUserData() {
 }
 
 async function refreshApplicationUserFromServer() {
+  // GET profile API to keep form defaults in sync with backend profile data.
   try {
     const response = await fetch(PROFILE_API_URL, {
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -93,6 +96,7 @@ function saveSubmissionsLS(a)   {
 }
 
 async function refreshApplicationsFromServer() {
+  // GET applications API and normalize server payload for UI rendering.
   try {
     const response = await fetch(APPLICATIONS_API_URL, {
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -658,6 +662,7 @@ function collectFormData() {
 }
 
 async function persistDraft() {
+  // POST JSON draft payload to API action=save_draft.
   const formData = collectFormData();
   const drafts = getDrafts();
   drafts[currentCallId] = formData;
@@ -700,6 +705,7 @@ async function persistDraft() {
    Submit application
 ================================================================= */
 async function submitApplication() {
+  // POST multipart/form-data for final submit including optional files.
   const formDataValues = collectFormData();
   const formData = new FormData();
 

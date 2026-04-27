@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+// API guide (EL/EN):
+// Enrollment management endpoint with GET/POST/PUT/DELETE action routing.
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -19,6 +21,7 @@ $method          = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $body            = readRequestBody();
 $action          = resolveAction($method, $body);
 
+// REST-style method dispatch. Same endpoint, different handlers by HTTP verb.
 try {
     if ($method === 'GET') {
         handleGet($pdo, $currentUserId, $currentUserRole, $action);
@@ -47,6 +50,7 @@ try {
 
 function handleGet(PDO $pdo, int $currentUserId, string $currentUserRole, string $action): void
 {
+    // GET: read-only operations (users, courses, logs, settings, my_access).
     $isAdminHr = in_array($currentUserRole, ['admin', 'hr'], true);
 
     if ($action === 'courses') {
@@ -167,6 +171,7 @@ function handleGet(PDO $pdo, int $currentUserId, string $currentUserRole, string
 
 function handlePost(PDO $pdo, int $currentUserId, string $currentUserRole, string $action, array $body): void
 {
+    // POST: create/trigger actions (enable, disable, change_course, force_sync).
     enforceAdminHr($currentUserRole);
 
     if (in_array($action, ['enable', 'create_access'], true)) {
@@ -213,6 +218,7 @@ function handlePost(PDO $pdo, int $currentUserId, string $currentUserRole, strin
 
 function handlePut(PDO $pdo, int $currentUserId, string $currentUserRole, string $action, array $body): void
 {
+    // PUT: update existing access assignment for a user.
     enforceAdminHr($currentUserRole);
 
     if ($action !== 'update_access' && $action !== 'change_course') {
@@ -231,6 +237,7 @@ function handlePut(PDO $pdo, int $currentUserId, string $currentUserRole, string
 
 function handleDelete(PDO $pdo, int $currentUserId, string $currentUserRole, string $action, array $body): void
 {
+    // DELETE: logical delete (set access inactive), not physical row removal.
     enforceAdminHr($currentUserRole);
 
     if ($action !== 'delete_access' && $action !== 'disable') {

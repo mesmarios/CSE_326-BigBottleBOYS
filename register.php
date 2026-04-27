@@ -1,4 +1,5 @@
 <?php
+// Registration flow (EL/EN): validate input, enforce strong password, insert new user.
 require_once 'database/db.php';
 require_once 'includes/admin-branding.php';
 
@@ -9,6 +10,7 @@ $errors = [];
 
 function isValidStrongPassword(string $password): bool
 {
+    // Strong policy: length + upper + lower + digit + special.
     return strlen($password) >= 8
         && preg_match('/[A-Z]/', $password) === 1
         && preg_match('/[a-z]/', $password) === 1
@@ -42,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Έλεγχος αν υπάρχει ήδη το email
     if (empty($errors)) {
+        // Prepared statement protects insert from SQL injection.
         $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :e');
         $stmt->execute([':e' => $email]);
         if ($stmt->fetch()) $errors[] = 'Το email χρησιμοποιείται ήδη.';

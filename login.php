@@ -1,4 +1,5 @@
 <?php
+// Auth flow (EL/EN): validate credentials, regenerate session id, then redirect by role.
 session_start();
 require_once 'database/db.php';
 require_once 'includes/admin-branding.php';
@@ -30,6 +31,7 @@ if (isset($_SESSION['auth_error'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Input sanity check before DB lookup.
     $email    = trim($_POST['email']    ?? '');
     $password = $_POST['password']      ?? '';
 
@@ -41,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
+            // Session hardening: rotate ID after successful authentication.
             session_regenerate_id(true);
             $_SESSION['user_id']    = $user['id'];
             $_SESSION['role']       = $user['role'];
